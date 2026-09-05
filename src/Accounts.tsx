@@ -151,6 +151,11 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
   /** 3f-1: the business type picker (owner direction 2026-08-16 — the catalog
    *  is B2B & B2C only; B2B is the default: "Mainly we will be selling B2B"). */
   const [vertical, setVertical] = useState("b2b");
+  /** When business type is Wholesale Real Estate, package tier is hidden and omitted */
+  const isWholesaleCreate =
+    vertical === "wholesalebiz" ||
+    vertical === "wholesale" ||
+    vertical.toLowerCase().includes("wholesale");
   /** Owner 2026-08-27 — the client package tier picked on the Create-account
    *  form ('' unset | tier1..4). Stored on the new account (org). */
   const [tier, setTier] = useState<PackageTier>("");
@@ -285,7 +290,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
         email: email.trim(),
         password,
         vertical,
-        tier,
+        tier: isWholesaleCreate ? "" : tier,
       });
       // Keep the form expanded so the just-created account alert (temp
       // password!) is guaranteed visible even if the owner collapsed it.
@@ -665,7 +670,20 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
             </label>
             <label className="field">
               <span className="field-label">Business type</span>
-              <select value={vertical} onChange={(e) => setVertical(e.target.value)}>
+              <select
+                value={vertical}
+                onChange={(e) => {
+                  const nextVal = e.target.value;
+                  setVertical(nextVal);
+                  if (
+                    nextVal === "wholesalebiz" ||
+                    nextVal === "wholesale" ||
+                    nextVal.toLowerCase().includes("wholesale")
+                  ) {
+                    setTier("");
+                  }
+                }}
+              >
                 {ALL_VERTICALS.map((v) => (
                   <option key={v.key} value={v.key}>
                     {v.label}
@@ -678,22 +696,24 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                 later in Settings.
               </span>
             </label>
-            <label className="field">
-              <span className="field-label">Package tier</span>
-              <select value={tier} onChange={(e) => setTier(e.target.value as PackageTier)}>
-                <option value="">— No tier —</option>
-                {PACKAGE_TIERS.map((t) => (
-                  <option key={t} value={t}>
-                    {TIER_LABELS[t]}
-                  </option>
-                ))}
-              </select>
-              <span className="field-hint">
-                The client's package tier (Website / +CRM / +Lead gen / Custom). It flows to the
-                account and drives Services tags + the onboarding checklist. Pricing is set at
-                charge time.
-              </span>
-            </label>
+            {!isWholesaleCreate && (
+              <label className="field">
+                <span className="field-label">Package tier</span>
+                <select value={tier} onChange={(e) => setTier(e.target.value as PackageTier)}>
+                  <option value="">— No tier —</option>
+                  {PACKAGE_TIERS.map((t) => (
+                    <option key={t} value={t}>
+                      {TIER_LABELS[t]}
+                    </option>
+                  ))}
+                </select>
+                <span className="field-hint">
+                  The client's package tier (Website / +CRM / +Lead gen / Custom). It flows to the
+                  account and drives Services tags + the onboarding checklist. Pricing is set at
+                  charge time.
+                </span>
+              </label>
+            )}
             <label className="field">
               <span className="field-label">Client email *</span>
               <input
