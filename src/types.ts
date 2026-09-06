@@ -513,7 +513,20 @@ export interface Buyer {
   createdAt: string;
   updatedAt: string;
 }
-export const TENANT_TABS = ["clients", "tasks", "finance", "settings", "support"] as const;
+export const TENANT_TABS = [
+  "dashboard",
+  "clients",
+  "offers",
+  "documents",
+  "buybox",
+  "investors",
+  "connections",
+  "tasks",
+  "support",
+  "settings",
+  "finance",
+  "appointments",
+] as const;
 export type TenantTab = (typeof TENANT_TABS)[number];
 
 export interface TabPermission {

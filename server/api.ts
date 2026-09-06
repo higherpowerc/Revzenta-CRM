@@ -370,11 +370,30 @@ function orgPermissions(userId: number): TabPermissions {
 
 function canReadTab(auth: AuthContext, tab: TenantTab): boolean {
   if (isOrgAdmin(auth)) return true;
-  return orgPermissions(auth.userId)[tab] !== undefined;
+  const perms = orgPermissions(auth.userId);
+  if (perms[tab] !== undefined) return true;
+  // Backwards compatibility for users with legacy 5-tab grants
+  if (tab === "dashboard" || tab === "appointments") return true;
+  if ((tab === "offers" || tab === "documents" || tab === "buybox" || tab === "investors") && perms["clients"] !== undefined) {
+    return true;
+  }
+  if (tab === "connections" && perms["settings"] !== undefined) {
+    return true;
+  }
+  return false;
 }
 function canEditTab(auth: AuthContext, tab: TenantTab): boolean {
   if (isOrgAdmin(auth)) return true;
-  return orgPermissions(auth.userId)[tab]?.edit === true;
+  const perms = orgPermissions(auth.userId);
+  if (perms[tab] !== undefined) return perms[tab]?.edit === true;
+  // Backwards compatibility for users with legacy 5-tab grants
+  if ((tab === "offers" || tab === "documents" || tab === "buybox" || tab === "investors") && perms["clients"] !== undefined) {
+    return perms["clients"]?.edit === true;
+  }
+  if (tab === "connections" && perms["settings"] !== undefined) {
+    return perms["settings"]?.edit === true;
+  }
+  return false;
 }
 
 /** Per-tab read/write gates — return a 403 Response when a RESTRICTED member
@@ -7339,13 +7358,9 @@ ${businessName}
         if (!v.ok) return err(v.error, 400);
         permissionsJson = JSON.stringify(v.value);
       } else {
-        permissionsJson = JSON.stringify({
-          clients: { edit: false },
-          tasks: { edit: false },
-          finance: { edit: false },
-          settings: { edit: false },
-          support: { edit: false },
-        });
+        const defPerms: Record<string, { edit: boolean }> = {};
+        for (const t of TENANT_TABS) defPerms[t] = { edit: false };
+        permissionsJson = JSON.stringify(defPerms);
       }
     } else {
       permissionsJson = "{}";

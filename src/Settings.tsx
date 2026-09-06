@@ -239,13 +239,28 @@ export default function Settings({
      Passwords are write-only: the admin types a temp password at create/
      reset; the API hashes it and never returns it, so the admin passes it
      to the member themselves. */
-  const MEMBER_TAB_LABELS: { tab: TenantTab; label: string }[] = [
-    { tab: "clients", label: "Clients" },
-    { tab: "tasks", label: "Tasks" },
-    { tab: "finance", label: "Finance" },
-    { tab: "settings", label: "Settings" },
-    { tab: "support", label: "Support" },
-  ];
+  const MEMBER_TAB_LABELS: { tab: TenantTab; label: string }[] = isWholesaleEffective
+    ? [
+        { tab: "dashboard", label: "Dashboard" },
+        { tab: "clients", label: "Opportunities" },
+        { tab: "offers", label: "Offers Repository" },
+        { tab: "documents", label: "Transaction Hub" },
+        { tab: "buybox", label: "Buy Box" },
+        { tab: "investors", label: "Investors" },
+        { tab: "connections", label: "Connections" },
+        { tab: "tasks", label: "Tasks" },
+        { tab: "support", label: "Support" },
+        { tab: "settings", label: "Settings" },
+      ]
+    : [
+        { tab: "dashboard", label: "Dashboard" },
+        { tab: "clients", label: "Leads & Clients" },
+        { tab: "appointments", label: "Appointments" },
+        { tab: "tasks", label: "Tasks" },
+        { tab: "finance", label: "Finance" },
+        { tab: "support", label: "Support" },
+        { tab: "settings", label: "Settings" },
+      ];
   type PermChoice = "view" | "edit" | "none";
   const PERM_OPTIONS: { value: PermChoice; label: string }[] = [
     { value: "view", label: "View only" },
@@ -318,13 +333,11 @@ export default function Settings({
     setResetPasswordValue("");
     setEditingId(m.id);
     setEditRole(m.role);
-    setEditChoices({
-      clients: permToChoice(m.permissions, "clients"),
-      tasks: permToChoice(m.permissions, "tasks"),
-      finance: permToChoice(m.permissions, "finance"),
-      settings: permToChoice(m.permissions, "settings"),
-      support: permToChoice(m.permissions, "support"),
-    });
+    const choices = {} as Record<TenantTab, PermChoice>;
+    for (const t of TENANT_TABS) {
+      choices[t] = permToChoice(m.permissions, t);
+    }
+    setEditChoices(choices);
   }
 
   function beginReset(m: OrgMember) {

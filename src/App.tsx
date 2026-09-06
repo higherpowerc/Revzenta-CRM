@@ -222,12 +222,38 @@ export default function App() {
   const canSeeTab = (tab: TenantTab): boolean => {
     if (isOwnerOrg) return true;
     if (user?.isOrgAdmin === true) return true;
-    return user?.permissions?.[tab] !== undefined;
+    if (user?.permissions?.[tab] !== undefined) return true;
+    // Backwards compatibility for users with legacy 5-tab grants
+    if (tab === "dashboard" || tab === "appointments") return true;
+    if (isWholesale) {
+      if (
+        (tab === "offers" || tab === "documents" || tab === "buybox" || tab === "investors") &&
+        user?.permissions?.["clients"] !== undefined
+      ) {
+        return true;
+      }
+      if (tab === "connections" && user?.permissions?.["settings"] !== undefined) {
+        return true;
+      }
+    }
+    return false;
   };
   const canEditTab = (tab: TenantTab): boolean => {
     if (isOwnerOrg) return true;
     if (user?.isOrgAdmin === true) return true;
-    return user?.permissions?.[tab]?.edit === true;
+    if (user?.permissions?.[tab] !== undefined) return user?.permissions?.[tab]?.edit === true;
+    if (isWholesale) {
+      if (
+        (tab === "offers" || tab === "documents" || tab === "buybox" || tab === "investors") &&
+        user?.permissions?.["clients"] !== undefined
+      ) {
+        return user?.permissions?.["clients"]?.edit === true;
+      }
+      if (tab === "connections" && user?.permissions?.["settings"] !== undefined) {
+        return user?.permissions?.["settings"]?.edit === true;
+      }
+    }
+    return false;
   };
   /* If the current view is a tab the session user can no longer access
      (e.g. an admin revoked it mid-session), fall back to the Dashboard
@@ -235,20 +261,19 @@ export default function App() {
   const viewAllowed = (v: View): boolean => {
     switch (v) {
       case "dashboard":
-        return true;
+        return canSeeTab("dashboard");
       case "leads":
-      case "offers":
-      case "buybox":
-      case "clients":
         return canSeeTab("clients");
+      case "offers":
+        return canSeeTab("offers");
+      case "buybox":
+        return canSeeTab("buybox");
+      case "clients":
+        return isWholesale ? canSeeTab("investors") : canSeeTab("clients");
       case "calendar":
         return isOwnerCockpit;
       case "appointments":
-        /* Appointments production (backlog 5a104eae): visible to every
-           session user — the owner sees all orgs' appointments, each client
-           account sees only its own org's (server-enforced on /api/org/
-           appointments). No per-tab permission exists for it. */
-        return true;
+        return canSeeTab("appointments");
       case "tasks":
         return canSeeTab("tasks");
       case "finance":
@@ -261,18 +286,11 @@ export default function App() {
       case "admin":
         return isOwnerCockpit;
       case "documents":
-        /* Wholesale Biz custom menu (owner 2026-09-04) — the wholesale org's
-           "Agreements" tab reuses the Documents VIEW, tenant-side (a relabel
-           only; the same envelope list). For every other workspace it stays
-           owner-only. */
-        return isOwnerCockpit || isWholesale;
+        return isOwnerCockpit || canSeeTab("documents");
       case "buyers":
-        return isWholesale;
+        return isWholesale && (canSeeTab("investors") || canSeeTab("tasks"));
       case "connections":
-        return isWholesale && canSeeTab("settings");
-      case "offers":
-      case "buybox":
-        return isWholesale && canSeeTab("clients");
+        return isWholesale && canSeeTab("connections");
     }
   };
   const effectiveView: View = viewAllowed(view) ? view : "dashboard";
@@ -657,95 +675,115 @@ export default function App() {
                  (Dashboard, Properties, Offers Repository, Transaction Hub, Buy Box, Investors, Connections, Tasks, Support, Settings) */
               <>
                 {/* 1. Dashboard */}
-                <button
-                  className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
-                  onClick={() => setView("dashboard")}
-                >
-                  Dashboard
-                </button>
+                {canSeeTab("dashboard") && (
+                  <button
+                    className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
+                    onClick={() => setView("dashboard")}
+                  >
+                    Dashboard
+                  </button>
+                )}
 
                 {/* 2. Opportunities */}
-                <button
-                  className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setLeadsStage(null);
-                    setOnboardingStage(null);
-                    setLeadsFilter("active");
-                    setView("leads");
-                  }}
-                  title="Wholesale property pipeline and acquisition opportunities"
-                >
-                  Opportunities
-                </button>
+                {canSeeTab("clients") && (
+                  <button
+                    className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setLeadsStage(null);
+                      setOnboardingStage(null);
+                      setLeadsFilter("active");
+                      setView("leads");
+                    }}
+                    title="Wholesale property pipeline and acquisition opportunities"
+                  >
+                    Opportunities
+                  </button>
+                )}
 
                 {/* 3. Offers Repository */}
-                <button
-                  className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
-                  onClick={() => setView("offers")}
-                  title="Wholesale purchase proposals & dispatched offers repository"
-                >
-                  Offers Repository
-                </button>
+                {canSeeTab("offers") && (
+                  <button
+                    className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
+                    onClick={() => setView("offers")}
+                    title="Wholesale purchase proposals & dispatched offers repository"
+                  >
+                    Offers Repository
+                  </button>
+                )}
 
                 {/* 4. Transaction Hub */}
-                <button
-                  className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
-                  onClick={() => setView("documents")}
-                  title="Title, escrow, and contract transaction hub"
-                >
-                  Transaction Hub
-                </button>
+                {canSeeTab("documents") && (
+                  <button
+                    className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
+                    onClick={() => setView("documents")}
+                    title="Title, escrow, and contract transaction hub"
+                  >
+                    Transaction Hub
+                  </button>
+                )}
 
                 {/* 5. Buy Box */}
-                <button
-                  className={effectiveViewFinal === "buybox" ? "tab active" : "tab"}
-                  onClick={() => setView("buybox")}
-                  title="Investor buy box criteria matching engine"
-                >
-                  Buy Box
-                </button>
+                {canSeeTab("buybox") && (
+                  <button
+                    className={effectiveViewFinal === "buybox" ? "tab active" : "tab"}
+                    onClick={() => setView("buybox")}
+                    title="Investor buy box criteria matching engine"
+                  >
+                    Buy Box
+                  </button>
+                )}
 
                 {/* 6. Investors */}
-                <button
-                  className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
-                  onClick={() => setView("clients")}
-                  title="Vetted cash buyers and creative finance network"
-                >
-                  Investors
-                </button>
+                {canSeeTab("investors") && (
+                  <button
+                    className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
+                    onClick={() => setView("clients")}
+                    title="Vetted cash buyers and creative finance network"
+                  >
+                    Investors
+                  </button>
+                )}
 
                 {/* 7. Connections */}
-                <button
-                  className={effectiveViewFinal === "connections" ? "tab active" : "tab"}
-                  onClick={() => setView("connections")}
-                  title="Inbound webhook channels & data connections"
-                >
-                  Connections
-                </button>
+                {canSeeTab("connections") && (
+                  <button
+                    className={effectiveViewFinal === "connections" ? "tab active" : "tab"}
+                    onClick={() => setView("connections")}
+                    title="Inbound webhook channels & data connections"
+                  >
+                    Connections
+                  </button>
+                )}
 
                 {/* 8. Tasks */}
-                <button
-                  className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
-                  onClick={() => setView("tasks")}
-                >
-                  Tasks
-                </button>
+                {canSeeTab("tasks") && (
+                  <button
+                    className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
+                    onClick={() => setView("tasks")}
+                  >
+                    Tasks
+                  </button>
+                )}
 
                 {/* 9. Support */}
-                <button
-                  className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
-                  onClick={() => setView("tickets")}
-                >
-                  Support
-                </button>
+                {canSeeTab("support") && (
+                  <button
+                    className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
+                    onClick={() => setView("tickets")}
+                  >
+                    Support
+                  </button>
+                )}
 
                 {/* 10. Settings */}
-                <button
-                  className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
-                  onClick={() => setView("settings")}
-                >
-                  Settings
-                </button>
+                {canSeeTab("settings") && (
+                  <button
+                    className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
+                    onClick={() => setView("settings")}
+                  >
+                    Settings
+                  </button>
+                )}
               </>
             ) : (
               /* Tenant or Preview Business Type CRM */
@@ -1000,7 +1038,7 @@ export default function App() {
             }}
           />
         ) : effectiveViewFinal === "buybox" ? (
-          <BuyBoxMatcher canEdit={canEditTab("clients")} />
+          <BuyBoxMatcher canEdit={canEditTab("buybox")} />
         ) : effectiveViewFinal === "onboarding" ? (
           /* Owner request 2026-08-15 — OWNER ONLY: the Onboarding tab scopes
              the pipeline to the MIDDLE stages (between first and terminal).
@@ -1025,7 +1063,7 @@ export default function App() {
           <ClientsDirectory
             stages={stages}
             ownerOrg={isOwnerCockpit}
-            canEdit={canEditTab("clients")}
+            canEdit={isWholesale ? canEditTab("investors") : canEditTab("clients")}
             ownerOrgId={isOwnerOrg ? user.orgId : undefined}
             onViewAccount={isOwnerOrg ? handleImpersonate : undefined}
             isWholesale={isWholesale}
@@ -1046,7 +1084,7 @@ export default function App() {
         ) : effectiveViewFinal === "buyers" ? (
           /* Wholesale Real Estate vertical (owner 2026-09-04) — the
              account's end-buyer list, gated by the tasks grant. */
-          <Buyers canEdit={canEditTab("tasks")} />
+          <Buyers canEdit={isWholesale ? canEditTab("investors") : canEditTab("tasks")} />
         ) : effectiveViewFinal === "finance" ? (
           <Finance canEdit={canEditTab("finance")} ownerOrg={isOwnerCockpit} />
         ) : effectiveViewFinal === "admin" ? (
@@ -1064,7 +1102,7 @@ export default function App() {
             <Documents verticalLabel={undefined} />
           )
         ) : effectiveViewFinal === "connections" ? (
-          <Connections canEdit={canEditTab("settings")} />
+          <Connections canEdit={canEditTab("connections")} />
         ) : effectiveViewFinal === "tickets" ? (
           <Tickets ownerOrg={isOwnerCockpit} canEdit={canEditTab("support")} />
         ) : (

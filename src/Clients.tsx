@@ -1158,10 +1158,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
     return scopedStages.includes(c.stage);
   });
 
-  const sentOffersCount = useMemo(() => {
-    if (!isWholesale || !clients) return 0;
-    return clients.filter((c) => isOfferSentForClient(c)).length;
-  }, [isWholesale, clients]);
+  const sentOffersCount = isWholesale ? clients.filter((c) => isOfferSentForClient(c)).length : 0;
 
   /* Owner request 2026-08-14 — lost leads are excluded from the pipeline seg
      counts (Active/Archived/All); they surface on the "Lost" seg (and DNC

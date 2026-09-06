@@ -206,7 +206,20 @@ export type Role = "admin" | "member";
  * A member whose tab is ABSENT from the object has no access to that tab;
  * {edit:false} = view-only; {edit:true} = can edit. Org admins (role='admin'
  * and the org's original owner login) bypass permissions entirely. */
-export const TENANT_TABS = ["clients", "tasks", "finance", "settings", "support"] as const;
+export const TENANT_TABS = [
+  "dashboard",
+  "clients",
+  "offers",
+  "documents",
+  "buybox",
+  "investors",
+  "connections",
+  "tasks",
+  "support",
+  "settings",
+  "finance",
+  "appointments",
+] as const;
 export type TenantTab = (typeof TENANT_TABS)[number];
 
 export interface TabPermission {
