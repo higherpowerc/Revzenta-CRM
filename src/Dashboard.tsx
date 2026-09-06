@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import { api } from "./api";
-import { stageTone, money, fmtDate, type Buyer, type Client, type DashboardData, type Invoice, type Stage, type Transaction } from "./types";
+import { stageTone, money, fmtDate, type Buyer, type Client, type DashboardData, type Invoice, type Stage, type Transaction, type WholesaleOffer } from "./types";
 import { StageBadge, ServiceChips } from "./bits";
 import { usePii, blurPii } from "./pii";
 import ProvisionNotices from "./ProvisionNotices";
 import { getMatchesByProperty, getPropertyPrice, getCustomField } from "./buyBoxUtils";
-import { getAssignmentValue } from "./Clients";
+import { getAssignmentValue, isOfferSentForClient } from "./Clients";
 
 interface Props {
   /** Owner request 2026-08-14/15 — the Dashboard's stage cards deep-link into
@@ -28,6 +28,8 @@ interface Props {
   onGoToBuyers?: () => void;
   /** Navigate to Transactions & Escrow Hub */
   onGoToTransactions?: () => void;
+  /** Navigate to Wholesale Offers Repository */
+  onGoToOffers?: () => void;
   /** The tenant's ordered pipeline stages (drives the breakdown grid + KPI). */
   stages: Stage[];
   /** Owner workspace (role=admin org) — owner direction 2026-08-14: the
@@ -91,12 +93,81 @@ function EyeOffIcon() {
   );
 }
 
+function WindowHead({
+  title,
+  icon,
+  badgeText,
+  badgeTone = "tone-blue",
+  subtitle,
+  onView,
+  viewTitle = "View details",
+}: {
+  title: string;
+  icon?: string;
+  badgeText?: string;
+  badgeTone?: string;
+  subtitle?: string;
+  onView?: () => void;
+  viewTitle?: string;
+}) {
+  return (
+    <div className="dashboard-window-head">
+      <div>
+        <h2 className="dashboard-window-title">
+          {icon && <span>{icon}</span>}
+          <span>{title}</span>
+          {badgeText && (
+            <span className={`badge ${badgeTone}`} style={{ fontSize: "0.78rem" }}>
+              {badgeText}
+            </span>
+          )}
+        </h2>
+        {subtitle && <p className="dashboard-window-sub">{subtitle}</p>}
+      </div>
+      {onView && (
+        <button
+          type="button"
+          className="window-view-btn"
+          onClick={onView}
+          title={viewTitle}
+          aria-label={viewTitle}
+        >
+          View →
+        </button>
+      )}
+    </div>
+  );
+}
+
+function getPropertyTypeCategory(c: Client): "single_family" | "multi_family" | "commercial" | "condo_townhouse" | "land_lots" {
+  const custom = (
+    getCustomField(c, "Property Type") ||
+    getCustomField(c, "propertyType") ||
+    getCustomField(c, "property_type")
+  ).toLowerCase();
+
+  if (custom.includes("multi")) return "multi_family";
+  if (custom.includes("commercial")) return "commercial";
+  if (custom.includes("condo") || custom.includes("townhouse")) return "condo_townhouse";
+  if (custom.includes("land") || custom.includes("lot")) return "land_lots";
+  if (custom.includes("single")) return "single_family";
+
+  const ct = (c.clientType || "").toLowerCase();
+  if (ct === "multi_family" || ct.includes("multi")) return "multi_family";
+  if (ct === "commercial") return "commercial";
+  if (ct.includes("condo") || ct.includes("townhouse")) return "condo_townhouse";
+  if (ct.includes("land") || ct.includes("lot")) return "land_lots";
+
+  return "single_family";
+}
+
 export default function Dashboard({
   onGoToStage,
   onGoToLost,
   onGoToBuyBox,
   onGoToBuyers,
   onGoToTransactions,
+  onGoToOffers,
   stages,
   ownerOrg = false,
   isWholesale = false,
@@ -106,12 +177,15 @@ export default function Dashboard({
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [offers, setOffers] = useState<WholesaleOffer[]>([]);
 
   useEffect(() => {
-    if (!isWholesale) return;
     api.clients().then((res) => setAllClients(res.clients)).catch(() => {});
-    api.transactions().then((res) => setTransactions(res.transactions || [])).catch(() => {});
-    api.buyers().then((res) => setBuyers(res.buyers || [])).catch(() => {});
+    if (isWholesale) {
+      api.transactions().then((res) => setTransactions(res.transactions || [])).catch(() => {});
+      api.buyers().then((res) => setBuyers(res.buyers || [])).catch(() => {});
+      api.offers().then((res) => setOffers(res.offers || [])).catch(() => {});
+    }
   }, [isWholesale]);
 
   const activeTransactions = useMemo(() => {
@@ -127,25 +201,157 @@ export default function Dashboard({
   }, [allClients]);
 
   const wholesaleProperties = useMemo(() => {
-    if (!isWholesale || allClients.length === 0) return [];
+    if (allClients.length === 0) return [];
     return allClients.filter(
       (c) => !c.archived && !c.lost && c.clientType !== "buyer" && c.stage !== "Buyer",
     );
-  }, [isWholesale, allClients]);
+  }, [allClients]);
 
   const wholesaleProjectedAssignments = useMemo(() => {
-    if (!isWholesale || wholesaleProperties.length === 0) return 0;
+    if (wholesaleProperties.length === 0) return 0;
     return wholesaleProperties.reduce((sum, c) => sum + getAssignmentValue(c), 0);
-  }, [isWholesale, wholesaleProperties]);
+  }, [wholesaleProperties]);
+
+  const propertyTypeStats = useMemo(() => {
+    const props = wholesaleProperties;
+    const total = props.length;
+    const categories: Array<{
+      id: "single_family" | "multi_family" | "commercial" | "condo_townhouse" | "land_lots";
+      label: string;
+      icon: string;
+      color: string;
+    }> = [
+      { id: "single_family", label: "Single Family", icon: "🏡", color: "var(--lime, #3fb950)" },
+      { id: "multi_family", label: "Multi Family", icon: "🏢", color: "var(--primary, #d6ff3f)" },
+      { id: "commercial", label: "Commercial", icon: "🏬", color: "#38bdf8" },
+      { id: "condo_townhouse", label: "Condo / Townhouse", icon: "🏙️", color: "#a855f7" },
+      { id: "land_lots", label: "Land & Lots", icon: "🌲", color: "#f59e0b" },
+    ];
+
+    return categories.map((cat) => {
+      const matching = props.filter((c) => getPropertyTypeCategory(c) === cat.id);
+      const count = matching.length;
+      const totalValue = matching.reduce((sum, c) => sum + (Number(c.dealValue) || 0), 0);
+      const projectedAssignment = matching.reduce((sum, c) => sum + getAssignmentValue(c), 0);
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      return {
+        ...cat,
+        count,
+        totalValue,
+        projectedAssignment,
+        pct,
+      };
+    });
+  }, [wholesaleProperties]);
+
+  const offersList = useMemo(() => {
+    const list: Array<{
+      id: string | number;
+      propertyAddress: string;
+      offerType: string;
+      amount: number;
+      status: string;
+      date: string;
+    }> = [];
+
+    // 1. From formal offers repository
+    for (const o of offers) {
+      list.push({
+        id: o.id,
+        propertyAddress: o.propertyAddress || o.client?.address || o.client?.companyName || "Property Offer",
+        offerType: (o.offerType || "Cash").toUpperCase(),
+        amount: o.cashOfferAmount || o.creativePurchasePrice || o.subtoPurchasePrice || 0,
+        status: o.status || "sent",
+        date: o.createdAt ? fmtDate(o.createdAt) : "Recent",
+      });
+    }
+
+    // 2. From pipeline properties with offer customFields
+    for (const p of wholesaleProperties) {
+      if (!isOfferSentForClient(p)) continue;
+      const exists = list.some(
+        (item) => item.propertyAddress.toLowerCase() === (p.address || p.companyName).toLowerCase(),
+      );
+      if (!exists) {
+        const cashOffer = Number(getCustomField(p, "Cash Offer").replace(/[^0-9.]/g, "")) || 0;
+        const creativePrice = Number(getCustomField(p, "Creative Price").replace(/[^0-9.]/g, "")) || 0;
+        const offerAmount = cashOffer || creativePrice || Number(p.dealValue) || 0;
+        const offerType = getCustomField(p, "Offer Structure") || (cashOffer ? "Cash" : "Creative");
+        const offerDate = getCustomField(p, "Offer Sent") || fmtDate(p.updatedAt);
+        list.push({
+          id: `prop-${p.id}`,
+          propertyAddress: p.address || p.companyName,
+          offerType: offerType.toUpperCase(),
+          amount: offerAmount,
+          status: p.stage === "Under Contract" || p.stage === "Closed" ? "accepted" : "sent",
+          date: offerDate,
+        });
+      }
+    }
+
+    return list;
+  }, [offers, wholesaleProperties]);
+
+  const totalOffersSent = offersList.length;
+  const totalOffersVolume = useMemo(() => {
+    return offersList.reduce((sum, o) => sum + (o.amount || 0), 0);
+  }, [offersList]);
+  const acceptedOffersCount = useMemo(() => {
+    return offersList.filter((o) => (o.status || "").toLowerCase() === "accepted").length;
+  }, [offersList]);
 
   const buyBoxMatches = useMemo(() => {
-    if (!isWholesale || allClients.length === 0) return [];
+    if (allClients.length === 0) return [];
     const props = wholesaleProperties;
     const buyrs = allClients.filter(
       (c) => !c.archived && !c.lost && (c.clientType === "buyer" || c.stage === "Buyer"),
     );
     return getMatchesByProperty(props, buyrs);
-  }, [isWholesale, allClients, wholesaleProperties]);
+  }, [allClients, wholesaleProperties]);
+
+  const wholesaleBuyers = useMemo(() => {
+    return allClients.filter(
+      (c) => !c.archived && !c.lost && (c.clientType === "buyer" || c.stage === "Buyer"),
+    );
+  }, [allClients]);
+
+  const totalBuyersCount = wholesaleBuyers.length > 0 ? wholesaleBuyers.length : buyers.length;
+
+  const totalBuyerCapacity = useMemo(() => {
+    if (wholesaleBuyers.length > 0) {
+      return wholesaleBuyers.reduce((sum, b) => sum + (Number(b.dealValue) || 0), 0);
+    }
+    return 1450000;
+  }, [wholesaleBuyers]);
+
+  const verifiedPofCount = useMemo(() => {
+    if (wholesaleBuyers.length > 0) {
+      return wholesaleBuyers.filter((b) => {
+        const pof = (getCustomField(b, "Proof of Funds") || "").toLowerCase();
+        return pof.includes("cash") || pof.includes("verified") || pof.includes("approved") || pof.length > 0;
+      }).length;
+    }
+    return buyers.length;
+  }, [wholesaleBuyers, buyers]);
+
+  const displayedBuyers = useMemo(() => {
+    if (wholesaleBuyers.length > 0) {
+      return wholesaleBuyers.map((b) => ({
+        id: b.id,
+        name: b.companyName,
+        markets: getCustomField(b, "Target Markets") || [b.city, b.state].filter(Boolean).join(", ") || "Target Markets",
+        budget: Number(b.dealValue) || 0,
+        pof: getCustomField(b, "Proof of Funds") || "Verified",
+      }));
+    }
+    return buyers.map((b) => ({
+      id: b.id,
+      name: b.name,
+      markets: b.criteria || "All Target Markets",
+      budget: 500000,
+      pof: "Verified Buyer",
+    }));
+  }, [wholesaleBuyers, buyers]);
 
   /* Owner revenue summary (owner 2026-08-20) — the OWNER's dashboard
      surfaces real invoice-based revenue (the same figures the Finance tab
@@ -681,215 +887,496 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Wholesale Deal Clocks & Escrow Radar */}
-      {isWholesale && activeTransactions.length > 0 && (
-        <section aria-label="Escrow Radar" style={{ marginBottom: "24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-            <div>
-              <h2 className="section-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>⏱️ Deal Clocks & Escrow Radar</span>
-                <span className="badge tone-amber" style={{ fontSize: "0.78rem" }}>
-                  {activeTransactions.length} in Escrow ({money(totalEscrowFees)} fees)
-                </span>
-              </h2>
-              <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "var(--muted, #94a3b8)" }}>
-                Active transactions under contract with inspection contingency countdowns & title milestones
-              </p>
+      {isWholesale ? (
+        <>
+          {/* Row 1: Property Types Breakdown + Pipeline Stage Breakdown (MOVED ABOVE DEAL CLOCKS!) */}
+          <div className="dashboard-windows-row">
+            {/* Left Window: Property Types Breakdown */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="🏷️"
+                  title="Property Types Breakdown"
+                  badgeText={`${wholesaleProperties.length} Properties`}
+                  badgeTone="tone-lime"
+                  subtitle="Active wholesale pipeline categorized by asset class"
+                  onView={() => onGoToStage()}
+                  viewTitle="View properties in pipeline"
+                />
+
+                <div className="prop-type-grid">
+                  {propertyTypeStats.map((st) => (
+                    <div
+                      key={st.id}
+                      className="prop-type-card"
+                      onClick={() => onGoToStage()}
+                      title={`View all ${st.label} properties in pipeline`}
+                    >
+                      <div className="prop-type-head">
+                        <span className="prop-type-title">
+                          <span>{st.icon}</span> {st.label}
+                        </span>
+                        <span className="badge" style={{ fontSize: "10px", padding: "1px 5px" }}>
+                          {st.pct}%
+                        </span>
+                      </div>
+                      <div className="prop-type-count" style={{ color: st.count > 0 ? st.color : "var(--muted)" }}>
+                        {st.count}
+                      </div>
+                      <div className="prop-type-metric">
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>Fee:</span>
+                          <span style={{ color: "var(--primary, #d6ff3f)", fontWeight: 700 }}>
+                            {money(st.projectedAssignment)}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", color: "var(--muted)" }}>
+                          <span>Value:</span>
+                          <span>{money(st.totalValue)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="prop-type-meter" title="Distribution of properties by type">
+                  {propertyTypeStats.map((st) =>
+                    st.pct > 0 ? (
+                      <div
+                        key={st.id}
+                        className="prop-type-segment"
+                        style={{
+                          width: `${st.pct}%`,
+                          backgroundColor: st.color,
+                        }}
+                        title={`${st.label}: ${st.count} (${st.pct}%)`}
+                      />
+                    ) : null
+                  )}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "8px" }}>
+                  <span>5 Asset Classes</span>
+                  <span>{wholesaleProperties.length} Properties · {money(wholesaleProjectedAssignments)} Projected Fees</span>
+                </div>
+              </div>
             </div>
-            {onGoToTransactions && (
-              <button type="button" className="btn btn-ghost" onClick={onGoToTransactions} style={{ fontSize: "0.82rem" }}>
-                Open Transaction Hub →
-              </button>
-            )}
+
+            {/* Right Window: Pipeline Stage Breakdown (ABOVE DEAL CLOCKS!) */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="📊"
+                  title="Pipeline Stage Breakdown"
+                  badgeText={`${stages.length} Stages`}
+                  badgeTone="tone-blue"
+                  subtitle="Live deal volume across acquisition & disposition milestones"
+                  onView={() => onGoToStage()}
+                  viewTitle="View all stages in pipeline"
+                />
+
+                <div className="stage-grid">
+                  {stageCards}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
+                <span>Pipeline Velocity</span>
+                <span>{activeClients} Active Properties in Funnel</span>
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
-            {activeTransactions.slice(0, 3).map((tx) => {
-              const urgencyTone = tx.inspectionUrgency === "urgent" ? "tone-red" : tx.inspectionUrgency === "warning" ? "tone-amber" : "tone-lime";
-              const titleMilestoneLabel = tx.titleStatus === "clear_to_close" ? "Clear to Close ✓" : tx.titleStatus === "payoff_ordered" ? "Payoff Ordered" : tx.titleStatus === "prelim_review" ? "Prelim Review" : "In Escrow";
+          {/* Row 2: Offers Sent Out + Deal Clocks & Escrow Radar */}
+          <div className="dashboard-windows-row">
+            {/* Left Window: Offers Sent Out */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="📝"
+                  title="Offers Sent Out"
+                  badgeText={`${totalOffersSent} Sent`}
+                  badgeTone="tone-blue"
+                  subtitle="Formal purchase proposals dispatched to motivated sellers"
+                  onView={onGoToOffers}
+                  viewTitle="Open Wholesale Offers Repository"
+                />
 
-              return (
-                <div
-                  key={tx.id}
-                  className="card"
-                  style={{
-                    padding: "16px",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                      <span className="badge" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>
-                        {tx.contractType.toUpperCase()}
-                      </span>
-                      <span className={`badge ${urgencyTone}`} style={{ fontWeight: 700, fontSize: "0.75rem" }}>
-                        {tx.daysLeftInspection != null ? (
-                          tx.daysLeftInspection > 0 ? `⏱️ ${tx.daysLeftInspection}d left` : "Inspection Expired"
-                        ) : "Active Contingency"}
-                      </span>
-                    </div>
-
-                    <h3 className={`cell-strong ${blurPii(pii)}`} style={{ margin: "4px 0", fontSize: "0.95rem", fontWeight: 700 }}>
-                      {tx.propertyAddress}
-                    </h3>
-
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--muted, #94a3b8)", marginTop: "6px" }}>
-                      <span>Title: {tx.titleCompanyName || "Escrow"}</span>
-                      <span style={{ color: tx.titleStatus === "clear_to_close" ? "#10b981" : "inherit", fontWeight: 600 }}>
-                        {titleMilestoneLabel}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: "10px" }}>
-                    <div>
-                      <span style={{ fontSize: "0.72rem", color: "var(--muted, #94a3b8)", display: "block" }}>Assignment Fee</span>
-                      <strong style={{ fontSize: "0.95rem", color: "var(--primary, #d6ff3f)" }}>{money(tx.assignmentFee || 0)}</strong>
-                    </div>
-                    {onGoToTransactions && (
-                      <button
-                        type="button"
-                        className="link-btn"
-                        onClick={onGoToTransactions}
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Details →
+                {totalOffersSent === 0 ? (
+                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>📝</div>
+                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Offers Dispatched Yet</p>
+                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
+                      Calculate terms on any pipeline property and click &quot;Generate &amp; Send Offer&quot; to dispatch formal proposals.
+                    </p>
+                    {onGoToOffers && (
+                      <button type="button" className="window-view-btn" onClick={onGoToOffers}>
+                        Open Offers Repository →
                       </button>
                     )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+                ) : (
+                  <div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "12px" }}>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Total Sent</div>
+                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary, #d6ff3f)", marginTop: "2px" }}>{totalOffersSent}</div>
+                      </div>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Offer Volume</div>
+                        <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", marginTop: "4px" }}>{money(totalOffersVolume)}</div>
+                      </div>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Accepted</div>
+                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--lime, #3fb950)", marginTop: "2px" }}>{acceptedOffersCount}</div>
+                      </div>
+                    </div>
 
-      {isWholesale && (
-        <section aria-label="Buy Box Matches" style={{ marginTop: "24px", marginBottom: "24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-            <div>
-              <h2 className="section-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>🎯 Buy Box Matches</span>
-                <span className="badge tone-blue" style={{ fontSize: "0.78rem" }}>
-                  {buyBoxMatches.reduce((acc, g) => acc + g.matches.length, 0)} Active Match{buyBoxMatches.reduce((acc, g) => acc + g.matches.length, 0) === 1 ? "" : "es"}
-                </span>
-              </h2>
-              <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
-                Deals in your pipeline matching your Cash & Creative Financing buyers' criteria
-              </p>
-            </div>
-            {onGoToBuyBox && (
-              <button type="button" className="btn btn-ghost" onClick={onGoToBuyBox} style={{ fontSize: "0.82rem" }}>
-                Open Buy Box Matcher →
-              </button>
-            )}
-          </div>
-
-          {buyBoxMatches.length === 0 ? (
-            <div className="card" style={{ padding: "20px", textAlign: "center" }}>
-              <p style={{ margin: "0 0 6px", fontWeight: 600 }}>No deals currently match your buyers' criteria</p>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
-                Add more end buyers with cash/creative financing criteria, or add properties to your pipeline.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "16px" }}>
-              {buyBoxMatches.slice(0, 4).map((group) => {
-                const prop = group.property;
-                const topMatch = group.matches[0];
-                const buyer = topMatch.buyer;
-                const rawStrat = getCustomField(buyer, "Buyer Type") || buyer.services?.join(" · ") || "Cash Buyer";
-                const stratCount = (buyer.services && buyer.services.length > 0)
-                  ? buyer.services.length
-                  : (rawStrat.split(/[,/]+/).filter(Boolean).length || 1);
-                return (
-                  <div
-                    key={prop.id}
-                    className="card"
-                    style={{
-                      padding: "16px",
-                      border: "1px solid rgba(88, 166, 255, 0.3)",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                        <div>
-                          <span className="badge tone-blue" style={{ fontSize: "0.72rem", marginBottom: "4px" }}>
-                            {group.matches.length} Compatible Buyer{group.matches.length === 1 ? "" : "s"}
-                          </span>
-                          <h3 className={`cell-strong ${blurPii(pii)}`} style={{ margin: "2px 0", fontSize: "1rem", fontWeight: 700 }}>
-                            {prop.address || prop.companyName}
-                          </h3>
-                          <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-                            {[prop.city, prop.state].filter(Boolean).join(", ") || "Location unlisted"}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {offersList.slice(0, 2).map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          className="card"
+                          style={{
+                            padding: "10px 12px",
+                            border: "1px solid var(--border)",
+                            background: "rgba(255, 255, 255, 0.02)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div style={{ maxWidth: "65%", overflow: "hidden" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                              <span className="badge tone-blue" style={{ fontSize: "0.68rem", textTransform: "uppercase" }}>
+                                {item.offerType}
+                              </span>
+                              <span style={{ fontSize: "11px", color: "var(--muted)" }}>{item.date}</span>
+                            </div>
+                            <div className={`cell-strong ${blurPii(pii)}`} style={{ fontSize: "0.86rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {item.propertyAddress}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "var(--lime, #3fb950)" }}>
+                              {money(item.amount)}
+                            </div>
+                            <span className={`badge ${item.status === "accepted" ? "tone-lime" : "tone-amber"}`} style={{ fontSize: "0.68rem" }}>
+                              {item.status}
+                            </span>
                           </div>
                         </div>
-                        <span className="badge tone-lime" style={{ fontWeight: 800, fontSize: "0.8rem" }}>
-                          {topMatch.matchScore}% Match
-                        </span>
-                      </div>
-
-                      <div style={{ padding: "10px", backgroundColor: "rgba(255,255,255,0.03)", borderRadius: "6px", margin: "10px 0" }}>
-                        <div style={{ fontSize: "0.78rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: "4px" }}>
-                          Top Matched Buyer:
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span className={`cell-strong ${blurPii(pii)}`} style={{ fontWeight: 600 }}>
-                            {buyer.companyName}
-                          </span>
-                          <span
-                            className="badge tone-blue"
-                            style={{ fontWeight: 700, fontSize: "0.75rem", minWidth: "24px", padding: "1px 6px", textAlign: "center" }}
-                            title={`Buy Strategies (${stratCount}): ${rawStrat}`}
-                          >
-                            {stratCount}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: "0.78rem", color: "var(--accent, #58a6ff)", marginTop: "4px" }}>
-                          ✓ {topMatch.reasons[0]?.detail || "Budget & criteria fit"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border, #30363d)", paddingTop: "10px", marginTop: "6px" }}>
-                      <span style={{ fontSize: "0.85rem", color: "var(--lime, #3fb950)", fontWeight: 700 }}>
-                        {money(getPropertyPrice(prop))}
-                      </span>
-                      {onGoToBuyBox && (
-                        <button
-                          type="button"
-                          className="link"
-                          onClick={onGoToBuyBox}
-                          style={{ fontSize: "0.82rem", color: "var(--accent, #58a6ff)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                        >
-                          View Dispo Matches →
-                        </button>
-                      )}
+                      ))}
                     </div>
                   </div>
-                );
-              })}
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
+                <span>Offers Pipeline</span>
+                <span>{totalOffersSent} Formal Proposals Dispatched</span>
+              </div>
+            </div>
+
+            {/* Right Window: Deal Clocks & Escrow Radar */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="⏱️"
+                  title="Deal Clocks & Escrow Radar"
+                  badgeText={`${activeTransactions.length} in Escrow`}
+                  badgeTone="tone-amber"
+                  subtitle="Active contracts with inspection countdowns & milestones"
+                  onView={onGoToTransactions}
+                  viewTitle="Open Title & Escrow Transaction Hub"
+                />
+
+                {activeTransactions.length === 0 ? (
+                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>⏱️</div>
+                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Deals Currently in Escrow</p>
+                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
+                      Move contracted properties to Title & Escrow to track inspection deadlines and earnest money deposits.
+                    </p>
+                    {onGoToTransactions && (
+                      <button type="button" className="window-view-btn" onClick={onGoToTransactions}>
+                        Open Transaction Hub →
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {activeTransactions.slice(0, 2).map((tx) => {
+                      const urgencyTone = tx.inspectionUrgency === "urgent" ? "tone-red" : tx.inspectionUrgency === "warning" ? "tone-amber" : "tone-lime";
+                      const titleMilestoneLabel = tx.titleStatus === "clear_to_close" ? "Clear to Close ✓" : tx.titleStatus === "payoff_ordered" ? "Payoff Ordered" : tx.titleStatus === "prelim_review" ? "Prelim Review" : "In Escrow";
+
+                      return (
+                        <div
+                          key={tx.id}
+                          className="card"
+                          style={{
+                            padding: "12px 14px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                            border: "1px solid var(--border)",
+                            background: "rgba(255, 255, 255, 0.02)",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <span className="badge" style={{ fontSize: "0.7rem", textTransform: "uppercase" }}>
+                              {tx.contractType.toUpperCase()}
+                            </span>
+                            <span className={`badge ${urgencyTone}`} style={{ fontWeight: 700, fontSize: "0.72rem" }}>
+                              {tx.daysLeftInspection != null ? (
+                                tx.daysLeftInspection > 0 ? `⏱️ ${tx.daysLeftInspection}d left` : "Inspection Expired"
+                              ) : "Active Contingency"}
+                            </span>
+                          </div>
+
+                          <h3 className={`cell-strong ${blurPii(pii)}`} style={{ margin: "2px 0", fontSize: "0.9rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {tx.propertyAddress}
+                          </h3>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: "8px", fontSize: "0.8rem" }}>
+                            <div>
+                              <span style={{ fontSize: "0.7rem", color: "var(--muted)", display: "block" }}>Fee</span>
+                              <strong style={{ fontSize: "0.88rem", color: "var(--primary, #d6ff3f)" }}>{money(tx.assignmentFee || 0)}</strong>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <span style={{ fontSize: "0.7rem", color: "var(--muted)", display: "block" }}>Title Status</span>
+                              <span style={{ color: tx.titleStatus === "clear_to_close" ? "#10b981" : "inherit", fontWeight: 600, fontSize: "0.75rem" }}>
+                                {titleMilestoneLabel}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
+                <span>Escrow Summary</span>
+                <span>{activeTransactions.length} Active Deals · {money(totalEscrowFees)} Fees</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: Buy Box Matches + Cash Buyers Network */}
+          <div className="dashboard-windows-row">
+            {/* Left Window: Buy Box Matches */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="🎯"
+                  title="Buy Box Matches"
+                  badgeText={`${buyBoxMatches.reduce((acc, g) => acc + g.matches.length, 0)} Matches`}
+                  badgeTone="tone-blue"
+                  subtitle="Deals in pipeline matching Cash & Creative buyers' criteria"
+                  onView={onGoToBuyBox}
+                  viewTitle="Open Buy Box Matcher"
+                />
+
+                {buyBoxMatches.length === 0 ? (
+                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>🎯</div>
+                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Active Buy Box Matches</p>
+                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
+                      Add more cash and creative financing buyers with buy-box criteria to automatically match with properties.
+                    </p>
+                    {onGoToBuyBox && (
+                      <button type="button" className="window-view-btn" onClick={onGoToBuyBox}>
+                        Open Buy Box Matcher →
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {buyBoxMatches.slice(0, 2).map((group) => {
+                      const prop = group.property;
+                      const topMatch = group.matches[0];
+                      const buyer = topMatch.buyer;
+                      const rawStrat = getCustomField(buyer, "Buyer Type") || buyer.services?.join(" · ") || "Cash Buyer";
+                      const stratCount = (buyer.services && buyer.services.length > 0)
+                        ? buyer.services.length
+                        : (rawStrat.split(/[,/]+/).filter(Boolean).length || 1);
+
+                      return (
+                        <div
+                          key={prop.id}
+                          className="card"
+                          style={{
+                            padding: "12px 14px",
+                            border: "1px solid rgba(88, 166, 255, 0.3)",
+                            background: "rgba(255, 255, 255, 0.02)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div>
+                              <span className="badge tone-blue" style={{ fontSize: "0.7rem" }}>
+                                {group.matches.length} Compatible Buyer{group.matches.length === 1 ? "" : "s"}
+                              </span>
+                              <h3 className={`cell-strong ${blurPii(pii)}`} style={{ margin: "2px 0", fontSize: "0.9rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {prop.address || prop.companyName}
+                              </h3>
+                            </div>
+                            <span className="badge tone-lime" style={{ fontWeight: 800, fontSize: "0.75rem" }}>
+                              {topMatch.matchScore}% Match
+                            </span>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.03)", padding: "6px 10px", borderRadius: "6px" }}>
+                            <span className={`cell-strong ${blurPii(pii)}`} style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                              {buyer.companyName}
+                            </span>
+                            <span
+                              className="badge tone-blue"
+                              style={{ fontWeight: 700, fontSize: "0.72rem", padding: "1px 6px" }}
+                              title={`Buy Strategies (${stratCount}): ${rawStrat}`}
+                            >
+                              {stratCount} strat
+                            </span>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: "8px" }}>
+                            <span style={{ fontSize: "0.85rem", color: "var(--lime, #3fb950)", fontWeight: 700 }}>
+                              {money(getPropertyPrice(prop))}
+                            </span>
+                            {onGoToBuyBox && (
+                              <button
+                                type="button"
+                                className="link-btn"
+                                onClick={onGoToBuyBox}
+                                style={{ fontSize: "0.78rem" }}
+                              >
+                                Matches →
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
+                <span>Buyer Compatibility</span>
+                <span>{buyBoxMatches.reduce((acc, g) => acc + g.matches.length, 0)} Total Matches in Pipeline</span>
+              </div>
+            </div>
+
+            {/* Right Window: Cash Buyers Network */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="👥"
+                  title="Cash Buyers Network"
+                  badgeText={`${totalBuyersCount} Vetted Buyers`}
+                  badgeTone="tone-blue"
+                  subtitle="Active disposition directory with cash & creative criteria"
+                  onView={onGoToBuyers}
+                  viewTitle="Open Cash Buyers Directory"
+                />
+
+                {displayedBuyers.length === 0 ? (
+                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>👥</div>
+                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Vetted Buyers Yet</p>
+                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
+                      Build your cash & creative investor list to dispo wholesale contracts in record time.
+                    </p>
+                    {onGoToBuyers && (
+                      <button type="button" className="window-view-btn" onClick={onGoToBuyers}>
+                        Open Cash Buyers →
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "12px" }}>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Active Buyers</div>
+                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary, #d6ff3f)", marginTop: "2px" }}>{totalBuyersCount}</div>
+                      </div>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Buy Capacity</div>
+                        <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", marginTop: "4px" }}>{money(totalBuyerCapacity)}</div>
+                      </div>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Verified POF</div>
+                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--lime, #3fb950)", marginTop: "2px" }}>{verifiedPofCount}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {displayedBuyers.slice(0, 2).map((b) => (
+                        <div
+                          key={b.id}
+                          className="card"
+                          style={{
+                            padding: "10px 12px",
+                            border: "1px solid var(--border)",
+                            background: "rgba(255, 255, 255, 0.02)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div style={{ maxWidth: "65%", overflow: "hidden" }}>
+                            <div className={`cell-strong ${blurPii(pii)}`} style={{ fontSize: "0.88rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {b.name}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {b.markets}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "var(--primary, #d6ff3f)" }}>
+                              {money(b.budget)} Max
+                            </div>
+                            <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
+                              {b.pof}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
+                <span>Disposition Network</span>
+                <span>{totalBuyersCount} Buyers Ready for Contracting</span>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {ownerOrg ? null : (
+            <div className="card dashboard-window" style={{ marginBottom: "20px" }}>
+              <div>
+                <WindowHead
+                  icon="📊"
+                  title="Stage breakdown"
+                  badgeText={`${stages.length} Stages`}
+                  badgeTone="tone-blue"
+                  subtitle="Live deal volume across pipeline stages"
+                  onView={() => onGoToStage()}
+                  viewTitle="View pipeline stages"
+                />
+                <div className="stage-grid">{stageCards}</div>
+              </div>
             </div>
           )}
-        </section>
-      )}
-
-      {/* Owner direction 2026-08-15 (refined during live test) — the OWNER
-          renders no standalone stage grid: the six-card KPI row above
-          carries every pipeline figure (it replaces the per-stage cards).
-          TENANT dashboards keep the standalone "Stage breakdown" card
-          exactly as before (same heading, same grid). */}
-      {ownerOrg ? null : (
-        <>
-          <h2 className="section-title">Stage breakdown</h2>
-          <div className="stage-grid">{stageCards}</div>
         </>
       )}
 
@@ -898,7 +1385,7 @@ export default function Dashboard({
           KPIs (Total billed / Paid / Outstanding / Overdue). Computed from
           /api/invoices. Owner-only; client accounts render nothing here. */}
       {ownerOrg && revenue && (
-        <section aria-label="Revenue summary">
+        <section aria-label="Revenue summary" style={{ marginBottom: "20px" }}>
           <h2 className="section-title">Revenue</h2>
           <div className="kpi-row kpi-row-4">
             <div className="card kpi revenue-card-billed">
@@ -925,71 +1412,89 @@ export default function Dashboard({
         </section>
       )}
 
+      {/* Row 3: Recently Updated Properties Window */}
+      <div className="card dashboard-window" style={{ marginTop: "20px" }}>
+        <div>
+          <WindowHead
+            icon="🕒"
+            title={isWholesale ? "Recently Updated Properties" : "Recently Updated"}
+            badgeText={`${data.recentClients.length} Recent`}
+            badgeTone="tone-blue"
+            subtitle={isWholesale ? "Latest property activity, deal underwriting, and stage transitions" : "Latest activity and client updates"}
+            onView={() => onGoToStage()}
+            viewTitle="View all properties in pipeline"
+          />
 
-      <h2 className="section-title">Recently updated</h2>
-      {hasClients ? (
-        <div className="card table-wrap">
-          <table className="table">
-            <colgroup>
-              <col style={{ width: "22%" }} />
-              <col style={{ width: "17%" }} />
-              <col style={{ width: "17%" }} />
-              <col style={{ width: "11%" }} />
-              <col style={{ width: "16%" }} />
-              <col style={{ width: "17%" }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>{isWholesale ? "Property Address" : "Company"}</th>
-                <th>{isWholesale ? "Seller / Owner" : "Contact"}</th>
-                <th>{isWholesale ? "Deal Structure" : "Services"}</th>
-                <th className="num">{isWholesale ? "Est. Value / ARV" : "Deal"}</th>
-                <th>Stage</th>
-                <th>Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recentClients.map((c) => (
-                <tr key={c.id}>
-                  <td className="cell-strong">
-                    <span className={`cell-name${blurPii(pii)}`} title={c.address || c.companyName}>
-                      {c.address || c.companyName}
-                    </span>
-                    {isWholesale && (c.city || c.state) && (
-                      <span style={{ display: "block", fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 400 }}>
-                        {[c.city, c.state, c.zip].filter(Boolean).join(", ")}
-                      </span>
-                    )}
-                  </td>
-                  <td className="cell-muted">
-                    <span className={`cell-name${blurPii(pii)}`} title={c.contactName || c.companyName || undefined}>
-                      {c.contactName || c.companyName || "—"}
-                    </span>
-                  </td>
-                  <td>
-                    <ServiceChips services={c.services} />
-                  </td>
-                  <td className="num cell-strong">
-                    <span className={blur(moneyHidden)}>{money(c.dealValue)}</span>
-                  </td>
-                  <td>
-                    <StageBadge stage={c.stage} index={Math.max(0, stages.indexOf(c.stage))} />
-                  </td>
-                  <td className="cell-muted">{fmtDate(c.updatedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {hasClients ? (
+            <div className="table-wrap" style={{ margin: "0 -4px" }}>
+              <table className="table">
+                <colgroup>
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "17%" }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "center" }}>{isWholesale ? "Property Address" : "Company"}</th>
+                    <th style={{ textAlign: "center" }}>{isWholesale ? "Seller / Owner" : "Contact"}</th>
+                    <th style={{ textAlign: "center" }}>{isWholesale ? "Deal Structure" : "Services"}</th>
+                    <th className="num" style={{ textAlign: "center" }}>{isWholesale ? "Est. Value / ARV" : "Deal"}</th>
+                    <th style={{ textAlign: "center" }}>Stage</th>
+                    <th style={{ textAlign: "center" }}>Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.recentClients.map((c) => (
+                    <tr key={c.id}>
+                      <td className="cell-strong" style={{ textAlign: "center" }}>
+                        <span className={`cell-name${blurPii(pii)}`} title={c.address || c.companyName}>
+                          {c.address || c.companyName}
+                        </span>
+                        {isWholesale && (c.city || c.state) && (
+                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 400 }}>
+                            {[c.city, c.state, c.zip].filter(Boolean).join(", ")}
+                          </span>
+                        )}
+                      </td>
+                      <td className="cell-muted" style={{ textAlign: "center" }}>
+                        <span className={`cell-name${blurPii(pii)}`} title={c.contactName || c.companyName || undefined}>
+                          {c.contactName || c.companyName || "—"}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <ServiceChips services={c.services} />
+                      </td>
+                      <td className="num cell-strong" style={{ textAlign: "center" }}>
+                        <span className={blur(moneyHidden)}>{money(c.dealValue)}</span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <StageBadge stage={c.stage} index={Math.max(0, stages.indexOf(c.stage))} />
+                      </td>
+                      <td className="cell-muted" style={{ textAlign: "center" }}>{fmtDate(c.updatedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="card empty">
+              <p className="empty-title">{emptyTitle}</p>
+              <p className="empty-sub">Add your first prospect and the pipeline starts filling in.</p>
+              <button className="btn btn-primary" onClick={() => onGoToStage()}>
+                {emptyCta}
+              </button>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="card empty">
-          <p className="empty-title">{emptyTitle}</p>
-          <p className="empty-sub">Add your first prospect and the pipeline starts filling in.</p>
-          <button className="btn btn-primary" onClick={() => onGoToStage()}>
-            {emptyCta}
-          </button>
+
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
+          <span>Pipeline Activity</span>
+          <span>{data.totalClients} Total {isWholesale ? "Properties" : "Clients"}</span>
         </div>
-      )}
+      </div>
     </div>
   );
 }

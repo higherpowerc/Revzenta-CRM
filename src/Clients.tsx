@@ -190,6 +190,31 @@ function TypeBadgeCell({ c, isWholesale }: { c: Client; isWholesale?: boolean })
   );
 }
 
+/** Helper to check whether a formal offer has been sent out for a client / property */
+export function isOfferSentForClient(c: Client): boolean {
+  if (typeof c.offersCount === "number" && c.offersCount > 0) return true;
+  if (
+    c.customFields?.some((f) => {
+      const n = f.name.toLowerCase();
+      return (
+        n === "offer pdf" ||
+        n === "offer sent" ||
+        n === "offer sent date" ||
+        n === "cash offer" ||
+        n === "creative price"
+      );
+    })
+  ) {
+    return true;
+  }
+  if (c.notes && /offer\s+sent/i.test(c.notes)) return true;
+  const s = (c.stage || "").toLowerCase();
+  if (s === "offer sent" || s === "under contract" || s === "dispo" || s === "closed") {
+    return true;
+  }
+  return false;
+}
+
 /** Local YYYY-MM-DD — for the DNC quick row-action's "marked" date (owner
  *  cockpit A 2026-08-15). Same convention the task date inputs use. */
 function localTodayStr(d: Date = new Date()): string {
@@ -2449,21 +2474,35 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                             Payment link
                           </button>
                         )}
-                        {isWholesale && canEdit && !c.lost && (
-                          <button
-                            type="button"
-                            className="icon-btn danger"
-                            title="Cancelation Notice"
-                            aria-label={`Cancelation notice for ${c.companyName}`}
-                            onClick={() => {
-                              setCancellingClient(c);
-                              setCancelLeadReason("Inspection / repair costs too high");
-                              setCancelLeadNotes("");
-                            }}
-                          >
-                            🚫 Cancelation Notice
-                          </button>
-                        )}
+                        {isWholesale && canEdit && !c.lost && (() => {
+                          const offerSent = isOfferSentForClient(c);
+                          return (
+                            <button
+                              type="button"
+                              className={`icon-btn danger${!offerSent ? " disabled" : ""}`}
+                              title={
+                                offerSent
+                                  ? "Cancelation Notice"
+                                  : "Cancelation notice is only active after an offer has been sent"
+                              }
+                              aria-label={`Cancelation notice for ${c.companyName}`}
+                              disabled={!offerSent || busy}
+                              style={
+                                !offerSent
+                                  ? { opacity: 0.35, cursor: "not-allowed" }
+                                  : undefined
+                              }
+                              onClick={() => {
+                                if (!offerSent) return;
+                                setCancellingClient(c);
+                                setCancelLeadReason("Inspection / repair costs too high");
+                                setCancelLeadNotes("");
+                              }}
+                            >
+                              🚫 Cancelation Notice
+                            </button>
+                          );
+                        })()}
                         {isWholesale && canEdit && c.lost && (
                           <button
                             type="button"
