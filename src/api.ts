@@ -156,6 +156,11 @@ export const api = {
     request<{ ok: true; offers: WholesaleOffer[] }>(
       `/api/offers${clientId ? `?client_id=${clientId}` : ""}`
     ),
+  createOffer: (data: Partial<WholesaleOffer>) =>
+    request<{ ok: true; offer: WholesaleOffer }>("/api/offers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   updateOffer: (id: number, data: { status?: string; notes?: string }) =>
     request<{ ok: true; offer: WholesaleOffer }>(`/api/offers/${id}`, {
       method: "PATCH",

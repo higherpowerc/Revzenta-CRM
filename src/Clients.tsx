@@ -1990,17 +1990,18 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 </>
               ) : isWholesale ? (
                 <>
-                  {/* Wholesale 10 cols: Address/16% | Type/8% | Owner/11% | Agent/10% | Structure/10% | Assignment Value/11% | Stage/9% | Buy Box Match/9% | Offers Sent/6% | Actions/10% */}
-                  <col style={{ width: "16%" }} />
+                  {/* Wholesale 11 cols: Address/15% | Type/7% | Owner/10% | Agent/9% | Structure/9% | Assignment Value/10% | Stage/9% | Buy Box Match/8% | Offers Sent/6% | Create Offer/9% | Actions/8% */}
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "9%" }} />
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "11%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "11%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
                   <col style={{ width: "6%" }} />
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
                 </>
               ) : (
                 <>
@@ -2035,6 +2036,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 {!ownerLeadsTab && <th>Stage</th>}
                 {isWholesale && <th>Buy Box Match</th>}
                 {!ownerOrg && <th>Offers Sent</th>}
+                {isWholesale && <th style={{ textAlign: "center" }}>Create Offer</th>}
                 {/* Next action — shown for owner views only. */}
                 {ownerOrg && <th>Next action</th>}
                 {/* Owner direction 2026-08-18 — the Payment column: owner
@@ -2319,6 +2321,35 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                             <span className="cell-muted" style={{ fontWeight: 500 }}>0</span>
                           );
                         })()}
+                      </td>
+                    )}
+                    {isWholesale && (
+                      <td data-label="Create Offer" style={{ textAlign: "center" }}>
+                        <button
+                          type="button"
+                          className="btn-table-create-offer"
+                          onClick={() => setCalcProperty(c)}
+                          title={`Open Deal Calculator to underwrite & create offer for ${c.address || c.companyName}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "4px 10px",
+                            borderRadius: "6px",
+                            background: "rgba(214, 255, 63, 0.12)",
+                            border: "1px solid var(--lime, #d6ff3f)",
+                            color: "var(--lime, #d6ff3f)",
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <span>📐</span>
+                          <span>Create Offer</span>
+                        </button>
                       </td>
                     )}
                     {/* Owner cockpit A — Next-action column: owner views only.
@@ -2725,6 +2756,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
       {calcProperty !== null && (
         <DealCalculatorModal
           property={calcProperty === "new" ? null : calcProperty}
+          allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
           onClose={() => setCalcProperty(null)}
           crmBusinessName={crmBusinessName}
           onUpdated={(updated) => {

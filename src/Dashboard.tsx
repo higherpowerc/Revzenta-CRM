@@ -737,17 +737,6 @@ export default function Dashboard({
               {money(isWholesale ? (allClients.length > 0 ? wholesaleProjectedAssignments : (data.projectedAssignmentFees ?? 0)) : data.projectedPipeline)}
             </span>
             <span className="kpi-note">{pipelineNote}</span>
-            {isWholesale && onGoToStage && (
-              <button
-                type="button"
-                className="kpi-link"
-                onClick={() => onGoToStage()}
-                title="View all properties in Properties menu"
-                style={{ marginTop: "4px" }}
-              >
-                View Properties →
-              </button>
-            )}
           </div>
           <div className="card kpi">
             <span className="kpi-label">{activeKpi}</span>
@@ -768,43 +757,40 @@ export default function Dashboard({
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "12px",
-            marginTop: "16px",
-            marginBottom: "20px",
+            gap: "10px",
+            marginTop: "14px",
+            marginBottom: "16px",
           }}
         >
           <div
             className="card"
             style={{
-              padding: "14px 16px",
+              padding: "10px 14px",
               display: "flex",
               alignItems: "center",
-              gap: "14px",
+              gap: "12px",
             }}
           >
             <div style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
               background: "rgba(214, 255, 63, 0.12)",
               color: "var(--primary, #d6ff3f)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "18px",
+              fontSize: "16px",
               flexShrink: 0,
             }}>
               ⚡
             </div>
             <div>
-              <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.04em" }}>
+              <div style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>
                 Lead Ingestion
               </div>
-              <div style={{ fontSize: "15px", fontWeight: 700 }}>
+              <div style={{ fontSize: "14px", fontWeight: 700 }}>
                 {webhookLeadsCount > 0 ? `${webhookLeadsCount} Webhook Leads` : "Webhooks Active"}
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)" }}>
-                PropStream & BatchLeads connected
               </div>
             </div>
           </div>
@@ -812,37 +798,34 @@ export default function Dashboard({
           <div
             className="card"
             style={{
-              padding: "14px 16px",
+              padding: "10px 14px",
               display: "flex",
               alignItems: "center",
-              gap: "14px",
+              gap: "12px",
               cursor: onGoToBuyers ? "pointer" : "default",
             }}
             onClick={onGoToBuyers}
           >
             <div style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
               background: "rgba(56, 189, 248, 0.12)",
               color: "#38bdf8",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "18px",
+              fontSize: "16px",
               flexShrink: 0,
             }}>
               👥
             </div>
             <div>
-              <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.04em" }}>
+              <div style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>
                 Cash Buyer Network
               </div>
-              <div style={{ fontSize: "15px", fontWeight: 700 }}>
-                {buyers.length} Vetted Buyers
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)" }}>
-                Active in your dispo directory
+              <div style={{ fontSize: "14px", fontWeight: 700 }}>
+                {totalBuyersCount} Vetted Buyers
               </div>
             </div>
           </div>
@@ -850,37 +833,34 @@ export default function Dashboard({
           <div
             className="card"
             style={{
-              padding: "14px 16px",
+              padding: "10px 14px",
               display: "flex",
               alignItems: "center",
-              gap: "14px",
+              gap: "12px",
               cursor: onGoToTransactions ? "pointer" : "default",
             }}
             onClick={onGoToTransactions}
           >
             <div style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
               background: "rgba(16, 185, 129, 0.12)",
               color: "#10b981",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "18px",
+              fontSize: "16px",
               flexShrink: 0,
             }}>
               💼
             </div>
             <div>
-              <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.04em" }}>
+              <div style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>
                 Title & Escrow
               </div>
-              <div style={{ fontSize: "15px", fontWeight: 700 }}>
-                {activeTransactions.length > 0 ? `${activeTransactions.length} Deals in Escrow` : "0 in Escrow"}
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)" }}>
-                {activeTransactions.length > 0 ? `${money(totalEscrowFees)} fees pending` : "Contracts & Title Portal"}
+              <div style={{ fontSize: "14px", fontWeight: 700 }}>
+                {activeTransactions.length > 0 ? `${activeTransactions.length} Deals in Escrow (${money(totalEscrowFees)})` : "0 in Escrow"}
               </div>
             </div>
           </div>
@@ -1106,8 +1086,26 @@ export default function Dashboard({
                     )}
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {activeTransactions.slice(0, 2).map((tx) => {
+                  <div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "12px" }}>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>In Escrow</div>
+                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary, #d6ff3f)", marginTop: "2px" }}>{activeTransactions.length}</div>
+                      </div>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Pending Fees</div>
+                        <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", marginTop: "4px" }}>{money(totalEscrowFees)}</div>
+                      </div>
+                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Clear to Close</div>
+                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--lime, #3fb950)", marginTop: "2px" }}>
+                          {activeTransactions.filter((t) => t.titleStatus === "clear_to_close").length}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {activeTransactions.slice(0, 2).map((tx) => {
                       const urgencyTone = tx.inspectionUrgency === "urgent" ? "tone-red" : tx.inspectionUrgency === "warning" ? "tone-amber" : "tone-lime";
                       const titleMilestoneLabel = tx.titleStatus === "clear_to_close" ? "Clear to Close ✓" : tx.titleStatus === "payoff_ordered" ? "Payoff Ordered" : tx.titleStatus === "prelim_review" ? "Prelim Review" : "In Escrow";
 
@@ -1154,6 +1152,7 @@ export default function Dashboard({
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 )}
               </div>

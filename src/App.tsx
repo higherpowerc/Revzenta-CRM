@@ -554,6 +554,13 @@ export default function App() {
                 >
                   Finance
                 </button>
+                <button
+                  className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
+                  onClick={() => setView("offers")}
+                  title="Wholesale purchase proposals & dispatched offers repository"
+                >
+                  Offers Repository
+                </button>
 
                 {/* Client Accounts Hub — Build & View Client CRMs */}
                 <div className="nav-section-title">
@@ -645,6 +652,100 @@ export default function App() {
                   Settings
                 </button>
               </>
+            ) : isWholesale ? (
+              /* Wholesale Vertical CRM Menu in exact user requested order:
+                 (Dashboard, Properties, Offers Repository, Transaction Hub, Buy Box, Investors, Connections, Tasks, Support, Settings) */
+              <>
+                {/* 1. Dashboard */}
+                <button
+                  className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
+                  onClick={() => setView("dashboard")}
+                >
+                  Dashboard
+                </button>
+
+                {/* 2. Properties */}
+                <button
+                  className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setLeadsStage(null);
+                    setOnboardingStage(null);
+                    setLeadsFilter("active");
+                    setView("leads");
+                  }}
+                >
+                  Properties
+                </button>
+
+                {/* 3. Offers Repository */}
+                <button
+                  className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
+                  onClick={() => setView("offers")}
+                  title="Wholesale purchase proposals & dispatched offers repository"
+                >
+                  Offers Repository
+                </button>
+
+                {/* 4. Transaction Hub */}
+                <button
+                  className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
+                  onClick={() => setView("documents")}
+                  title="Title, escrow, and contract transaction hub"
+                >
+                  Transaction Hub
+                </button>
+
+                {/* 5. Buy Box */}
+                <button
+                  className={effectiveViewFinal === "buybox" ? "tab active" : "tab"}
+                  onClick={() => setView("buybox")}
+                  title="Investor buy box criteria matching engine"
+                >
+                  Buy Box
+                </button>
+
+                {/* 6. Investors */}
+                <button
+                  className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
+                  onClick={() => setView("clients")}
+                  title="Vetted cash buyers and creative finance network"
+                >
+                  Investors
+                </button>
+
+                {/* 7. Connections */}
+                <button
+                  className={effectiveViewFinal === "connections" ? "tab active" : "tab"}
+                  onClick={() => setView("connections")}
+                  title="Inbound webhook channels & data connections"
+                >
+                  Connections
+                </button>
+
+                {/* 8. Tasks */}
+                <button
+                  className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
+                  onClick={() => setView("tasks")}
+                >
+                  Tasks
+                </button>
+
+                {/* 9. Support */}
+                <button
+                  className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
+                  onClick={() => setView("tickets")}
+                >
+                  Support
+                </button>
+
+                {/* 10. Settings */}
+                <button
+                  className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
+                  onClick={() => setView("settings")}
+                >
+                  Settings
+                </button>
+              </>
             ) : (
               /* Tenant or Preview Business Type CRM */
               <>
@@ -654,7 +755,6 @@ export default function App() {
                 >
                   Dashboard
                 </button>
-                {/* Pipeline tab: "Properties" for wholesale, "Leads" for general */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
@@ -665,43 +765,23 @@ export default function App() {
                       setView("leads");
                     }}
                   >
-                    {isWholesale ? "Properties" : "Leads"}
+                    Leads
                   </button>
                 )}
-                {/* Directory tab: "Investors" for wholesale, "Clients" for general */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
                     onClick={() => setView("clients")}
                   >
-                    {isWholesale ? "Investors" : "Clients"}
+                    Clients
                   </button>
                 )}
-                {/* Wholesale Buy Box Matches tab */}
-                {isWholesale && canSeeTab("clients") && (
-                  <button
-                    className={effectiveViewFinal === "buybox" ? "tab active" : "tab"}
-                    onClick={() => setView("buybox")}
-                  >
-                    Buy Box
-                  </button>
-                )}
-                {isWholesale && (
-                  <button
-                    className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
-                    onClick={() => setView("documents")}
-                  >
-                    Transaction Hub
-                  </button>
-                )}
-                {!isWholesale && (
-                  <button
-                    className={effectiveViewFinal === "appointments" ? "tab active" : "tab"}
-                    onClick={() => setView("appointments")}
-                  >
-                    Appointments
-                  </button>
-                )}
+                <button
+                  className={effectiveViewFinal === "appointments" ? "tab active" : "tab"}
+                  onClick={() => setView("appointments")}
+                >
+                  Appointments
+                </button>
                 {canSeeTab("tasks") && (
                   <button
                     className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
@@ -710,16 +790,6 @@ export default function App() {
                     Tasks
                   </button>
                 )}
-                {/* Wholesale CRM Connections Menu */}
-                {isWholesale && canSeeTab("settings") && (
-                  <button
-                    className={effectiveViewFinal === "connections" ? "tab active" : "tab"}
-                    onClick={() => setView("connections")}
-                  >
-                    Connections
-                  </button>
-                )}
-                {/* Support tickets */}
                 {canSeeTab("support") && (
                   <button
                     className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
@@ -728,7 +798,7 @@ export default function App() {
                     Support
                   </button>
                 )}
-                {!isWholesale && canSeeTab("finance") && (
+                {canSeeTab("finance") && (
                   <button
                     className={effectiveViewFinal === "finance" ? "tab active" : "tab"}
                     onClick={() => setView("finance")}
