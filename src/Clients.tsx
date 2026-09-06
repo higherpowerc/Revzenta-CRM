@@ -2432,7 +2432,14 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           onClose={() => setCalcProperty(null)}
           crmBusinessName={crmBusinessName}
           onUpdated={(updated) => {
-            setClients((prev) => prev?.map((c) => (c.id === updated.id ? updated : c)) ?? prev);
+            setClients((prev) => {
+              if (!prev) return [updated];
+              const exists = prev.some((c) => c.id === updated.id);
+              if (exists) {
+                return prev.map((c) => (c.id === updated.id ? updated : c));
+              }
+              return [updated, ...prev];
+            });
             setCalcProperty(null);
           }}
         />

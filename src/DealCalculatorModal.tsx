@@ -150,12 +150,72 @@ function NumberField({
   );
 }
 
+/** Cleanly parses address components from a string */
+function parseAddressString(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return { address: "", city: "", state: "", zip: "" };
+
+  const commaParts = trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+  if (commaParts.length >= 2) {
+    const street = commaParts[0];
+    const city = commaParts[1];
+    let state = "";
+    let zip = "";
+    if (commaParts.length >= 3) {
+      const last = commaParts[2];
+      const match = last.match(/^([A-Za-z]{2})\s*(\d{5}(?:-\d{4})?)?$/);
+      if (match) {
+        state = match[1].toUpperCase();
+        zip = match[2] || "";
+      } else {
+        const tokens = last.split(/\s+/);
+        state = tokens[0] || "";
+        zip = tokens[1] || "";
+      }
+    }
+    return { address: street, city, state, zip };
+  }
+  return { address: trimmed, city: "", state: "", zip: "" };
+}
+
 export default function DealCalculatorModal({ property, onClose, onUpdated, crmBusinessName }: Props) {
   const [tab, setTab] = useState<"proposal" | "cash" | "creative" | "subto">("proposal");
 
   // Property & entity metadata
-  const [propertyAddress, setPropertyAddress] = useState(property?.address || property?.companyName || "");
-  const [sellerName, setSellerName] = useState(property?.contactName || property?.companyName || "");
+  const initialAddress = useMemo(() => {
+    if (!property) return "";
+    if (property.address) {
+      const full = [property.address, property.city, [property.state, property.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+      return full || property.address;
+    }
+    const cfAddr = property.customFields?.find((c) => c.name.toLowerCase().includes("address"))?.value;
+    if (cfAddr) return String(cfAddr);
+    return property.companyName || "";
+  }, [property]);
+
+  const [propertyAddress, setPropertyAddress] = useState(initialAddress);
+
+  useEffect(() => {
+    if (initialAddress) {
+      setPropertyAddress(initialAddress);
+    }
+  }, [initialAddress]);
+
+  const initialSeller = useMemo(() => {
+    if (!property) return "";
+    if (property.contactName && property.contactName !== "Unknown Owner") return property.contactName;
+    if (property.companyName && property.companyName !== property.address) return property.companyName;
+    return "";
+  }, [property]);
+
+  const [sellerName, setSellerName] = useState(initialSeller);
+
+  useEffect(() => {
+    if (initialSeller) {
+      setSellerName(initialSeller);
+    }
+  }, [initialSeller]);
+
   const [recipientEmail, setRecipientEmail] = useState(property?.email || "");
   const [acquisitionsCompany, setAcquisitionsCompany] = useState(crmBusinessName || "");
 
@@ -454,17 +514,22 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
   };
 
   const handleSaveTermsToProperty = async () => {
-    if (!property) return;
     setSavingToCrm(true);
     setSaveSuccessMsg(null);
     try {
-      const nextCustom = [...(property.customFields || [])];
+      const parsed = parseAddressString(propertyAddress);
+      const cleanAddress = parsed.address || propertyAddress.trim();
+
+      const nextCustom = [...(property?.customFields || [])];
       const setCf = (name: string, value: string | number) => {
         const idx = nextCustom.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
         if (idx >= 0) nextCustom[idx] = { name, value: String(value) };
         else nextCustom.push({ name, value: String(value) });
       };
 
+      if (propertyAddress.trim()) {
+        setCf("Property address", propertyAddress.trim());
+      }
       setCf("Assignment Fee", `$${cashAssignmentFee.toLocaleString()}`);
       setCf("ARV", `$${cashArv.toLocaleString()}`);
       setCf("Estimated Repairs", `$${cashRepairs.toLocaleString()}`);
@@ -473,15 +538,63 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
       setCf("Creative Down", `$${creativeDown.toLocaleString()}`);
       setCf("SubTo Loan Debt", `$${subtoMetrics.totalExistingDebt.toLocaleString()}`);
 
-      const res = await api.updateClient(property.id, {
-        customFields: nextCustom,
-        dealValue: cashAssignmentFee,
-      });
+      let savedClient: Client;
+      if (property && property.id) {
+        const updatePayload: Record<string, unknown> = {
+          customFields: nextCustom,
+          dealValue: cashAssignmentFee,
+        };
+        if (cleanAddress) {
+          updatePayload.address = cleanAddress;
+          if (parsed.city) updatePayload.city = parsed.city;
+          if (parsed.state) updatePayload.state = parsed.state;
+          if (parsed.zip) updatePayload.zip = parsed.zip;
+        }
+        if (sellerName.trim()) {
+          updatePayload.contactName = sellerName.trim();
+          if (!property.companyName || property.companyName === "Unknown Owner" || property.companyName === property.address) {
+            updatePayload.companyName = cleanAddress || sellerName.trim();
+          }
+        } else if (cleanAddress && (!property.companyName || property.companyName === "Unknown Owner" || property.companyName === property.address)) {
+          updatePayload.companyName = cleanAddress;
+        }
 
-      if (res && res.client) {
-        setSaveSuccessMsg("✓ Underwritten terms & assignment fee saved to property!");
-        if (onUpdated) onUpdated(res.client);
-        setTimeout(() => setSaveSuccessMsg(null), 3500);
+        const res = await api.updateClient(property.id, updatePayload as any);
+        savedClient = res.client;
+      } else {
+        const res = await api.createClient({
+          companyName: cleanAddress || sellerName.trim() || "New Underwritten Property",
+          contactName: sellerName.trim() || "Unknown Owner",
+          address: cleanAddress,
+          city: parsed.city,
+          state: parsed.state,
+          zip: parsed.zip,
+          clientType: "single_family",
+          customFields: nextCustom,
+          dealValue: cashAssignmentFee,
+          stage: "Lead Sources",
+          email: recipientEmail.trim(),
+          phone: "",
+          industry: "Real Estate Wholesale",
+          services: [],
+          nextAction: "Underwritten - Send Purchase Proposal",
+          notes: `Underwritten via Revzenta Deal Underwriter.\nMAO: $${cashMetrics.netWholesaleOffer.toLocaleString()}\nAssignment Fee: $${cashAssignmentFee.toLocaleString()}\nCreative Price: $${creativePrice.toLocaleString()}\nSubTo Debt: $${subtoMetrics.totalExistingDebt.toLocaleString()}`,
+          archived: false,
+          lost: false,
+          lostReason: "",
+          dnc: false,
+          dncReason: "",
+          dncDate: "",
+          monthlyAmount: 0,
+        });
+        savedClient = res.client;
+      }
+
+      if (savedClient) {
+        const displayLabel = savedClient.address || savedClient.companyName || "Property";
+        setSaveSuccessMsg(`✓ Saved ${displayLabel} to CRM!`);
+        if (onUpdated) onUpdated(savedClient);
+        setTimeout(() => setSaveSuccessMsg(null), 4000);
       }
     } catch (e) {
       setSaveSuccessMsg(e instanceof Error ? e.message : "Failed to save terms.");
@@ -558,7 +671,106 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
           </button>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Persistent Property & Deal Header */}
+        <div
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "var(--surface, #0f172a)",
+            borderBottom: "1px solid var(--border, #1e293b)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "14px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "300px" }}>
+            <span style={{ fontSize: "20px" }}>📍</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em" }}>
+                  Property Address
+                </label>
+                {property && (
+                  <span style={{ fontSize: "11px", color: "var(--text-dim, #94a3b8)" }}>
+                    Linked to Property #{property.id}
+                  </span>
+                )}
+              </div>
+              <input
+                type="text"
+                value={propertyAddress}
+                onChange={(e) => setPropertyAddress(e.target.value)}
+                placeholder="Enter property address (e.g. 1244 E Highland Ave, Phoenix, AZ 85014)..."
+                style={{
+                  width: "100%",
+                  height: "36px",
+                  padding: "0 12px",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "1px solid var(--border, #334155)",
+                  backgroundColor: "var(--surface-sunken, #020617)",
+                  color: "var(--text, #f8fafc)",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "190px" }}>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-dim, #94a3b8)", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                Seller / Owner Name
+              </label>
+              <input
+                type="text"
+                value={sellerName}
+                onChange={(e) => setSellerName(e.target.value)}
+                placeholder="Owner name (optional)"
+                style={{
+                  width: "100%",
+                  height: "36px",
+                  padding: "0 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  borderRadius: "6px",
+                  border: "1px solid var(--border, #334155)",
+                  backgroundColor: "var(--surface-sunken, #020617)",
+                  color: "var(--text, #f8fafc)",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", alignSelf: "flex-end" }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSaveTermsToProperty}
+                disabled={savingToCrm}
+                style={{
+                  height: "36px",
+                  padding: "0 16px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span>💾</span>
+                <span>{savingToCrm ? "Saving…" : property ? "Save to Property" : "Save as New Property"}</span>
+              </button>
+            </div>
+          </div>
+          {saveSuccessMsg && (
+            <div style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", fontWeight: 600 }}>
+              {saveSuccessMsg}
+            </div>
+          )}
+        </div>
         <div
           style={{
             display: "flex",
@@ -1171,16 +1383,14 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             >
               Close
             </button>
-            {property && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSaveTermsToProperty}
-                disabled={savingToCrm}
-              >
-                {savingToCrm ? "Saving..." : "Save Terms to Property"}
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSaveTermsToProperty}
+              disabled={savingToCrm}
+            >
+              {savingToCrm ? "Saving..." : property ? "Save Terms to Property" : "Save as New Property"}
+            </button>
           </div>
         </div>
       </div>
