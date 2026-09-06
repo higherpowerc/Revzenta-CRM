@@ -16,6 +16,7 @@ import Settings from "./Settings";
 import Offers from "./Offers";
 import BuyBoxMatcher from "./BuyBoxMatcher";
 import TransactionHub from "./TransactionHub";
+import Connections from "./Connections";
 import Website from "./Website";
 import { api } from "./api";
 import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User } from "./types";
@@ -37,7 +38,7 @@ import ThemeToggle from "./ThemeToggle";
  * (prospects), Onboarding = the MIDDLE stages (intake leads), Clients = the
  * terminal stage (sold). Client accounts (role=member) are unchanged: their
  * Leads tab keeps showing every stage except their terminal one. */
-type View = "dashboard" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers";
+type View = "dashboard" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections";
 
 
 /** 3k — the emailed reset link is `<appUrl>/#/reset?token=...`; pull the
@@ -267,6 +268,8 @@ export default function App() {
         return isOwnerCockpit || isWholesale;
       case "buyers":
         return isWholesale;
+      case "connections":
+        return isWholesale && canSeeTab("settings");
       case "offers":
       case "buybox":
         return isWholesale && canSeeTab("clients");
@@ -278,7 +281,7 @@ export default function App() {
      wholesale-only view is somehow active), fall back to the Dashboard. */
   const viewWholesaleAllowed = (v: View): boolean => {
     if (!isWholesale) {
-      return v !== "buyers" && (isOwnerCockpit ? true : v !== "documents") && v !== "offers" && v !== "buybox";
+      return v !== "buyers" && (isOwnerCockpit ? true : v !== "documents") && v !== "offers" && v !== "buybox" && v !== "connections";
     }
     return !(v === "appointments" || v === "finance");
   };
@@ -707,6 +710,15 @@ export default function App() {
                     Tasks
                   </button>
                 )}
+                {/* Wholesale CRM Connections Menu */}
+                {isWholesale && canSeeTab("settings") && (
+                  <button
+                    className={effectiveViewFinal === "connections" ? "tab active" : "tab"}
+                    onClick={() => setView("connections")}
+                  >
+                    Connections
+                  </button>
+                )}
                 {/* Support tickets */}
                 {canSeeTab("support") && (
                   <button
@@ -969,6 +981,8 @@ export default function App() {
           ) : (
             <Documents verticalLabel={undefined} />
           )
+        ) : effectiveViewFinal === "connections" ? (
+          <Connections canEdit={canEditTab("settings")} />
         ) : effectiveViewFinal === "tickets" ? (
           <Tickets ownerOrg={isOwnerCockpit} canEdit={canEditTab("support")} />
         ) : (
