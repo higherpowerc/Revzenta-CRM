@@ -1014,6 +1014,7 @@ export const WHOLESALE_CUSTOM_FIELDS = new Set([
   "arv",
   "repairs",
   "assignment fee",
+  "assignment value",
   "projected assignment fee",
   "underwritten purchase price",
   "property address",
@@ -3834,7 +3835,12 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       try {
         const cf = JSON.parse(customFieldsStr || "[]");
         for (const f of cf) {
-          if (f.name && f.name.toLowerCase().includes("assignment fee")) {
+          if (
+            f.name &&
+            (f.name.toLowerCase().includes("assignment fee") ||
+              f.name.toLowerCase().includes("assignment value") ||
+              f.name.toLowerCase().includes("projected assignment"))
+          ) {
             const parsed = Number(String(f.value).replace(/[^0-9.]/g, ""));
             if (!isNaN(parsed) && parsed > 0) {
               fee = parsed;

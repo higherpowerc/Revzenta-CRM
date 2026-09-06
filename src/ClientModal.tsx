@@ -245,7 +245,12 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
   const [apiKeyMsg, setApiKeyMsg] = useState<string | null>(null);
   const [assignmentFee, setAssignmentFee] = useState<number>(() => {
     if (client?.customFields) {
-      const f = client.customFields.find((c) => c.name.toLowerCase().includes("assignment fee"));
+      const f = client.customFields.find(
+        (c) =>
+          c.name.toLowerCase().includes("assignment fee") ||
+          c.name.toLowerCase().includes("assignment value") ||
+          c.name.toLowerCase().includes("projected assignment")
+      );
       if (f) {
         const num = Number(String(f.value).replace(/[^0-9.]/g, ""));
         if (!isNaN(num) && num > 0) return num;
@@ -955,11 +960,16 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
         billingSame: true,
         customFields: (() => {
           const nextCustom = [...form.customFields];
-          const feeIdx = nextCustom.findIndex((c) => c.name.toLowerCase().includes("assignment fee"));
+          const feeIdx = nextCustom.findIndex(
+            (c) =>
+              c.name.toLowerCase().includes("assignment fee") ||
+              c.name.toLowerCase().includes("assignment value") ||
+              c.name.toLowerCase().includes("projected assignment")
+          );
           if (feeIdx >= 0) {
-            nextCustom[feeIdx] = { name: "Assignment Fee", value: String(assignmentFee) };
+            nextCustom[feeIdx] = { name: "Assignment Value", value: String(assignmentFee) };
           } else {
-            nextCustom.push({ name: "Assignment Fee", value: String(assignmentFee) });
+            nextCustom.push({ name: "Assignment Value", value: String(assignmentFee) });
           }
           return nextCustom;
         })(),
@@ -1316,12 +1326,12 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
               </div>
             </section>
 
-            {/* 5. Deal Financials & Assignment Fee */}
+            {/* 5. Deal Financials & Assignment Value */}
             <section className="intake-section" aria-label="Deal Economics">
-              <div className="intake-section-title">💰 Assignment Fee & Deal Economics</div>
+              <div className="intake-section-title">💰 Assignment Value & Deal Economics</div>
               <div className="form-grid intake-grid">
                 <label className="field">
-                  <span className="field-label">Target Assignment Fee ($)</span>
+                  <span className="field-label">Assignment Value ($)</span>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                     <span style={{ position: "absolute", left: "12px", color: "var(--muted)", fontWeight: 600 }}>$</span>
                     <input
@@ -1332,11 +1342,11 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
                       onChange={(e) => setAssignmentFee(Number(e.target.value) || 0)}
                       style={{ paddingLeft: "26px", fontSize: "15px", fontWeight: 600 }}
                       placeholder="10000"
-                      aria-label="Target assignment fee"
+                      aria-label="Assignment Value"
                     />
                   </div>
                   <span className="field-hint" style={{ fontSize: "11px", color: "var(--text-dim)", marginTop: "4px" }}>
-                    Projected assignment spread / wholesaler net fee for this property.
+                    Projected assignment value / wholesaler net fee for this property.
                   </span>
                 </label>
               </div>

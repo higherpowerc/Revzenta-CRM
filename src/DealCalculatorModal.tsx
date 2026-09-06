@@ -591,12 +591,14 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             !c.name.toLowerCase().includes("arv") &&
             !c.name.toLowerCase().includes("repairs") &&
             !c.name.toLowerCase().includes("assignment fee") &&
+            !c.name.toLowerCase().includes("assignment value") &&
+            !c.name.toLowerCase().includes("projected assignment") &&
             !c.name.toLowerCase().includes("purchase price") &&
             !c.name.toLowerCase().includes("property address")
         ),
         { id: "cf_arv", name: "ARV", type: "currency", value: String(cashArv) },
         { id: "cf_repairs", name: "Repairs", type: "currency", value: String(cashRepairs) },
-        { id: "cf_fee", name: "Projected Assignment Fee", type: "currency", value: String(activeFee) },
+        { id: "cf_fee", name: "Assignment Value", type: "currency", value: String(activeFee) },
         { id: "cf_offer", name: "Underwritten Purchase Price", type: "currency", value: String(activeOffer) },
       ];
 

@@ -128,6 +128,12 @@ const PROPERTY_FIELDS: FieldDefinition[] = [
     description: "Estimated rehab budget",
   },
   {
+    key: "assignmentValue",
+    label: "Assignment Value ($)",
+    synonyms: ["assignment value", "assignment fee", "fee", "assignment", "projected assignment fee", "spread", "wholesale fee"],
+    description: "Target or contracted wholesale assignment value/fee",
+  },
+  {
     key: "clientType",
     label: "Property Type",
     synonyms: ["type", "property type", "client type", "building type"],
@@ -350,6 +356,7 @@ export default function CsvImportModal({ initialTarget = "properties", stages = 
       const dealVal = cleanNumber(getValue("dealValue"));
       const arv = getValue("arv");
       const repairs = getValue("repairs");
+      const assignmentValue = getValue("assignmentValue");
       const rawType = getValue("clientType") || "Single Family";
       const structure = getValue("structure") || "Cash";
       const ownerName = getValue("ownerName");
@@ -367,6 +374,7 @@ export default function CsvImportModal({ initialTarget = "properties", stages = 
       const customFields: Array<{ name: string; value: string }> = [];
       if (arv) customFields.push({ name: "ARV", value: `$${cleanNumber(arv).toLocaleString()}` });
       if (repairs) customFields.push({ name: "Estimated Repairs", value: `$${cleanNumber(repairs).toLocaleString()}` });
+      if (assignmentValue) customFields.push({ name: "Assignment Value", value: `$${cleanNumber(assignmentValue).toLocaleString()}` });
       if (structure) customFields.push({ name: "Structure", value: structure });
 
       return {
@@ -377,7 +385,7 @@ export default function CsvImportModal({ initialTarget = "properties", stages = 
         industry: "Real Estate",
         services: [structure, rawType].filter(Boolean),
         customFields,
-        dealValue: dealVal,
+        dealValue: dealVal || (assignmentValue ? cleanNumber(assignmentValue) : 0),
         stage: defaultStage || (stages[0] ?? "Lead In"),
         nextAction: "Review imported CSV details",
         notes: notes || `Imported wholesale property (${rawType})`,

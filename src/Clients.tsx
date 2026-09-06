@@ -95,6 +95,7 @@ const WHOLESALE_DEAL_FIELDS = [
   "Purchase price",
   "Max allowable offer (MAO)",
   "Assignment fee",
+  "Assignment value",
   "End buyer",
   "Closing date",
   "Motivated seller",
@@ -104,6 +105,29 @@ const WHOLESALE_DEAL_FIELDS = [
 function cfValue(c: Client, name: string): string {
   const hit = c.customFields.find((cf) => cf.name.toLowerCase() === name.toLowerCase());
   return hit ? hit.value : "";
+}
+
+/** Wholesale — extract assignment value / fee from custom fields or deal value */
+export function getAssignmentValue(c: Client): number {
+  if (c.customFields && Array.isArray(c.customFields)) {
+    for (const cf of c.customFields) {
+      const name = (cf.name || "").toLowerCase();
+      if (
+        name.includes("assignment fee") ||
+        name.includes("assignment value") ||
+        name.includes("projected assignment") ||
+        name.includes("target assignment") ||
+        name.includes("wholesale assignment")
+      ) {
+        const parsed = parseFloat(String(cf.value).replace(/[^0-9.]/g, ""));
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    }
+  }
+  if (c.dealValue && c.dealValue > 0) {
+    return c.dealValue;
+  }
+  return 0;
 }
 
 /** GLOBAL name rule (owner direction 2026-08-16, amended 2026-08-29 — owner
@@ -688,8 +712,8 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   }, [clients, scopedStages]);
 
   const totalValue = useMemo(
-    () => visible.filter((c) => !c.archived).reduce((sum, c) => sum + (c.dealValue || 0), 0),
-    [visible],
+    () => visible.filter((c) => !c.archived).reduce((sum, c) => sum + (isWholesale ? getAssignmentValue(c) : (c.dealValue || 0)), 0),
+    [visible, isWholesale],
   );
 
   async function handleSave(input: ClientInput, editing?: Client) {
@@ -1187,7 +1211,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
         <div>
           <h1>{heading}</h1>
           <p className="page-sub">
-            {counts.active} active · {counts.archived} archived · active book value{" "}
+            {counts.active} active · {counts.archived} archived · {isWholesale ? "projected assignment value " : "active book value "}
             <strong>{money(totalValue)}</strong>
           </p>
         </div>
@@ -1482,17 +1506,19 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
         <div className="card table-wrap">
           <table className={`table clients-table${ownerOrg ? " owner-leads" : ""}`}>
             <colgroup>
-              <col style={{ width: ownerLeadsTab ? "24%" : "22%" }} />
+              <col style={{ width: ownerLeadsTab ? "24%" : isWholesale ? "20%" : "22%" }} />
               <col style={{ width: "10%" }} />
-              {!ownerLeadsTab && <col style={{ width: "12%" }} />}
-              <col style={{ width: "38%" }} />
-              <col style={{ width: ownerLeadsTab ? "28%" : "18%" }} />
+              {!ownerLeadsTab && <col style={{ width: isWholesale ? "11%" : "12%" }} />}
+              {isWholesale && <col style={{ width: "12%" }} />}
+              <col style={{ width: ownerLeadsTab ? "28%" : isWholesale ? "29%" : "38%" }} />
+              <col style={{ width: ownerLeadsTab ? "28%" : isWholesale ? "18%" : "18%" }} />
             </colgroup>
             <thead>
               <tr>
-                <th>{ownerOrg ? "Business name" : "Client"}</th>
+                <th>{ownerOrg ? "Business name" : isWholesale ? "Address" : "Client"}</th>
                 <th>Type</th>
                 {!ownerLeadsTab && <th>Stage</th>}
+                {isWholesale && <th className="num" style={{ textAlign: "center" }}>Assignment Value</th>}
                 <th>{filter === "lost" ? "Lost reason" : "Do-not-contact"}</th>
                 <th className="actions-th">Actions</th>
               </tr>
@@ -1500,10 +1526,10 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
             <tbody>
               {visible.map((c) => (
                 <tr key={c.id} className={c.archived ? "row-archived" : ""}>
-                  <td className="cell-strong" data-label={ownerOrg ? "Business name" : "Client"}>
+                  <td className="cell-strong" data-label={ownerOrg ? "Business name" : isWholesale ? "Address" : "Client"}>
                     <div className="cell-company">
-                      <span className={`cell-name${blurPii(pii)}`} title={primaryName(ownerOrg, c)}>
-                        {primaryName(ownerOrg, c)}
+                      <span className={`cell-name${blurPii(pii)}`} title={isWholesale ? (c.address || primaryName(false, c)) : primaryName(ownerOrg, c)}>
+                        {isWholesale ? (c.address || primaryName(false, c)) : primaryName(ownerOrg, c)}
                       </span>
                       {c.lost && (
                         c.lostReason?.startsWith("Deal Cancelled") ? (
@@ -1526,12 +1552,47 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                       {c.dnc && <span className="chip chip-dnc">DNC</span>}
                       {c.archived && <span className="chip chip-archived">archived</span>}
                     </div>
-                    {c.industry && <div className="cell-sub">{c.industry}</div>}
+                    {isWholesale && (c.city || c.state || c.zip) && (
+                      <div className={`cell-sub addr-line${blurPii(pii)}`}>
+                        {[c.city, c.state, c.zip].filter(Boolean).join(", ")}
+                      </div>
+                    )}
+                    {!isWholesale && c.industry && <div className="cell-sub">{c.industry}</div>}
                   </td>
-                  <TypeBadgeCell c={c} />
+                  <TypeBadgeCell c={c} isWholesale={isWholesale} />
                   {!ownerLeadsTab && (
                     <td data-label="Stage" className="lost-dnc-stage-cell">
                       <StageBadge stage={c.stage} index={Math.max(0, orgStages.indexOf(c.stage))} />
+                    </td>
+                  )}
+                  {isWholesale && (
+                    <td data-label="Assignment Value" className="num cell-strong" style={{ textAlign: "center" }}>
+                      {(() => {
+                        const val = getAssignmentValue(c);
+                        if (val > 0) {
+                          return (
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                color: "#10b981",
+                                fontSize: "13px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "2px",
+                                justifyContent: "center",
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                background: "rgba(16, 185, 129, 0.08)",
+                                border: "1px solid rgba(16, 185, 129, 0.2)",
+                              }}
+                              title={`Assignment Value: ${money(val)}`}
+                            >
+                              {money(val)}
+                            </span>
+                          );
+                        }
+                        return <span className="cell-muted">—</span>;
+                      })()}
                     </td>
                   )}
                   <td data-label={filter === "lost" ? "Lost reason" : "Do-not-contact"}>
@@ -1904,16 +1965,17 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 </>
               ) : isWholesale ? (
                 <>
-                  {/* Wholesale 9 cols: Address/17% | Type/9% | Owner/12% | Agent/11% | Structure/12% | Stage/10% | Buy Box Match/10% | Offers Sent/8% | Actions/11% */}
-                  <col style={{ width: "17%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "11%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
+                  {/* Wholesale 10 cols: Address/16% | Type/8% | Owner/11% | Agent/10% | Structure/10% | Assignment Value/11% | Stage/9% | Buy Box Match/9% | Offers Sent/6% | Actions/10% */}
+                  <col style={{ width: "16%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "11%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "10%" }} />
                 </>
               ) : (
                 <>
@@ -1944,6 +2006,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 {/* Deal $ column — shown for owner views only (tenant table
                     uses the Structure column to surface offer type instead). */}
                 {ownerOrg && <th className="num">Deal</th>}
+                {isWholesale && <th className="num" style={{ textAlign: "center" }}>Assignment Value</th>}
                 {!ownerLeadsTab && <th>Stage</th>}
                 {isWholesale && <th>Buy Box Match</th>}
                 {!ownerOrg && <th>Offers Sent</th>}
@@ -2085,6 +2148,36 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                     {ownerOrg && (
                       <td className="num cell-strong" data-label="Deal" style={{ textAlign: "center" }}>
                         {money(c.dealValue)}
+                      </td>
+                    )}
+                    {isWholesale && (
+                      <td className="num cell-strong" data-label="Assignment Value" style={{ textAlign: "center" }}>
+                        {(() => {
+                          const val = getAssignmentValue(c);
+                          if (val > 0) {
+                            return (
+                              <span
+                                style={{
+                                  fontWeight: 700,
+                                  color: "#10b981",
+                                  fontSize: "13px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "2px",
+                                  justifyContent: "center",
+                                  padding: "2px 8px",
+                                  borderRadius: "6px",
+                                  background: "rgba(16, 185, 129, 0.08)",
+                                  border: "1px solid rgba(16, 185, 129, 0.2)",
+                                }}
+                                title={`Assignment Value: ${money(val)}`}
+                              >
+                                {money(val)}
+                              </span>
+                            );
+                          }
+                          return <span className="cell-muted">—</span>;
+                        })()}
                       </td>
                     )}
 
