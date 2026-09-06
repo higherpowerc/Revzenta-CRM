@@ -197,9 +197,17 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
     // 6. State Specific Disclosure
     let stateDisclosure = "General Provisions: Both parties acknowledge this transaction is entered into freely and voluntarily as an arm's length transaction. Property is sold in 'As-Is, Where-Is' condition subject to Buyer's inspection rights.";
     if (state.includes("TX") || state.includes("Texas")) {
-      stateDisclosure = "Texas Statutory Disclosure (Texas Property Code § 5.086): Seller acknowledges that Buyer is acquiring an option or entering into a contract to purchase real property and may enter into an assignment of that equitable interest to an end buyer. Buyer discloses that Buyer does not hold legal title to the property until closing and is conveying equitable interest under this Agreement.";
-    } else if (state.includes("FL") || state.includes("Florida")) {
-      stateDisclosure = "Florida Assignment Disclosure: Seller acknowledges that Buyer operates as a principal real estate investor and retains equitable interest under this contract with the full legal authority to market, assign, or sell equitable rights in the contract prior to closing.";
+      stateDisclosure = "Texas Statutory Disclosure (Texas Property Code Section 5.086): Seller acknowledges that Buyer is acquiring an option or entering into a contract to purchase real property and may enter into an assignment of that equitable interest to an end buyer. Buyer discloses that Buyer does not hold legal title to the property until closing and is conveying equitable interest under this Agreement.";
+    } else if (input.stateJurisdiction === "FL") {
+      stateDisclosure = "Florida Wholesale Disclosure: Buyer discloses equitable interest and intent to market purchase rights to third party investors prior to closing under Florida Real Estate Law.";
+    } else if (input.stateJurisdiction === "CA") {
+      stateDisclosure = "California Disclosure (Cal. Civ. Code Section 1624/1689): Notice of equitable interest and assignment rights conveyed under written contract.";
+    } else if (input.stateJurisdiction === "GA") {
+      stateDisclosure = "Georgia Wholesale Disclosure (GREC Standard): Buyer discloses equitable interest held under binding contract of sale.";
+    } else if (input.stateJurisdiction === "NC") {
+      stateDisclosure = "North Carolina Standard Addendum: Equitable interest assignment disclosure pursuant to NC Real Estate Commission guidelines.";
+    } else if (input.stateJurisdiction === "AZ") {
+      stateDisclosure = "Arizona Wholesale Disclosure (A.R.S. Section 32-2181): Buyer discloses that Buyer holds equitable interest in the Property through this contract and may assign this purchase agreement to a third party before the close of escrow.";
     } else if (state.includes("CA") || state.includes("California")) {
       stateDisclosure = "California Civil Code Disclosures: The parties agree that this Agreement represents the entire agreement between the parties. Buyer holds equitable rights under contract and may assign such rights. Seller acknowledges receipt of all statutory disclosure obligations.";
     } else if (state.includes("GA") || state.includes("Georgia")) {
@@ -349,7 +357,7 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
       borderColor: rgb(0.6, 0.85, 0.65),
       borderWidth: 1,
     });
-    page.drawText(`✓ E-SIGN VERIFIED · Signed by ${input.signerName || "Signer"} on ${input.signedAt || new Date().toISOString()} · IP: ${input.signerIp || "Verified Secure Session"} · 100% Legally Binding under E-SIGN Act (15 U.S.C. § 7001)`, {
+    page.drawText(`[E-SIGN VERIFIED] - Signed by ${input.signerName || "Signer"} on ${input.signedAt || new Date().toISOString()} - IP: ${input.signerIp || "Verified Secure Session"} - 100% Legally Binding under E-SIGN Act (15 U.S.C. Section 7001)`, {
       x: margin + 8,
       y: cursorY + 2,
       size: 7.5,
@@ -362,7 +370,7 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
   const pages = doc.getPages();
   for (let i = 0; i < pages.length; i++) {
     const p = pages[i];
-    p.drawText(`Revzenta Wholesale Transaction Hub · Document ID: ${input.contractType.toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()} · Page ${i + 1} of ${pages.length}`, {
+    p.drawText(`Revzenta Wholesale Transaction Hub - Document ID: ${input.contractType.toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()} - Page ${i + 1} of ${pages.length}`, {
       x: margin,
       y: 20,
       size: 8,

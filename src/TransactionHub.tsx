@@ -16,6 +16,88 @@ const STATE_OPTIONS = [
   { value: "AZ", label: "Arizona (Equitable Interest Disclosure)" },
 ];
 
+export interface WholesaleStepDef {
+  step: 1 | 2 | 3 | 4 | 5;
+  title: string;
+  shortTitle: string;
+  icon: string;
+  badge: string;
+  description: string;
+  actionHint: string;
+}
+
+export const WHOLESALE_STEPS: WholesaleStepDef[] = [
+  {
+    step: 1,
+    title: "1. Under Contract (PSA)",
+    shortTitle: "1. Contract (PSA)",
+    icon: "📝",
+    badge: "Assignable Clause",
+    description: "Sign purchase & sale agreement with seller containing 'and/or assigns' clause.",
+    actionHint: "PSA Signed with Seller",
+  },
+  {
+    step: 2,
+    title: "2. Open Escrow & EMD",
+    shortTitle: "2. Open Escrow",
+    icon: "🏦",
+    badge: "Escrow Opened",
+    description: "Send signed PSA to title company/closing attorney and deposit Earnest Money (EMD).",
+    actionHint: "EMD Deposited to Title",
+  },
+  {
+    step: 3,
+    title: "3. Find Cash Buyer",
+    shortTitle: "3. Find Cash Buyer",
+    icon: "🎯",
+    badge: "Buyer Disposition",
+    description: "Market equitable interest to vetted cash buyers and flippers on your buyers list.",
+    actionHint: "Cash Buyer Identified",
+  },
+  {
+    step: 4,
+    title: "4. Sign Assignment Agreement",
+    shortTitle: "4. Sign Assignment",
+    icon: "✍️",
+    badge: "Wholesaler & Investor",
+    description: "Cash buyer (Investor) signs assignment agreement transferring rights for assignment fee.",
+    actionHint: "Wholesaler & Investor Executed",
+  },
+  {
+    step: 5,
+    title: "5. Collect Fee & Close",
+    shortTitle: "5. Close & Payout",
+    icon: "💰",
+    badge: "Fee Disbursed",
+    description: "Send both contracts to title. Buyer funds deal; title pays seller and wires wholesaler fee.",
+    actionHint: "Assignment Fee Paid",
+  },
+];
+
+export function getDealWholesaleStep(tx: Transaction): 1 | 2 | 3 | 4 | 5 {
+  if (tx.titleStatus === "closed" || tx.status === "closed") {
+    return 5;
+  }
+  if (tx.contractType === "assignment") {
+    if (tx.titleStatus === "clear_to_close" || (tx.status === "signed" && tx.titleStatus === "payoff_ordered")) {
+      return 5;
+    }
+    return 4;
+  }
+  // For PSA / pre-assignment deals:
+  if (tx.buyerId || (tx.buyerName && !tx.buyerName.toLowerCase().includes("assigns") && tx.buyerName.trim() !== "" && tx.buyerName !== "Buyer")) {
+    return 3;
+  }
+  if (tx.emdStatus === "deposited" || tx.emdStatus === "hard" || tx.titleStatus === "prelim_review" || tx.titleStatus === "payoff_ordered") {
+    return 3;
+  }
+  if (tx.titleStatus === "opened" || tx.emdStatus === "pending") {
+    return 2;
+  }
+  return 1;
+}
+
+
 export default function TransactionHub({ crmBusinessName }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [properties, setProperties] = useState<Client[]>([]);
@@ -24,7 +106,9 @@ export default function TransactionHub({ crmBusinessName }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<"clocks" | "contracts" | "title">("clocks");
+  // Active view tab
+  const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title">("process");
+  const [stepFilter, setStepFilter] = useState<number | "all">("all");
 
   // Search & Filters
   const [search, setSearch] = useState("");
@@ -107,9 +191,10 @@ export default function TransactionHub({ crmBusinessName }: Props) {
       if (urgencyFilter !== "all" && t.inspectionUrgency !== urgencyFilter) return false;
       if (typeFilter !== "all" && t.contractType !== typeFilter) return false;
       if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (stepFilter !== "all" && getDealWholesaleStep(t) !== stepFilter) return false;
       return true;
     });
-  }, [transactions, search, urgencyFilter, typeFilter, statusFilter]);
+  }, [transactions, search, urgencyFilter, typeFilter, statusFilter, stepFilter]);
 
   // Quick Action: Extend inspection by N days
   const handleExtendInspection = async (tx: Transaction, days = 3) => {
@@ -246,6 +331,108 @@ export default function TransactionHub({ crmBusinessName }: Props) {
         </div>
       )}
 
+      {/* ─────────────────────────────────────────────────────────────
+          5-STEP WHOLESALE REAL ESTATE LIFECYCLE ROADMAP BANNER
+         ───────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          backgroundColor: "var(--panel)",
+          border: "1px solid var(--border)",
+          borderRadius: "10px",
+          padding: "16px 20px",
+          marginBottom: "20px",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "18px" }}>🧭</span>
+            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--fg)", letterSpacing: "0.02em", textTransform: "uppercase" }}>
+              Standard Real Estate Wholesaling Process (Start to Finish)
+            </span>
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+            Click any milestone step below to filter active pipeline deals:
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: "10px",
+          }}
+        >
+          {WHOLESALE_STEPS.map((s) => {
+            const count = transactions.filter((t) => getDealWholesaleStep(t) === s.step).length;
+            const isFiltered = stepFilter === s.step;
+
+            return (
+              <div
+                key={s.step}
+                onClick={() => {
+                  setStepFilter((prev) => (prev === s.step ? "all" : s.step));
+                  if (activeTab !== "process") setActiveTab("process");
+                }}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  border: isFiltered ? "2px solid var(--accent, #3b82f6)" : "1px solid var(--border)",
+                  backgroundColor: isFiltered
+                    ? "rgba(59, 130, 246, 0.08)"
+                    : "var(--card-bg, var(--panel))",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  position: "relative",
+                }}
+              >
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "15px" }}>{s.icon}</span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        padding: "2px 7px",
+                        borderRadius: "10px",
+                        backgroundColor: count > 0 ? "rgba(59, 130, 246, 0.15)" : "var(--border)",
+                        color: count > 0 ? "var(--accent, #3b82f6)" : "var(--muted)",
+                      }}
+                    >
+                      {count} {count === 1 ? "Deal" : "Deals"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--fg)", marginTop: "2px" }}>
+                    {s.title}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px", lineHeight: 1.35 }}>
+                    {s.description}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    paddingTop: "6px",
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: "10px",
+                  }}
+                >
+                  <span style={{ color: "var(--accent, #3b82f6)", fontWeight: 600 }}>{s.badge}</span>
+                  <span style={{ color: "var(--muted)" }}>{isFiltered ? "Active Filter ✕" : "Filter →"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* KPI Stats Ribbon */}
       <div
         style={{
@@ -349,6 +536,21 @@ export default function TransactionHub({ crmBusinessName }: Props) {
       >
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button
+            onClick={() => setActiveTab("process")}
+            style={{
+              padding: "8px 14px",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              border: "1px solid var(--border)",
+              backgroundColor: activeTab === "process" ? "var(--accent, #3b82f6)" : "transparent",
+              color: activeTab === "process" ? "#ffffff" : "var(--fg)",
+            }}
+          >
+            🧭 5-Step Wholesale Process Board
+          </button>
+          <button
             onClick={() => setActiveTab("clocks")}
             style={{
               padding: "8px 14px",
@@ -432,6 +634,26 @@ export default function TransactionHub({ crmBusinessName }: Props) {
           </select>
 
           <select
+            value={stepFilter}
+            onChange={(e) => setStepFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
+            style={{
+              padding: "6px 10px",
+              borderRadius: "6px",
+              border: "1px solid var(--border)",
+              backgroundColor: "var(--input-bg, var(--panel))",
+              color: "var(--fg)",
+              fontSize: "13px",
+            }}
+          >
+            <option value="all">All Wholesale Steps</option>
+            <option value="1">Step 1: Under Contract (PSA)</option>
+            <option value="2">Step 2: Open Escrow &amp; EMD</option>
+            <option value="3">Step 3: Find Cash Buyer</option>
+            <option value="4">Step 4: Sign Assignment (Wholesaler &amp; Investor)</option>
+            <option value="5">Step 5: Collect Fee &amp; Close</option>
+          </select>
+
+          <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             style={{
@@ -493,6 +715,260 @@ export default function TransactionHub({ crmBusinessName }: Props) {
           >
             + Create Contract
           </button>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: 5-STEP WHOLESALE PROCESS KANBAN / MILESTONE BOARD
+         ───────────────────────────────────────────────────────────── */}
+      {!loading && activeTab === "process" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div
+            style={{
+              backgroundColor: "var(--panel)",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              padding: "14px 18px",
+              fontSize: "13px",
+              color: "var(--fg)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <div>
+              <strong>End-to-End Wholesale Lifecycle:</strong> Every wholesale deal follows these exact 5 stages:
+              <span style={{ color: "var(--muted)", marginLeft: "6px" }}>
+                1. PSA with assignable clause &rarr; 2. Open escrow &amp; EMD &rarr; 3. Market to cash buyers &rarr; 4. Assignment agreement (Wholesaler &amp; Investor) &rarr; 5. Closing &amp; title fee payout.
+              </span>
+            </div>
+            {stepFilter !== "all" && (
+              <button
+                onClick={() => setStepFilter("all")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--card-bg, var(--panel))",
+                  fontSize: "12px",
+                  color: "var(--accent, #3b82f6)",
+                  cursor: "pointer",
+                }}
+              >
+                Clear Step Filter (Show All 5 Steps)
+              </button>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gap: "14px",
+              alignItems: "start",
+            }}
+          >
+            {WHOLESALE_STEPS.filter((s) => stepFilter === "all" || stepFilter === s.step).map((col) => {
+              const dealsInStep = filtered.filter((t) => getDealWholesaleStep(t) === col.step);
+
+              return (
+                <div
+                  key={col.step}
+                  style={{
+                    backgroundColor: "var(--panel)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    display: "flex",
+                    flexDirection: "column",
+                    minHeight: "450px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* Column Header */}
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderBottom: "1px solid var(--border)",
+                      backgroundColor: "var(--card-bg, var(--panel))",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, fontSize: "13px", color: "var(--fg)" }}>
+                        <span>{col.icon}</span>
+                        <span>{col.shortTitle}</span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: "8px",
+                          backgroundColor: dealsInStep.length > 0 ? "rgba(59, 130, 246, 0.15)" : "var(--border)",
+                          color: dealsInStep.length > 0 ? "var(--accent, #3b82f6)" : "var(--muted)",
+                        }}
+                      >
+                        {dealsInStep.length}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px" }}>
+                      {col.actionHint}
+                    </div>
+                  </div>
+
+                  {/* Deals List */}
+                  <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "10px", flex: 1, overflowY: "auto" }}>
+                    {dealsInStep.length === 0 ? (
+                      <div style={{ padding: "24px 12px", textAlign: "center", color: "var(--muted)", fontSize: "12px" }}>
+                        No deals currently in this step.
+                      </div>
+                    ) : (
+                      dealsInStep.map((tx) => (
+                        <div
+                          key={tx.id}
+                          style={{
+                            backgroundColor: "var(--card-bg, var(--panel))",
+                            border: "1px solid var(--border)",
+                            borderRadius: "6px",
+                            padding: "12px",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "6px" }}>
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                padding: "2px 5px",
+                                borderRadius: "3px",
+                                backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.1)" : "rgba(59, 130, 246, 0.1)",
+                                color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
+                              }}
+                            >
+                              {tx.contractType.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: "10px", color: "var(--muted)" }}>
+                              {tx.stateJurisdiction}
+                            </span>
+                          </div>
+
+                          <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--fg)", lineHeight: 1.3 }}>
+                            {tx.propertyAddress}
+                          </div>
+
+                          {/* Party Information strictly displayed */}
+                          <div style={{ fontSize: "11px", backgroundColor: "var(--bg-soft, rgba(0,0,0,0.02))", padding: "6px 8px", borderRadius: "4px", border: "1px solid var(--border)" }}>
+                            {tx.contractType === "assignment" ? (
+                              <>
+                                <div style={{ color: "var(--fg)" }}>
+                                  <strong style={{ color: "#a855f7" }}>Wholesaler:</strong> {tx.sellerName || crmBusinessName || "Wholesaler"}
+                                </div>
+                                <div style={{ color: "var(--fg)", marginTop: "2px" }}>
+                                  <strong style={{ color: "#3b82f6" }}>Investor:</strong> {tx.buyerName || "Cash Buyer / Assignee"}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{ color: "var(--fg)" }}>
+                                  <strong>Seller:</strong> {tx.sellerName || "Homeowner"}
+                                </div>
+                                <div style={{ color: "var(--muted)", marginTop: "2px" }}>
+                                  <strong>Buyer:</strong> {tx.buyerName || (crmBusinessName || "Revzenta Capital LLC") + " and/or assigns"}
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Financials */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", borderTop: "1px solid var(--border)", paddingTop: "6px" }}>
+                            <div>
+                              <span style={{ fontSize: "10px", color: "var(--muted)", display: "block" }}>Contract Price</span>
+                              <strong style={{ color: "var(--fg)" }}>${tx.purchasePrice.toLocaleString()}</strong>
+                            </div>
+                            {tx.assignmentFee > 0 && (
+                              <div style={{ textAlign: "right" }}>
+                                <span style={{ fontSize: "10px", color: "#a855f7", display: "block", fontWeight: 600 }}>Assignment Fee</span>
+                                <strong style={{ color: "#a855f7" }}>+${tx.assignmentFee.toLocaleString()}</strong>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Contingency / Escrow status snippet */}
+                          <div style={{ fontSize: "11px", color: "var(--muted)", display: "flex", justifyContent: "space-between" }}>
+                            <span>EMD: <strong style={{ color: tx.emdStatus === "hard" ? "#10b981" : "inherit" }}>{tx.emdStatus}</strong></span>
+                            <span>Close: {tx.closingDate || "TBD"}</span>
+                          </div>
+
+                          {/* Card Actions */}
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px", borderTop: "1px solid var(--border)", paddingTop: "8px" }}>
+                            <button
+                              onClick={() => setEditingTx(tx)}
+                              style={{
+                                flex: 1,
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                border: "1px solid var(--border)",
+                                backgroundColor: "var(--panel)",
+                                color: "var(--fg)",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                                textAlign: "center",
+                              }}
+                            >
+                              Manage Deal
+                            </button>
+                            {tx.contractPdfUrl && (
+                              <a
+                                href={tx.contractPdfUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid var(--border)",
+                                  backgroundColor: "var(--panel)",
+                                  color: "var(--fg)",
+                                  fontSize: "11px",
+                                  textDecoration: "none",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                }}
+                              >
+                                PDF
+                              </a>
+                            )}
+                            <a
+                              href={tx.titlePortalUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                border: "1px solid var(--border)",
+                                backgroundColor: "var(--panel)",
+                                color: "var(--fg)",
+                                fontSize: "11px",
+                                textDecoration: "none",
+                                display: "inline-flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              Title
+                            </a>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -562,8 +1038,28 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                       {tx.propertyAddress}
                     </h2>
                     <div style={{ fontSize: "13px", color: "var(--muted)" }}>
-                      Seller: <strong>{tx.sellerName || "N/A"}</strong> &bull; Buyer/Assignee: <strong>{tx.buyerName || "N/A"}</strong>
+                      {tx.contractType === "assignment" ? (
+                        <span>
+                          Wholesaler: <strong style={{ color: "var(--fg)" }}>{tx.sellerName || crmBusinessName || "Wholesaler (Assignor)"}</strong> &bull; Investor: <strong style={{ color: "var(--fg)" }}>{tx.buyerName || "Investor (Assignee)"}</strong>
+                        </span>
+                      ) : (
+                        <span>
+                          Seller: <strong>{tx.sellerName || "N/A"}</strong> &bull; Buyer: <strong>{tx.buyerName || "N/A"}</strong>
+                        </span>
+                      )}
                     </div>
+                    {/* Wholesale 5-step milestone indicator */}
+                    {(() => {
+                      const stepNum = getDealWholesaleStep(tx);
+                      const stepDef = WHOLESALE_STEPS.find((s) => s.step === stepNum) || WHOLESALE_STEPS[0];
+                      return (
+                        <div style={{ marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px", padding: "3px 8px", borderRadius: "4px", backgroundColor: "var(--bg-soft, rgba(0,0,0,0.04))", border: "1px solid var(--border)", fontSize: "11px" }}>
+                          <span style={{ fontWeight: 700, color: "var(--accent, #3b82f6)" }}>{stepDef.icon} Step {stepNum}:</span>
+                          <span style={{ fontWeight: 600, color: "var(--fg)" }}>{stepDef.shortTitle}</span>
+                          <span style={{ color: "var(--muted)" }}>&bull; {stepDef.badge}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Financials pill */}
@@ -862,7 +1358,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                 <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
                   <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Property Address</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Type &amp; State</th>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Signer / Parties</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Parties (Wholesaler &amp; Investor / Seller &amp; Buyer)</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Contract Price</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)" }}>E-Sign Status</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "right" }}>Actions</th>
@@ -896,8 +1392,33 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                       </span>
                     </td>
                     <td style={{ padding: "12px 16px", color: "var(--fg)" }}>
-                      <div>Seller: {tx.sellerName}</div>
-                      <div style={{ fontSize: "12px", color: "var(--muted)" }}>Buyer: {tx.buyerName}</div>
+                      {tx.contractType === "assignment" ? (
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#a855f7", textTransform: "uppercase" }}>
+                              Wholesaler
+                            </span>
+                            <strong style={{ color: "var(--fg)" }}>{tx.sellerName || crmBusinessName || "Wholesaler (Assignor)"}</strong>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                            <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", textTransform: "uppercase" }}>
+                              Investor
+                            </span>
+                            <strong style={{ color: "var(--fg)" }}>{tx.buyerName || "Investor (Assignee / Cash Buyer)"}</strong>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div>
+                            <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Seller:</span>{" "}
+                            <strong>{tx.sellerName || "Seller (Homeowner)"}</strong>
+                          </div>
+                          <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase" }}>Buyer:</span>{" "}
+                            {tx.buyerName || "Buyer (Wholesaler)"}
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--fg)" }}>
                       ${tx.purchasePrice.toLocaleString()}
@@ -1611,7 +2132,7 @@ function CreateTransactionModal({ properties, buyers, crmBusinessName, onClose, 
                 Purchase &amp; Sale Agreement (PSA)
               </div>
               <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                Between Seller and Wholesaler (includes wholesale assignability clause)
+                Between Homeowner (Seller) and Wholesaler (Buyer) with 'and/or assigns' clause
               </span>
             </label>
 
@@ -1633,12 +2154,20 @@ function CreateTransactionModal({ properties, buyers, crmBusinessName, onClose, 
                   type="radio"
                   name="contractType"
                   checked={contractType === "assignment"}
-                  onChange={() => setContractType("assignment")}
+                  onChange={() => {
+                    setContractType("assignment");
+                    if (!sellerName || sellerName.includes("and/or assigns")) {
+                      setSellerName(crmBusinessName || "Revzenta Capital LLC");
+                    }
+                    if (buyerName.includes("and/or assigns")) {
+                      setBuyerName("");
+                    }
+                  }}
                 />
                 Wholesale Assignment Contract
               </div>
               <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                Assigns PSA rights to Cash Buyer for an Assignment Fee
+                Parties are strictly <strong>Wholesaler</strong> and <strong>Investor</strong> (Assigns PSA rights for fee)
               </span>
             </label>
           </div>
@@ -1715,54 +2244,68 @@ function CreateTransactionModal({ properties, buyers, crmBusinessName, onClose, 
             </div>
           </div>
 
-          {/* Parties: Seller & Buyer */}
+          {/* Parties: Wholesaler & Investor for Assignment, or Seller & Buyer for PSA */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+            {/* Party 1 */}
             <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "var(--bg-soft, rgba(0,0,0,0.02))", border: "1px solid var(--border)" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--fg)", marginBottom: "8px" }}>SELLER INFORMATION</div>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--fg)", marginBottom: "4px" }}>
+                {contractType === "assignment" ? "🏢 WHOLESALER (ASSIGNOR)" : "👤 SELLER INFORMATION (HOMEOWNER)"}
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "8px" }}>
+                {contractType === "assignment"
+                  ? "Your wholesale entity transferring equitable contract rights"
+                  : "Property title holder selling with assignable clause"}
+              </div>
               <input
                 type="text"
-                placeholder="Seller Legal Name"
+                placeholder={contractType === "assignment" ? "Wholesaler Company / Name" : "Seller Legal Name"}
                 value={sellerName}
                 onChange={(e) => setSellerName(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "12px", marginBottom: "6px", boxSizing: "border-box" }}
               />
               <input
                 type="email"
-                placeholder="Seller Email"
+                placeholder={contractType === "assignment" ? "Wholesaler Email" : "Seller Email"}
                 value={sellerEmail}
                 onChange={(e) => setSellerEmail(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "12px", marginBottom: "6px", boxSizing: "border-box" }}
               />
               <input
                 type="text"
-                placeholder="Seller Phone"
+                placeholder={contractType === "assignment" ? "Wholesaler Phone" : "Seller Phone"}
                 value={sellerPhone}
                 onChange={(e) => setSellerPhone(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "12px", boxSizing: "border-box" }}
               />
             </div>
 
+            {/* Party 2 */}
             <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "var(--bg-soft, rgba(0,0,0,0.02))", border: "1px solid var(--border)" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--fg)", marginBottom: "8px" }}>
-                {contractType === "assignment" ? "ASSIGNEE / CASH BUYER" : "BUYER ENTITY"}
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--fg)", marginBottom: "4px" }}>
+                {contractType === "assignment" ? "💼 INVESTOR (ASSIGNEE / CASH BUYER)" : "🏢 BUYER ENTITY (WHOLESALER)"}
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "8px" }}>
+                {contractType === "assignment"
+                  ? "End cash buyer purchasing equitable rights & paying fee"
+                  : "Includes 'and/or assigns' wholesale clause"}
               </div>
               <input
                 type="text"
-                placeholder="Buyer / Assignee Legal Name"
+                placeholder={contractType === "assignment" ? "Investor / Cash Buyer Name" : "Buyer Legal Name (and/or assigns)"}
                 value={buyerName}
                 onChange={(e) => setBuyerName(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "12px", marginBottom: "6px", boxSizing: "border-box" }}
               />
               <input
                 type="email"
-                placeholder="Buyer Email"
+                placeholder={contractType === "assignment" ? "Investor Email" : "Buyer Email"}
                 value={buyerEmail}
                 onChange={(e) => setBuyerEmail(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "12px", marginBottom: "6px", boxSizing: "border-box" }}
               />
               <input
                 type="text"
-                placeholder="Buyer Phone"
+                placeholder={contractType === "assignment" ? "Investor Phone" : "Buyer Phone"}
                 value={buyerPhone}
                 onChange={(e) => setBuyerPhone(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "12px", boxSizing: "border-box" }}
@@ -1962,6 +2505,10 @@ interface EditModalProps {
 }
 
 function EditTransactionModal({ tx, onClose, onSaved }: EditModalProps) {
+  const [contractType, setContractType] = useState<"psa" | "assignment">(tx.contractType as any || "psa");
+  const [propertyAddress, setPropertyAddress] = useState(tx.propertyAddress || "");
+  const [sellerName, setSellerName] = useState(tx.sellerName || "");
+  const [buyerName, setBuyerName] = useState(tx.buyerName || "");
   const [inspectionStatus, setInspectionStatus] = useState(tx.inspectionStatus);
   const [inspectionDays, setInspectionDays] = useState(tx.inspectionDays);
   const [inspectionDeadline, setInspectionDeadline] = useState(tx.inspectionDeadline);
@@ -1987,6 +2534,10 @@ function EditTransactionModal({ tx, onClose, onSaved }: EditModalProps) {
 
     try {
       const res = await api.updateTransaction(tx.id, {
+        contractType,
+        propertyAddress,
+        sellerName,
+        buyerName,
         inspectionStatus,
         inspectionDays,
         inspectionDeadline,
@@ -2062,6 +2613,63 @@ function EditTransactionModal({ tx, onClose, onSaved }: EditModalProps) {
         )}
 
         <form onSubmit={handleSave}>
+          {/* Contract Type & Property Address */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px", marginBottom: "14px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--fg)", marginBottom: "4px" }}>
+                Contract Type
+              </label>
+              <select
+                value={contractType}
+                onChange={(e: any) => setContractType(e.target.value)}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "13px" }}
+              >
+                <option value="psa">Purchase &amp; Sale (PSA)</option>
+                <option value="assignment">Wholesale Assignment Contract</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--fg)", marginBottom: "4px" }}>
+                Property Address
+              </label>
+              <input
+                type="text"
+                required
+                value={propertyAddress}
+                onChange={(e) => setPropertyAddress(e.target.value)}
+                style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "13px", boxSizing: "border-box" }}
+              />
+            </div>
+          </div>
+
+          {/* Parties: Wholesaler & Investor for Assignment, or Seller & Buyer for PSA */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--fg)", marginBottom: "4px" }}>
+                {contractType === "assignment" ? "🏢 Wholesaler (Assignor)" : "👤 Seller (Homeowner)"}
+              </label>
+              <input
+                type="text"
+                value={sellerName}
+                onChange={(e) => setSellerName(e.target.value)}
+                placeholder={contractType === "assignment" ? "Wholesaler Company / Name" : "Seller Legal Name"}
+                style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "13px", boxSizing: "border-box" }}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--fg)", marginBottom: "4px" }}>
+                {contractType === "assignment" ? "💼 Investor (Assignee / Cash Buyer)" : "🏢 Buyer (Wholesaler Entity)"}
+              </label>
+              <input
+                type="text"
+                value={buyerName}
+                onChange={(e) => setBuyerName(e.target.value)}
+                placeholder={contractType === "assignment" ? "Investor / Cash Buyer Name" : "Buyer Entity (and/or assigns)"}
+                style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border)", backgroundColor: "var(--input-bg, var(--panel))", color: "var(--fg)", fontSize: "13px", boxSizing: "border-box" }}
+              />
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--fg)", marginBottom: "4px" }}>

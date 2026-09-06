@@ -5674,6 +5674,10 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const assignmentFee = typeof body.assignmentFee === "number" ? body.assignmentFee : existing.assignment_fee;
     const earnestMoney = typeof body.earnestMoney === "number" ? body.earnestMoney : existing.earnest_money;
     const closingDate = typeof body.closingDate === "string" ? body.closingDate : existing.closing_date;
+    const sellerName = typeof body.sellerName === "string" ? body.sellerName : existing.seller_name;
+    const buyerName = typeof body.buyerName === "string" ? body.buyerName : existing.buyer_name;
+    const propertyAddress = typeof body.propertyAddress === "string" ? body.propertyAddress : existing.property_address;
+    const contractType = typeof body.contractType === "string" ? body.contractType : existing.contract_type;
     const status = typeof body.status === "string" ? body.status : existing.status;
     const customTerms = typeof body.customTerms === "string" ? body.customTerms : existing.custom_terms;
 
@@ -5697,6 +5701,10 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
              assignment_fee = ?,
              earnest_money = ?,
              closing_date = ?,
+             seller_name = ?,
+             buyer_name = ?,
+             property_address = ?,
+             contract_type = ?,
              status = ?,
              custom_terms = ?,
              updated_at = datetime('now')
@@ -5707,6 +5715,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       titleStatus, titleCompanyName, escrowOfficerName, escrowOfficerEmail, escrowOfficerPhone, escrowFileNumber,
       payoffLender, payoffDemandAmount, payoffLoanNumber,
       purchasePrice, assignmentFee, earnestMoney, closingDate,
+      sellerName, buyerName, propertyAddress, contractType,
       status, customTerms,
       txId, orgId
     );
