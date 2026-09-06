@@ -1718,7 +1718,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                           .slice(0, 2);
                         if (chips.length === 0) return null;
                         return (
-                          <div className="cf-line" aria-label="Custom fields" style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                          <div className="cf-line" aria-label="Custom fields" style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", justifyContent: "center" }}>
                             {chips.map(({ def, cf }) => (
                               <span className="cf-chip" key={cf.name}>
                                 {def.name}: {cfChipLabel(def, cf.value)}
@@ -1728,7 +1728,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                         );
                       })()}
                       {c.leadSource && (
-                        <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                        <div style={{ marginTop: "4px", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "4px" }}>
                           <span
                             className="chip chip-lead-source"
                             style={{
@@ -2071,7 +2071,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                         );
                       })()}
                       {c.leadSource && (
-                        <div style={{ marginTop: "4px", display: "flex", justifyContent: ownerOrg ? "flex-start" : "center", flexWrap: "wrap", gap: "4px" }}>
+                        <div style={{ marginTop: "4px", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "4px" }}>
                           <span
                             className="chip chip-lead-source"
                             style={{

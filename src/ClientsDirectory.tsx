@@ -521,7 +521,7 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
                         </div>
                       )}
                       {c.leadSource && (
-                        <div style={{ marginTop: "3px" }}>
+                        <div style={{ marginTop: "3px", display: "flex", justifyContent: "center" }}>
                           <span
                             className="chip chip-lead-source"
                             style={{
@@ -570,9 +570,9 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
                         <span className="badge tone-green" style={{ fontSize: "0.7rem", padding: "1px 6px" }}>✓ {pof}</span>
                       </div>
                     </td>
-                    <td data-label="Target Markets & Buy Box">
-                      {targetMarkets && <div className="cell-strong" style={{ fontSize: "0.82rem" }}>📍 {targetMarkets}</div>}
-                      {buyBox && <div className="cell-sub" style={{ maxWidth: "240px", whiteSpace: "normal" }}>{buyBox}</div>}
+                    <td data-label="Target Markets & Buy Box" style={{ textAlign: "center" }}>
+                      {targetMarkets && <div className="cell-strong" style={{ fontSize: "0.82rem", textAlign: "center" }}>📍 {targetMarkets}</div>}
+                      {buyBox && <div className="cell-sub" style={{ maxWidth: "240px", whiteSpace: "normal", margin: "0 auto", textAlign: "center" }}>{buyBox}</div>}
                       {!targetMarkets && !buyBox && <span className="cell-muted">—</span>}
                     </td>
                     <td className="num cell-strong" data-label="Max Budget">
@@ -643,7 +643,7 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
                       </div>
                       {c.industry && <div className="cell-sub">{c.industry}</div>}
                       {c.leadSource && (
-                        <div style={{ marginTop: "3px" }}>
+                        <div style={{ marginTop: "3px", display: "flex", justifyContent: "center" }}>
                           <span
                             className="chip chip-lead-source"
                             style={{

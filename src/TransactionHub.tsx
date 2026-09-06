@@ -1457,25 +1457,25 @@ export default function TransactionHub({ crmBusinessName }: Props) {
               }}
             >
               <thead>
-                <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Property Address</th>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Type &amp; State</th>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Parties (Wholesaler &amp; Investor / Seller &amp; Buyer)</th>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)" }}>Contract Price</th>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)" }}>E-Sign Status</th>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "right" }}>Actions</th>
+                <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Property Address</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Type &amp; State</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Parties (Wholesaler &amp; Investor / Seller &amp; Buyer)</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Contract Price</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>E-Sign Status</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((tx) => (
                   <tr key={tx.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--fg)" }}>
+                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--fg)", textAlign: "center" }}>
                       {tx.propertyAddress}
-                      <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 400 }}>
+                      <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 400, textAlign: "center" }}>
                         Created {new Date(tx.createdAt).toLocaleDateString()}
                       </div>
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
                       <span
                         style={{
                           textTransform: "uppercase",
@@ -1493,16 +1493,16 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                         ({tx.stateJurisdiction})
                       </span>
                     </td>
-                    <td style={{ padding: "12px 16px", color: "var(--fg)" }}>
+                    <td style={{ padding: "12px 16px", color: "var(--fg)", textAlign: "center" }}>
                       {tx.contractType === "assignment" ? (
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
                             <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#a855f7", textTransform: "uppercase" }}>
                               Wholesaler
                             </span>
                             <strong style={{ color: "var(--fg)" }}>{tx.sellerName || crmBusinessName || "Wholesaler (Assignor)"}</strong>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: "4px" }}>
                             <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", textTransform: "uppercase" }}>
                               Investor
                             </span>
@@ -1510,7 +1510,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                           </div>
                         </div>
                       ) : (
-                        <div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
                           <div>
                             <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Seller:</span>{" "}
                             <strong>{tx.sellerName || "Seller (Homeowner)"}</strong>
@@ -1522,15 +1522,15 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--fg)" }}>
+                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--fg)", textAlign: "center" }}>
                       ${tx.purchasePrice.toLocaleString()}
                       {tx.assignmentFee > 0 && (
-                        <div style={{ fontSize: "11px", color: "#a855f7", fontWeight: 600 }}>
+                        <div style={{ fontSize: "11px", color: "#a855f7", fontWeight: 600, textAlign: "center" }}>
                           +${tx.assignmentFee.toLocaleString()} fee
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
                       <span
                         style={{
                           display: "inline-block",
@@ -1559,13 +1559,13 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                           : "⏳ " + tx.status.toUpperCase()}
                       </span>
                       {tx.signedAt && (
-                        <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
+                        <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", textAlign: "center" }}>
                           Signed by {tx.signerName} ({new Date(tx.signedAt).toLocaleDateString()})
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
                         {tx.contractPdfUrl && (
                           <a
                             href={tx.contractPdfUrl}

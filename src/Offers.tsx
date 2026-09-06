@@ -899,14 +899,14 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
         >
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
-              <tr style={{ backgroundColor: "var(--panel, var(--bg-soft))", borderBottom: "1px solid var(--border)", color: "var(--muted)", textAlign: "left" }}>
-                <th style={{ padding: "12px 16px" }}>Property Address</th>
-                <th style={{ padding: "12px 16px" }}>Seller</th>
-                <th style={{ padding: "12px 16px" }}>Date Sent</th>
-                <th style={{ padding: "12px 16px" }}>Buyer Entity</th>
-                <th style={{ padding: "12px 16px" }}>Highest Term</th>
-                <th style={{ padding: "12px 16px" }}>Status</th>
-                <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
+              <tr style={{ backgroundColor: "var(--panel, var(--bg-soft))", borderBottom: "1px solid var(--border)", color: "var(--muted)", textAlign: "center" }}>
+                <th style={{ padding: "12px 16px", textAlign: "center" }}>Property Address</th>
+                <th style={{ padding: "12px 16px", textAlign: "center" }}>Seller</th>
+                <th style={{ padding: "12px 16px", textAlign: "center" }}>Date Sent</th>
+                <th style={{ padding: "12px 16px", textAlign: "center" }}>Buyer Entity</th>
+                <th style={{ padding: "12px 16px", textAlign: "center" }}>Highest Term</th>
+                <th style={{ padding: "12px 16px", textAlign: "center" }}>Status</th>
+                <th style={{ padding: "12px 16px", textAlign: "center" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -921,30 +921,30 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                       color: "var(--ink)",
                     }}
                   >
-                    <td style={{ padding: "12px 16px", fontWeight: 700 }}>
+                    <td style={{ padding: "12px 16px", fontWeight: 700, textAlign: "center" }}>
                       <div style={{ color: "var(--ink)" }}>{offer.propertyAddress}</div>
                       <div style={{ fontSize: "11px", color: "var(--muted)" }}>Ref: {offer.pdfId?.slice(0, 8)}</div>
                     </td>
-                    <td style={{ padding: "12px 16px", color: "var(--ink-dim)" }}>
+                    <td style={{ padding: "12px 16px", color: "var(--ink-dim)", textAlign: "center" }}>
                       <div>{offer.sellerName || "—"}</div>
                       <div style={{ fontSize: "11px", color: "var(--muted)" }}>{offer.sellerEmail}</div>
                     </td>
-                    <td style={{ padding: "12px 16px", color: "var(--muted)" }}>
+                    <td style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>
                       {new Date(offer.createdAt).toLocaleDateString()}
                     </td>
-                    <td style={{ padding: "12px 16px", color: "#38bdf8", fontWeight: 600 }}>
+                    <td style={{ padding: "12px 16px", color: "#38bdf8", fontWeight: 600, textAlign: "center" }}>
                       {offer.businessName || "Revzenta Capital"} and/or assigns
                     </td>
-                    <td style={{ padding: "12px 16px", fontWeight: 800, color: "#34d399" }}>
+                    <td style={{ padding: "12px 16px", fontWeight: 800, color: "#34d399", textAlign: "center" }}>
                       ${maxAmt.toLocaleString()}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
                       <span style={{ padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, ...badge }}>
                         {offer.status || "Sent"}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
                         <a
                           href={offer.pdfUrl}
                           target="_blank"

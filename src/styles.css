@@ -2357,6 +2357,7 @@ legend.field-label {
   font-size: 14px;
 }
 
+table th,
 .table th {
   /* Owner 2026-08-29 — all table-cell data centers under its column header
      (owner + tenant tables). The Deal column's old PR #102 right-alignment
@@ -2372,8 +2373,10 @@ legend.field-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  vertical-align: middle;
 }
 
+table td,
 .table td {
   padding: 12px 12px;
   border-bottom: 1px solid var(--line);
@@ -2397,15 +2400,29 @@ legend.field-label {
    follow the centered cells. Scoped to desktop — the ≤760px stacked-card
    mode re-lefts cells (.table td text-align + .row-actions flex-start). */
 @media (min-width: 761px) {
-  .table td .cell-company { justify-content: center; text-align: center; }
-  .table td .cell-contact { align-items: center; text-align: center; }
-  .table td .row-actions { justify-content: center; }
-  .table td .cell-next-stack { align-items: center; }
-  .table td .stage-cell { align-items: center; justify-content: center; width: 100%; }
-  .table td .agree-cell { align-items: center; justify-content: center; width: 100%; }
-  .table td .cf-line { justify-content: center; }
-  .table td .chips { justify-content: center; }
+  table th, .table th { text-align: center !important; vertical-align: middle; }
+  table td, .table td { text-align: center !important; vertical-align: middle; }
+  .table td .cell-company { justify-content: center; text-align: center; width: 100%; }
+  .table td .cell-contact { align-items: center; justify-content: center; text-align: center; width: 100%; }
+  .table td .cell-contact span, .table td .cell-contact div { text-align: center; }
+  .table td .row-actions { justify-content: center; align-items: center; text-align: center; width: 100%; }
+  .table td .cell-next-stack { align-items: center; justify-content: center; text-align: center; }
+  .table td .stage-cell { align-items: center; justify-content: center; width: 100%; text-align: center; }
+  .table td .agree-cell { align-items: center; justify-content: center; width: 100%; text-align: center; }
+  .table td .cf-line { justify-content: center; text-align: center; }
+  .table td .chips { justify-content: center; text-align: center; }
+  .table td .cell-sub { text-align: center; margin-left: auto; margin-right: auto; }
   .table td .stage-select { text-align: center; text-align-last: center; }
+  .accounts-table td { text-align: center !important; }
+  .accounts-table th { text-align: center !important; }
+  .accounts-table .acc-name { text-align: center !important; }
+  .accounts-table .acc-note { text-align: center !important; }
+  .accounts-table .acc-line { text-align: center !important; }
+  .accounts-table .acc-email { text-align: center !important; }
+  .accounts-table .acc-email-text { text-align: center !important; margin: 0 auto; }
+  .accounts-table .acc-cycle { align-items: center !important; justify-content: center !important; text-align: center !important; }
+  .accounts-table .acc-cycle-line { justify-content: center !important; text-align: center !important; }
+  .accounts-table .row-actions { justify-content: center !important; text-align: center !important; }
 }
 
 .row-archived {
@@ -5051,20 +5068,24 @@ input.accent-hex::placeholder,
 /* Column min-widths so content fits cleanly and never crushes into slivers */
 .accounts-table td[data-label="Account"] {
   min-width: 150px;
+  text-align: center;
 }
 .accounts-table td[data-label="Business Type"] {
   min-width: 130px;
   white-space: nowrap;
+  text-align: center;
 }
 .accounts-table td[data-label="Phone"] {
   min-width: 125px;
   white-space: nowrap;
+  text-align: center;
 }
 /* Email gets generous dedicated width so standard and long addresses fit */
 .accounts-table td[data-label="Email"],
 .accounts-table th:nth-child(4),
 .accounts-table .acc-email {
   min-width: 220px;
+  text-align: center;
 }
 .accounts-table .acc-email-text {
   display: inline-block;
@@ -5072,6 +5093,7 @@ input.accent-hex::placeholder,
   word-break: break-all;
   overflow-wrap: anywhere;
   line-height: 1.45;
+  text-align: center;
 }
 .accounts-table td[data-label="Members"],
 .accounts-table td[data-label="Clients records"] {
@@ -5082,18 +5104,22 @@ input.accent-hex::placeholder,
 .accounts-table td[data-label="Created"] {
   min-width: 100px;
   white-space: nowrap;
+  text-align: center;
 }
 .accounts-table td[data-label="Subscription"] {
   min-width: 140px;
   white-space: nowrap;
+  text-align: center;
 }
 .accounts-table td[data-label="Actions"],
 .accounts-table th.actions-th {
   min-width: 280px;
+  text-align: center;
 }
 
 .accounts-table .acc-line {
   min-width: 12ch;
+  text-align: center;
 }
 .accounts-table .acc-name,
 .accounts-table td.acc-line {
@@ -5102,9 +5128,11 @@ input.accent-hex::placeholder,
   text-overflow: clip;
   word-break: break-word;
   line-height: 1.45;
+  text-align: center;
 }
 .accounts-table .acc-name {
   display: block;
+  text-align: center;
 }
 .accounts-table .acc-note {
   display: block;
@@ -5112,15 +5140,19 @@ input.accent-hex::placeholder,
   color: var(--muted);
   line-height: 1.45;
   word-break: break-word;
+  text-align: center;
 }
 .accounts-table .acc-muted {
   color: var(--muted);
+  text-align: center;
 }
 .accounts-table .acc-cycle {
   display: inline-flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 2px;
+  text-align: center;
 }
 /* Created dates and subscription amounts are short fixed-format values —
    keep them on one line so auto column sizing gives them their natural

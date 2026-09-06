@@ -814,7 +814,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                   <th className="num">Clients records</th>
                   <th>Created</th>
                   <th className="num">
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
                       <span>Subscription</span>
                       <button
                         type="button"
@@ -902,7 +902,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                       </td>
                       <td data-label="Created">{fmtDate(o.createdAt)}</td>
                       <td className="num" data-label="Subscription" title="Monthly subscription charge">
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "flex-end", width: "100%" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center", width: "100%" }}>
                           {amt > 0 ? (
                             <span className={isSubPrivate ? "pii-blur" : undefined} style={{ fontVariantNumeric: "tabular-nums" }}>
                               {isSubPrivate ? "••••••" : `${money(amt)}/mo`}
@@ -1042,7 +1042,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                 <th className="num">Clients records</th>
                 <th>Created</th>
                 <th className="num">
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
                     <span>Subscription</span>
                     <button
                       type="button"
@@ -1122,7 +1122,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                     </td>
                     <td data-label="Created">{fmtDate(o.createdAt)}</td>
                     <td className="num" data-label="Subscription" title="Monthly subscription charge">
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "flex-end", width: "100%" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center", width: "100%" }}>
                         {amt > 0 ? (
                           <span className={isSubPrivate ? "pii-blur" : undefined} style={{ fontVariantNumeric: "tabular-nums" }}>
                             {isSubPrivate ? "••••••" : `${money(amt)}/mo`}

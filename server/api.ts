@@ -483,9 +483,14 @@ function toClient(row: ClientRow, ownerOrg = false) {
           const name = typeof obj.name === "string" ? obj.name : (obj.label as string);
           return {
             name,
-            value: typeof obj.value === "string" ? obj.value : "",
+            value: typeof obj.value === "string" ? obj.value : String(obj.value ?? ""),
           };
         });
+    } else if (parsed && typeof parsed === "object") {
+      customFields = Object.entries(parsed).map(([name, value]) => ({
+        name,
+        value: typeof value === "object" && value !== null ? JSON.stringify(value) : String(value ?? ""),
+      }));
     }
   } catch {
     /* keep empty */
@@ -2734,6 +2739,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       const initialStage = orgStages[0] ?? "Leads";
 
       const customFields: Record<string, unknown> = {
+        "Assignment Value": estValue,
         bedrooms: beds,
         bathrooms: baths,
         squareFootage: sqft,
@@ -3833,8 +3839,13 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     function parseClientAssignmentFee(dealVal: number, customFieldsStr: string): number {
       let fee = 0;
       try {
-        const cf = JSON.parse(customFieldsStr || "[]");
-        for (const f of cf) {
+        const raw = JSON.parse(customFieldsStr || "[]");
+        const cfList: Array<{ name: string; value: unknown }> = Array.isArray(raw)
+          ? raw
+          : raw && typeof raw === "object"
+          ? Object.entries(raw).map(([k, v]) => ({ name: k, value: v }))
+          : [];
+        for (const f of cfList) {
           const name = (f.name || "").toLowerCase();
           if (
             name.includes("assignment fee") ||
@@ -7272,6 +7283,7 @@ ${businessName}
     const asking = sample.ask;
 
     const customFields: Record<string, unknown> = {
+      "Assignment Value": estVal,
       bedrooms: beds,
       bathrooms: baths,
       squareFootage: sqft,

@@ -11,6 +11,7 @@ import {
   type IntakeField,
   type IntakeOrgSettings,
 } from "./intakeRules";
+import { getAssignmentValue } from "./Clients";
 
 interface Props {
   client?: Client;
@@ -244,20 +245,12 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
   const [savingApiKey, setSavingApiKey] = useState(false);
   const [apiKeyMsg, setApiKeyMsg] = useState<string | null>(null);
   const [assignmentFee, setAssignmentFee] = useState<number>(() => {
-    if (client?.customFields) {
-      const f = client.customFields.find(
-        (c) =>
-          c.name.toLowerCase().includes("assignment fee") ||
-          c.name.toLowerCase().includes("assignment value") ||
-          c.name.toLowerCase().includes("projected assignment")
-      );
-      if (f) {
-        const num = Number(String(f.value).replace(/[^0-9.]/g, ""));
-        if (!isNaN(num) && num > 0) return num;
-      }
+    if (client) {
+      const val = getAssignmentValue(client);
+      if (val > 0) return val;
+      if (client.dealValue && client.dealValue > 0) return client.dealValue;
     }
-    if (client?.dealValue && client.dealValue > 0 && client.dealValue <= 75000) return client.dealValue;
-    return 10000;
+    return 0;
   });
 
   const handleSaveApiKey = async () => {
@@ -349,6 +342,10 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
             customFields: nextCustom,
           };
         });
+
+        if (p.estimatedValue && (!assignmentFee || assignmentFee === 0)) {
+          setAssignmentFee(p.estimatedValue);
+        }
 
         const specsSummary = [
           p.bedrooms != null ? `${p.bedrooms} beds` : null,

@@ -341,35 +341,36 @@ export default function Connections({ canEdit = true }: { canEdit?: boolean }) {
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse", textAlign: "left" }}>
+              <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse", textAlign: "center" }}>
                 <thead>
-                  <tr style={{ background: "var(--surface-sunken)", borderBottom: "1px solid var(--border)" }}>
-                    <th style={{ padding: "8px 12px" }}>Status</th>
-                    <th style={{ padding: "8px 12px" }}>Source</th>
-                    <th style={{ padding: "8px 12px" }}>Property Lead ID</th>
-                    <th style={{ padding: "8px 12px" }}>Timestamp</th>
+                  <tr style={{ background: "var(--surface-sunken)", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Status</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Source</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Property Lead ID</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Timestamp</th>
                   </tr>
                 </thead>
                 <tbody>
                   {webhookSettings.recentLogs.map((log) => (
                     <tr key={log.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                      <td style={{ padding: "8px 12px" }}>
+                      <td style={{ padding: "8px 12px", textAlign: "center" }}>
                         <span
                           style={{
                             color: log.status === "success" ? "#10b981" : "#ef4444",
                             fontWeight: 600,
                             display: "inline-flex",
                             alignItems: "center",
+                            justifyContent: "center",
                             gap: "4px",
                           }}
                         >
                           {log.status === "success" ? "✓ Received" : "✕ Error"}
                         </span>
                       </td>
-                      <td style={{ padding: "8px 12px", textTransform: "capitalize", fontWeight: 500 }}>
+                      <td style={{ padding: "8px 12px", textTransform: "capitalize", fontWeight: 500, textAlign: "center" }}>
                         {log.source}
                       </td>
-                      <td style={{ padding: "8px 12px" }}>
+                      <td style={{ padding: "8px 12px", textAlign: "center" }}>
                         {log.clientId ? (
                           <span style={{ fontFamily: "monospace", color: "var(--primary)" }}>
                             #{log.clientId}
@@ -378,7 +379,7 @@ export default function Connections({ canEdit = true }: { canEdit?: boolean }) {
                           <span style={{ color: "var(--text-dim)" }}>—</span>
                         )}
                       </td>
-                      <td style={{ padding: "8px 12px", color: "var(--text-dim)" }}>
+                      <td style={{ padding: "8px 12px", color: "var(--text-dim)", textAlign: "center" }}>
                         {log.createdAt}
                       </td>
                     </tr>
