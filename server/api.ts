@@ -4317,6 +4317,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
        "general" resets the vertical config to defaults and touches no stages
        or fields. The org always comes from the session — no cross-org path. */
     if (body.verticalKey !== undefined) {
+      if (!isOwnerSession(auth)) {
+        return err("Only the administrator/owner can set or change the workspace business type template.", 403);
+      }
       if (typeof body.verticalKey !== "string") {
         return err("Business type must be one of the provided options.", 400);
       }

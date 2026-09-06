@@ -1113,58 +1113,58 @@ export default function Settings({
           </form>
         </div>
 
-        {!isOwnerOrg && (
-        <>
-        <div className="card admin-form">
-          <div className="admin-card-head">
-            <h2 className="admin-card-title">Business type</h2>
-            <p className="admin-card-sub">
-              The type this workspace was set up for — it seeded your pipeline stages when the
-              account was created. You can switch anytime.
-            </p>
-          </div>
-          <div className="form">
-            <div className="field">
-              <span className="field-label">Current business type</span>
-              <div>
-                <span className="badge tone-lime">{verticalLabel(settings.verticalKey)}</span>
+        {isOwnerOrg && (
+          <div className="card admin-form">
+            <div className="admin-card-head">
+              <h2 className="admin-card-title">Business type</h2>
+              <p className="admin-card-sub">
+                The type this workspace was set up for — it seeded your pipeline stages when the
+                account was created. You can switch anytime.
+              </p>
+            </div>
+            <div className="form">
+              <div className="field">
+                <span className="field-label">Current business type</span>
+                <div>
+                  <span className="badge tone-lime">{verticalLabel(settings.verticalKey)}</span>
+                </div>
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="apply-vertical">
+                  Apply a different type
+                </label>
+                <select
+                  id="apply-vertical"
+                  value={applyVertical}
+                  onChange={(e) => {
+                    setError(null);
+                    setSaved(null);
+                    setApplyVertical(e.target.value);
+                  }}
+                >
+                  {ALL_VERTICALS.map((v) => (
+                    <option key={v.key} value={v.key}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="field-hint">
+                  Applying is <strong>additive and non-destructive</strong>: stages and custom
+                  fields the type presets that you don't already have are added at the end —
+                  nothing is renamed, removed or reordered. Your industry / service model /
+                  delivery settings update to the type's defaults.
+                </span>
+              </div>
+              <div className="stage-save">
+                {canEdit && (
+                  <button className="btn btn-primary" disabled={busy} onClick={applyVerticalTemplate}>
+                    {busy ? "Applying…" : "Apply template"}
+                  </button>
+                )}
               </div>
             </div>
-            <div className="field">
-              <label className="field-label" htmlFor="apply-vertical">
-                Apply a different type
-              </label>
-              <select
-                id="apply-vertical"
-                value={applyVertical}
-                onChange={(e) => {
-                  setError(null);
-                  setSaved(null);
-                  setApplyVertical(e.target.value);
-                }}
-              >
-                {ALL_VERTICALS.map((v) => (
-                  <option key={v.key} value={v.key}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
-              <span className="field-hint">
-                Applying is <strong>additive and non-destructive</strong>: stages and custom
-                fields the type presets that you don't already have are added at the end —
-                nothing is renamed, removed or reordered. Your industry / service model /
-                delivery settings update to the type's defaults.
-              </span>
-            </div>
-            <div className="stage-save">
-              {canEdit && (
-                <button className="btn btn-primary" disabled={busy} onClick={applyVerticalTemplate}>
-                  {busy ? "Applying…" : "Apply template"}
-                </button>
-              )}
-            </div>
           </div>
-        </div>
+        )}
 
         {!isWholesaleEffective && (
         <>
@@ -1526,8 +1526,6 @@ export default function Settings({
             )}
           </div>
         </div>
-        </>
-        )}
         </>
         )}
 
