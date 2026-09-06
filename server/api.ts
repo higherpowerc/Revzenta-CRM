@@ -3829,17 +3829,20 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
        own Maybe bin, so a Maybe-level deal value must never surface here
        while the Active bin looks empty). demo_outcome is NOT NULL DEFAULT ''
        (server/db.ts), so the plain != comparison is NULL-safe. */
-    // Helper to extract assignment fee from client record
+    // Helper to extract assignment fee/value from client record
     function parseClientAssignmentFee(dealVal: number, customFieldsStr: string): number {
       let fee = 0;
       try {
         const cf = JSON.parse(customFieldsStr || "[]");
         for (const f of cf) {
+          const name = (f.name || "").toLowerCase();
           if (
-            f.name &&
-            (f.name.toLowerCase().includes("assignment fee") ||
-              f.name.toLowerCase().includes("assignment value") ||
-              f.name.toLowerCase().includes("projected assignment"))
+            name.includes("assignment fee") ||
+            name.includes("assignment value") ||
+            name.includes("projected assignment") ||
+            name.includes("target assignment") ||
+            name.includes("wholesale assignment") ||
+            name.includes("assignment")
           ) {
             const parsed = Number(String(f.value).replace(/[^0-9.]/g, ""));
             if (!isNaN(parsed) && parsed > 0) {
@@ -3849,15 +3852,15 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
           }
         }
       } catch {}
-      if (fee === 0 && dealVal > 0 && dealVal <= 100000) {
+      if (fee === 0 && dealVal > 0) {
         fee = dealVal;
       }
       return fee;
     }
 
     // Wholesale assignment fees:
-    // 1. Projected Assignment Fees: all assignment fees that have not been sold
-    // 2. Sold Assignment Fees: all assignment fees from properties in 'sold' stage
+    // 1. Projected Assignment Fees: sum of all assignment values from properties in the properties menu (active pipeline)
+    // 2. Sold Assignment Fees: assignment fees from properties in 'sold' or 'closed' stage
     let projectedAssignmentFees = 0;
     let soldAssignmentFees = 0;
     try {
@@ -3870,11 +3873,10 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
 
       for (const p of allProps) {
         const fee = parseClientAssignmentFee(p.deal_value, p.custom_fields);
-        const isSold = p.stage.trim().toLowerCase() === "sold";
+        projectedAssignmentFees += fee;
+        const isSold = p.stage.trim().toLowerCase() === "sold" || p.stage.trim().toLowerCase() === "closed";
         if (isSold) {
           soldAssignmentFees += fee;
-        } else {
-          projectedAssignmentFees += fee;
         }
       }
     } catch {

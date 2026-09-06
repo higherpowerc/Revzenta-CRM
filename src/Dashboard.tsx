@@ -6,6 +6,7 @@ import { StageBadge, ServiceChips } from "./bits";
 import { usePii, blurPii } from "./pii";
 import ProvisionNotices from "./ProvisionNotices";
 import { getMatchesByProperty, getPropertyPrice, getCustomField } from "./buyBoxUtils";
+import { getAssignmentValue } from "./Clients";
 
 interface Props {
   /** Owner request 2026-08-14/15 — the Dashboard's stage cards deep-link into
@@ -125,16 +126,26 @@ export default function Dashboard({
     return allClients.filter((c) => (c.leadSource || "").toLowerCase().includes("webhook")).length;
   }, [allClients]);
 
-  const buyBoxMatches = useMemo(() => {
+  const wholesaleProperties = useMemo(() => {
     if (!isWholesale || allClients.length === 0) return [];
-    const props = allClients.filter(
+    return allClients.filter(
       (c) => !c.archived && !c.lost && c.clientType !== "buyer" && c.stage !== "Buyer",
     );
+  }, [isWholesale, allClients]);
+
+  const wholesaleProjectedAssignments = useMemo(() => {
+    if (!isWholesale || wholesaleProperties.length === 0) return 0;
+    return wholesaleProperties.reduce((sum, c) => sum + getAssignmentValue(c), 0);
+  }, [isWholesale, wholesaleProperties]);
+
+  const buyBoxMatches = useMemo(() => {
+    if (!isWholesale || allClients.length === 0) return [];
+    const props = wholesaleProperties;
     const buyrs = allClients.filter(
       (c) => !c.archived && !c.lost && (c.clientType === "buyer" || c.stage === "Buyer"),
     );
     return getMatchesByProperty(props, buyrs);
-  }, [isWholesale, allClients]);
+  }, [isWholesale, allClients, wholesaleProperties]);
 
   /* Owner revenue summary (owner 2026-08-20) — the OWNER's dashboard
      surfaces real invoice-based revenue (the same figures the Finance tab
@@ -273,7 +284,7 @@ export default function Dashboard({
      unchanged (owner direction: rename the OWNER card only). */
   const leadOppNote = "Total deal value of active leads · not revenue";
   const pipelineNote = isWholesale
-    ? "All assignment fees that have not been sold · active pipeline"
+    ? "Sum of all assignment values from properties in pipeline"
     : isPropView
       ? "Sum of deal values · active properties only — not revenue"
       : "Sum of deal values · active clients only — not revenue";
@@ -504,7 +515,7 @@ export default function Dashboard({
           </div>
           <div className="card kpi">
             <span className="kpi-label kpi-label-row">
-              {isWholesale ? "Projected Assignment fees" : "Projected pipeline"}
+              {isWholesale ? "Projected Assignments" : "Projected pipeline"}
               <button
                 type="button"
                 className="eye-btn"
@@ -517,9 +528,20 @@ export default function Dashboard({
               </button>
             </span>
             <span className={`kpi-value lime${blur(moneyHidden)}`}>
-              {money(isWholesale && data.projectedAssignmentFees !== undefined ? data.projectedAssignmentFees : data.projectedPipeline)}
+              {money(isWholesale ? (allClients.length > 0 ? wholesaleProjectedAssignments : (data.projectedAssignmentFees ?? 0)) : data.projectedPipeline)}
             </span>
             <span className="kpi-note">{pipelineNote}</span>
+            {isWholesale && onGoToStage && (
+              <button
+                type="button"
+                className="kpi-link"
+                onClick={() => onGoToStage()}
+                title="View all properties in Properties menu"
+                style={{ marginTop: "4px" }}
+              >
+                View Properties →
+              </button>
+            )}
           </div>
           <div className="card kpi">
             <span className="kpi-label">{activeKpi}</span>

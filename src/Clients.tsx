@@ -2449,17 +2449,6 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                             Payment link
                           </button>
                         )}
-                        {isWholesale && canEdit && (
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            title="Deal Calculator & Offer Email"
-                            aria-label={`Deal calculator for ${c.companyName}`}
-                            onClick={() => setCalcProperty(c)}
-                          >
-                            🏠 Calculator
-                          </button>
-                        )}
                         {isWholesale && canEdit && !c.lost && (
                           <button
                             type="button"
