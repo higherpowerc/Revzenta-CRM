@@ -668,6 +668,8 @@ export interface OrgSettings {
   /** Appointments production (backlog 5a104eae): 1 = this account's clients
    *  may schedule appointments for themselves; 0 = view/reschedule only. */
   allowSelfSchedule: boolean;
+  emailSenderName?: string;
+  emailReplyTo?: string;
   /** Native e-signature (owner direction 2026-08-15) — the OWNER org's
    *  editable agreement template. Absent from tenant settings responses. */
   agreementTemplate?: string;

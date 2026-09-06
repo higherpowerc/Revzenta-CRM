@@ -235,6 +235,52 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
     }
   }, []);
 
+  const initialPropertyType = useMemo<"single_family" | "multi_family" | "commercial">(() => {
+    if (!property) return "single_family";
+    if (property.clientType === "commercial") return "commercial";
+    if (property.clientType === "multi_family") return "multi_family";
+    return "single_family";
+  }, [property]);
+
+  const [propertyType, setPropertyType] = useState<"single_family" | "multi_family" | "commercial">(initialPropertyType);
+
+  useEffect(() => {
+    if (property?.clientType) {
+      if (property.clientType === "commercial") setPropertyType("commercial");
+      else if (property.clientType === "multi_family") setPropertyType("multi_family");
+      else setPropertyType("single_family");
+    }
+  }, [property]);
+
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("Inspection / repair costs too high");
+  const [cancelNotes, setCancelNotes] = useState("");
+  const [cancellingDeal, setCancellingDeal] = useState(false);
+
+  const handleCancelDeal = async () => {
+    if (!property?.id) return;
+    setCancellingDeal(true);
+    try {
+      const reasonDetail = `Deal Cancelled: ${cancelReason}${cancelNotes.trim() ? " — " + cancelNotes.trim() : ""}`;
+      const res = await api.updateClient(property.id, {
+        lost: true,
+        lostReason: reasonDetail,
+      });
+      if (res.client) {
+        onUpdated?.(res.client);
+        setSaveSuccessMsg("Deal marked as Cancelled and moved to Lost deals.");
+        setShowCancelModal(false);
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      }
+    } catch (e: any) {
+      setSaveSuccessMsg("Error cancelling deal: " + (e?.message || String(e)));
+    } finally {
+      setCancellingDeal(false);
+    }
+  };
+
   // Initialize from property custom fields or sensible defaults
   const initialFields = useMemo(() => {
     let arv = 275000;
@@ -565,6 +611,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
 
       if (property?.id) {
         const updatePayload: Partial<ClientInput> = {
+          clientType: propertyType,
           dealValue: activeOffer,
           customFields: customFieldsUpdate,
         };
@@ -592,6 +639,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
           email: recipientEmail || "",
           dealValue: activeOffer,
           stage: "Leads",
+          clientType: propertyType,
           address: parsedAddr.address || propertyAddress,
           city: parsedAddr.city,
           state: parsedAddr.state,
@@ -738,8 +786,8 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "200px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ width: "170px" }}>
               <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #94a3b8)", letterSpacing: "0.05em", marginBottom: "4px" }}>
                 Seller / Owner Name
               </label>
@@ -752,7 +800,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                   width: "100%",
                   height: "38px",
                   padding: "0 12px",
-                  fontSize: "14px",
+                  fontSize: "13px",
                   fontWeight: 600,
                   borderRadius: "6px",
                   border: "1px solid var(--border, #30363d)",
@@ -764,14 +812,43 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
               />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", alignSelf: "flex-end" }}>
+            <div style={{ width: "160px" }}>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                Property Type
+              </label>
+              <select
+                value={propertyType}
+                onChange={(e) => setPropertyType(e.target.value as any)}
+                aria-label="Property type"
+                style={{
+                  width: "100%",
+                  height: "38px",
+                  padding: "0 10px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "1px solid var(--border, #30363d)",
+                  backgroundColor: "var(--panel, #121216)",
+                  color: "var(--ink, #f8fafc)",
+                  boxSizing: "border-box",
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="single_family">Single Family</option>
+                <option value="multi_family">Multi Family</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", alignItems: "flex-end", alignSelf: "flex-end" }}>
               <button
                 type="button"
                 onClick={handleSaveTermsToProperty}
                 disabled={savingToCrm}
                 style={{
                   height: "38px",
-                  padding: "0 18px",
+                  padding: "0 16px",
                   fontWeight: 700,
                   fontSize: "13px",
                   display: "flex",
@@ -789,11 +866,169 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                 <span>💾</span>
                 <span>{savingToCrm ? "Saving…" : property ? "Save to Property" : "Save as New Property"}</span>
               </button>
+
+              {property && (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={savingToCrm || cancellingDeal}
+                  title="Cancel this deal and mark it as lost / fell through"
+                  style={{
+                    height: "38px",
+                    padding: "0 12px",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    whiteSpace: "nowrap",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    backgroundColor: "rgba(239, 68, 68, 0.12)",
+                    color: "#f87171",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span>🚫</span>
+                  <span>Cancel Deal</span>
+                </button>
+              )}
             </div>
           </div>
           {saveSuccessMsg && (
             <div style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", fontWeight: 700 }}>
               {saveSuccessMsg}
+            </div>
+          )}
+
+          {showCancelModal && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.75)",
+                zIndex: 10000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "16px",
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: "var(--panel, #121216)",
+                  border: "1px solid var(--border, #30363d)",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  maxWidth: "480px",
+                  width: "100%",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                  <span style={{ fontSize: "24px" }}>🚫</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                      Cancel Wholesale Deal
+                    </h3>
+                    <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                      {propertyAddress || property?.companyName || "Current Deal"}
+                    </p>
+                  </div>
+                </div>
+                <p style={{ fontSize: "13px", color: "var(--text-dim, #cbd5e1)", lineHeight: 1.5, marginBottom: "16px" }}>
+                  Cancelling this deal removes it from your active wholesale pipeline and updates projected assignment fees. The deal record will be preserved in your <strong>Lost Deals</strong> section for audit history.
+                </p>
+                <div style={{ marginBottom: "14px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #94a3b8)", marginBottom: "6px" }}>
+                    Reason for Cancellation *
+                  </label>
+                  <select
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    style={{
+                      width: "100%",
+                      height: "38px",
+                      padding: "0 10px",
+                      fontSize: "13px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border, #30363d)",
+                      backgroundColor: "var(--panel-2, #16161b)",
+                      color: "var(--ink, #f8fafc)",
+                      boxSizing: "border-box",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="Inspection / repair costs too high">Inspection / repair costs too high</option>
+                    <option value="Buyer backed out / Couldn't find cash buyer">Buyer backed out / Couldn't find cash buyer</option>
+                    <option value="Seller backed out / Uncooperative seller">Seller backed out / Uncooperative seller</option>
+                    <option value="Title defects / clouded title / liens">Title defects / clouded title / liens</option>
+                    <option value="Numbers don't work / Overpriced">Numbers don't work / Overpriced</option>
+                    <option value="EMD not deposited in time">EMD not deposited in time</option>
+                    <option value="Mutual termination">Mutual termination</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: "20px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #94a3b8)", marginBottom: "6px" }}>
+                    Additional Notes (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={cancelNotes}
+                    onChange={(e) => setCancelNotes(e.target.value)}
+                    placeholder="e.g. Foundation cracked on inspection day 4..."
+                    style={{
+                      width: "100%",
+                      height: "38px",
+                      padding: "0 12px",
+                      fontSize: "13px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border, #30363d)",
+                      backgroundColor: "var(--panel-2, #16161b)",
+                      color: "var(--ink, #f8fafc)",
+                      boxSizing: "border-box",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(false)}
+                    disabled={cancellingDeal}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      borderRadius: "6px",
+                      border: "1px solid var(--border, #30363d)",
+                      backgroundColor: "transparent",
+                      color: "var(--ink, #f8fafc)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Keep Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelDeal}
+                    disabled={cancellingDeal}
+                    style={{
+                      padding: "8px 18px",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      borderRadius: "6px",
+                      border: "none",
+                      backgroundColor: "#ef4444",
+                      color: "#ffffff",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {cancellingDeal ? "Cancelling…" : "Confirm Cancel Deal"}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

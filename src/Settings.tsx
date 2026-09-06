@@ -103,6 +103,8 @@ export default function Settings({
 
   /* Workspace (branding) */
   const [orgName, setOrgName] = useState("");
+  const [emailSenderName, setEmailSenderName] = useState("");
+  const [emailReplyTo, setEmailReplyTo] = useState("");
   const [accentColor, setAccentColor] = useState("#d6ff3f");
   // Dashboard color picker (owner 2026-08-29) — '' = theme defaults.
   const [dashboardColor, setDashboardColor] = useState("");
@@ -432,6 +434,8 @@ export default function Settings({
       const { settings } = await api.settings();
       setSettings(settings);
       setOrgName(settings.orgName);
+      setEmailSenderName(settings.emailSenderName ?? "");
+      setEmailReplyTo(settings.emailReplyTo ?? "");
       setAccentColor(settings.accentColor);
       setDashboardColor(settings.dashboardColor ?? "");
       try {
@@ -474,7 +478,13 @@ export default function Settings({
     setSaved(null);
     setBusy(true);
     try {
-      await api.updateSettings({ orgName: orgName.trim(), accentColor, dashboardColor });
+      await api.updateSettings({
+        orgName: orgName.trim(),
+        emailSenderName: emailSenderName.trim(),
+        emailReplyTo: emailReplyTo.trim(),
+        accentColor,
+        dashboardColor,
+      });
       localStorage.setItem(REVENUE_COLORS_KEY, JSON.stringify(revenueCardColors));
       setSaved("Workspace branding saved.");
       await load(); // refresh orgName/accent from the server
@@ -980,16 +990,39 @@ export default function Settings({
           </div>
           <form onSubmit={saveWorkspace} className="form">
             <label className="field">
-              <span className="field-label">Workspace name</span>
+              <span className="field-label">Workspace / Business name</span>
               <input
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
                 maxLength={200}
-                placeholder="Acme Landscaping"
+                placeholder="Acme Real Estate Group"
                 required
                 disabled={!canEdit}
               />
-              <span className="field-hint">Shown in the app header and document title.</span>
+              <span className="field-hint">Your company or legal business name. Used in app headers, outgoing emails, offer letters, and contracts.</span>
+            </label>
+            <label className="field">
+              <span className="field-label">Outgoing Email Sender Name</span>
+              <input
+                value={emailSenderName}
+                onChange={(e) => setEmailSenderName(e.target.value)}
+                maxLength={200}
+                placeholder={orgName || "e.g. Acme Acquisitions Team"}
+                disabled={!canEdit}
+              />
+              <span className="field-hint">The sender name your clients, sellers, and buyers see in their email inbox (defaults to business name above).</span>
+            </label>
+            <label className="field">
+              <span className="field-label">Outgoing Email Reply-To Address</span>
+              <input
+                type="email"
+                value={emailReplyTo}
+                onChange={(e) => setEmailReplyTo(e.target.value)}
+                maxLength={200}
+                placeholder="deals@yourcompany.com"
+                disabled={!canEdit}
+              />
+              <span className="field-hint">Where recipients' replies will be sent when they reply to your sent offers, agreements, and closing notices.</span>
             </label>
             <div className="field">
               <span className="field-label">Interface theme</span>

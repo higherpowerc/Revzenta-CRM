@@ -97,6 +97,21 @@ export function emailStatusOf(r: SendEmailResult): "sent" | "failed" | "skipped"
   return r.error === RESEND_KEY_MISSING_ERROR ? "skipped" : "failed";
 }
 
+export function getOrgBusinessInfo(orgId: number): { businessName: string; replyTo?: string } {
+  try {
+    const org = db.query("SELECT name, email_sender_name, email_reply_to FROM orgs WHERE id = ?").get(orgId) as {
+      name: string;
+      email_sender_name?: string;
+      email_reply_to?: string;
+    } | null;
+    const businessName = (org?.email_sender_name || org?.name || "").trim() || "Revzenta";
+    const replyTo = (org?.email_reply_to || "").trim() || undefined;
+    return { businessName, replyTo };
+  } catch {
+    return { businessName: "Revzenta" };
+  }
+}
+
 /**
  * Phase 5 — find the OWNER client record a Stripe payment event refers to.
  * STRICT SCOPE (hard requirement — no cross-account leakage): the payment
@@ -179,6 +194,7 @@ async function recordStripePayment(
       description: "Revzenta CRM subscription",
       paidAt: now,
     });
+    const orgInfo = getOrgBusinessInfo(client.org_id);
     const email = await sendInvoiceEmail({
       to: client.email,
       clientName: client.contact_name || client.company_name,
@@ -186,6 +202,8 @@ async function recordStripePayment(
       paidAt: now,
       invoiceNumber,
       pdfBase64: Buffer.from(pdf).toString("base64"),
+      businessName: orgInfo.businessName,
+      replyTo: orgInfo.replyTo,
     });
     console.log(
       `[stripe] webhook ${eventType}: client ${client.id} marked paid — invoice email ${email.ok ? "sent" : "failed: " + email.error}`,
@@ -996,6 +1014,19 @@ export const WHOLESALE_CUSTOM_FIELDS = new Set([
   "arv",
   "repairs",
   "assignment fee",
+  "projected assignment fee",
+  "underwritten purchase price",
+  "property address",
+  "property type",
+  "bedrooms",
+  "bathrooms",
+  "square footage",
+  "year built",
+  "estimated value",
+  "target markets",
+  "buy box",
+  "buyer type",
+  "proof of funds",
   "mao offer",
   "investor rule",
   "offer structure",
@@ -1028,17 +1059,37 @@ function validateClient(
    *  only then is body.agreementStatus accepted (validated + persisted).
    *  Tenant payloads ignore the key entirely. */
   ownerOrg = false,
+  /** Partial updates (e.g. PUT /api/clients/:id) do not require clientType/propertyType if omitted */
+  isPartial = false,
 ): { ok: true; value: ClientInput } | { ok: false; error: string } {
   const str = (v: unknown, max = 500): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
   const companyName = str(body.companyName, 200) || str(body.address, 200) || "Unknown Owner";
 
-  // Phase 3e: client type is REQUIRED on create AND edit — exactly one of
-  // "commercial" / "residential" (the migration backfilled old rows).
-  if (!isClientType(body.clientType)) {
-    return { ok: false, error: "Client type is required — choose commercial or residential." };
+  // Property Type / Client Type handling:
+  // In Wholesale CRM, property types are Single Family, Multi Family, or Commercial.
+  let clientType: ClientType = "single_family";
+  if (typeof body.clientType === "string" && body.clientType.trim() !== "") {
+    const raw = body.clientType.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (raw === "single_family" || raw === "singlefamily" || raw === "single" || raw === "residential") {
+      clientType = "single_family";
+    } else if (raw === "multi_family" || raw === "multifamily" || raw === "multi") {
+      clientType = "multi_family";
+    } else if (raw === "commercial") {
+      clientType = "commercial";
+    } else if (raw === "buyer") {
+      clientType = "buyer";
+    } else if (isClientType(raw)) {
+      clientType = raw as ClientType;
+    } else {
+      return { ok: false, error: "Property type is required — choose Single Family, Multi Family, or Commercial." };
+    }
+  } else if (!isPartial) {
+    // Default gracefully to Single Family for new leads when omitted
+    clientType = "single_family";
+  } else if (body.clientType !== undefined && body.clientType !== null) {
+    return { ok: false, error: "Property type is required — choose Single Family, Multi Family, or Commercial." };
   }
-  const clientType = body.clientType;
 
   // Phase 3e: bounded text fields. All optional, but provided values must
   // respect their length caps (rejected, not silently truncated).
@@ -3112,11 +3163,14 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     // (Resend test mode rejects non-owner recipients with HTTP 422) instead
     // of believing the link went out. The raw token + signUrl ride along so
     // the owner can copy/open the signing link manually when email failed.
+    const orgInfo = getOrgBusinessInfo(orgId);
     const email = await sendAgreementEmail({
       to: client.email,
       clientName: client.contact_name || client.company_name,
       appUrl: appUrlFrom(req),
       token,
+      businessName: orgInfo.businessName,
+      replyTo: orgInfo.replyTo,
     });
     return json({
       ok: true,
@@ -4073,6 +4127,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         revenueModel: isRevenueModel(org.revenue_model) ? org.revenue_model : "sales",
         monthlySubscriptionAmount: org.monthly_subscription_amount ?? 0,
         allowSelfSchedule: org.allow_self_schedule === 1,
+        emailSenderName: org.email_sender_name ?? "",
+        emailReplyTo: org.email_reply_to ?? "",
         // Native e-signature + agreements PIN (owner direction 2026-08-25) —
         // BOTH owner-only: the editable template and the boolean "is the
         // editor PIN set?" (never the hash itself). Deliberately absent from
@@ -4104,6 +4160,18 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       if (name.length > 200) return err("Workspace name must be under 200 characters.", 400);
       sets.push("name = ?");
       params.push(name);
+    }
+
+    if (body.emailSenderName !== undefined) {
+      const senderName = typeof body.emailSenderName === "string" ? body.emailSenderName.trim() : "";
+      sets.push("email_sender_name = ?");
+      params.push(senderName);
+    }
+
+    if (body.emailReplyTo !== undefined) {
+      const replyTo = typeof body.emailReplyTo === "string" ? body.emailReplyTo.trim() : "";
+      sets.push("email_reply_to = ?");
+      params.push(replyTo);
     }
 
     if (body.accentColor !== undefined) {
@@ -4715,12 +4783,15 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         metadata: { clientId: String(client.id), orgId: String(client.org_id) },
       });
       // Email the link to the client ONLY after Stripe succeeded.
+      const orgInfo = getOrgBusinessInfo(orgId);
       const email = await sendPaymentLinkEmail({
         to: client.email,
         clientName: client.contact_name || client.company_name,
         linkUrl: link.url,
         amountCents: cents,
         interval,
+        businessName: orgInfo.businessName,
+        replyTo: orgInfo.replyTo,
       });
       // Owner direction 2026-08-18 — the status flip happens ONLY after
       // Stripe AND the email both succeeded: payment_status none → sent (the
@@ -4944,11 +5015,14 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const text = typeof body.message === "string" ? body.message.trim() : "";
     if (!text) return err("Offer email message body cannot be empty.", 400);
 
-    const org = db.query("SELECT name FROM orgs WHERE id = ?").get(orgId) as { name: string } | null;
-    const crmOrgName = (org?.name || "").trim();
+    const orgInfo = getOrgBusinessInfo(orgId);
     const businessName = typeof body.businessName === "string" && body.businessName.trim()
       ? body.businessName.trim()
-      : (crmOrgName || "Revzenta Capital");
+      : orgInfo.businessName;
+    const userEmail = getUserById(auth.userId)?.email;
+    const replyTo = typeof body.replyTo === "string" && body.replyTo.trim()
+      ? body.replyTo.trim()
+      : (orgInfo.replyTo || userEmail);
 
     const offerAmount = typeof body.offerAmount === "number" ? body.offerAmount : 0;
     const purchasePrice = typeof body.purchasePrice === "number" ? body.purchasePrice : 0;
@@ -4994,6 +5068,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       to,
       subject,
       text,
+      fromName: businessName,
+      replyTo,
       html:
         customHtml ||
         `<div style="font-family: Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #111; max-width: 620px; margin: 0 auto; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -5680,6 +5756,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const contractType = typeof body.contractType === "string" ? body.contractType : existing.contract_type;
     const status = typeof body.status === "string" ? body.status : existing.status;
     const customTerms = typeof body.customTerms === "string" ? body.customTerms : existing.custom_terms;
+    const notes = typeof body.notes === "string" ? body.notes : existing.notes;
 
     db.query(`
       UPDATE transactions
@@ -5707,6 +5784,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
              contract_type = ?,
              status = ?,
              custom_terms = ?,
+             notes = ?,
              updated_at = datetime('now')
        WHERE id = ? AND org_id = ?
     `).run(
@@ -5716,9 +5794,77 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       payoffLender, payoffDemandAmount, payoffLoanNumber,
       purchasePrice, assignmentFee, earnestMoney, closingDate,
       sellerName, buyerName, propertyAddress, contractType,
-      status, customTerms,
+      status, customTerms, notes,
       txId, orgId
     );
+
+    const updated = db.query("SELECT * FROM transactions WHERE id = ? AND org_id = ?").get(txId, orgId) as any;
+    return json({ ok: true, transaction: formatTransactionRow(updated, appUrlFrom(req)) });
+  }
+
+  // POST /api/transactions/:id/cancel — Cancel transaction deal
+  const txCancelMatch = pathname.match(/^\/api\/transactions\/(\d+)\/cancel$/);
+  if (txCancelMatch && method === "POST") {
+    const txId = Number(txCancelMatch[1]);
+    const tx = db.query("SELECT * FROM transactions WHERE id = ? AND org_id = ?").get(txId, orgId) as any;
+    if (!tx) return err("Transaction not found.", 404);
+    const body = (await readBody(req)) || {};
+    const reason = typeof body.reason === "string" && body.reason.trim() ? body.reason.trim() : "Deal Cancelled";
+    const cancelNote = `[CANCELLED ${new Date().toISOString().split("T")[0]}] Reason: ${reason}`;
+    const newNotes = tx.notes ? `${tx.notes}\n${cancelNote}` : cancelNote;
+
+    db.query(`
+      UPDATE transactions
+         SET status = 'cancelled',
+             inspection_status = 'cancelled',
+             emd_status = 'cancelled',
+             title_status = 'cancelled',
+             notes = ?,
+             updated_at = datetime('now')
+       WHERE id = ? AND org_id = ?
+    `).run(newNotes, txId, orgId);
+
+    // If cancelPropertyLead is requested or default true, also mark the property lead as cancelled/lost
+    if (tx.client_id && body.cancelPropertyLead !== false) {
+      db.query(`
+        UPDATE clients
+           SET lost = 1,
+               lost_reason = ?,
+               updated_at = datetime('now')
+         WHERE id = ? AND org_id = ?
+      `).run(`Deal Cancelled: ${reason}`, tx.client_id, orgId);
+    }
+
+    const updated = db.query("SELECT * FROM transactions WHERE id = ? AND org_id = ?").get(txId, orgId) as any;
+    return json({ ok: true, transaction: formatTransactionRow(updated, appUrlFrom(req)) });
+  }
+
+  // POST /api/transactions/:id/reactivate — Re-activate a cancelled transaction
+  const txReactivateMatch = pathname.match(/^\/api\/transactions\/(\d+)\/reactivate$/);
+  if (txReactivateMatch && method === "POST") {
+    const txId = Number(txReactivateMatch[1]);
+    const tx = db.query("SELECT * FROM transactions WHERE id = ? AND org_id = ?").get(txId, orgId) as any;
+    if (!tx) return err("Transaction not found.", 404);
+
+    db.query(`
+      UPDATE transactions
+         SET status = 'draft',
+             inspection_status = 'active',
+             emd_status = 'pending',
+             title_status = 'pending',
+             updated_at = datetime('now')
+       WHERE id = ? AND org_id = ?
+    `).run(txId, orgId);
+
+    if (tx.client_id) {
+      db.query(`
+        UPDATE clients
+           SET lost = 0,
+               lost_reason = '',
+               updated_at = datetime('now')
+         WHERE id = ? AND org_id = ?
+      `).run(tx.client_id, orgId);
+    }
 
     const updated = db.query("SELECT * FROM transactions WHERE id = ? AND org_id = ?").get(txId, orgId) as any;
     return json({ ok: true, transaction: formatTransactionRow(updated, appUrlFrom(req)) });
@@ -5867,11 +6013,17 @@ ${senderCompany} Acquisitions & Closings Team
       </div>
     `;
 
+    const orgInfo = getOrgBusinessInfo(orgId);
+    const businessName = (tx.business_name || orgInfo.businessName).trim();
+    const replyTo = orgInfo.replyTo || getUserById(auth.userId)?.email;
+
     const sendRes = await sendEmail({
       to: recipientEmail,
       subject,
       text,
       html,
+      fromName: businessName,
+      replyTo,
     });
 
     if (tx.title_status === "pending") {
@@ -5892,13 +6044,17 @@ ${senderCompany} Acquisitions & Closings Team
     const recipientEmail = (typeof body.email === "string" && body.email.trim()) || tx.seller_email || tx.buyer_email;
     if (!recipientEmail) return err("Signer email is required.", 400);
 
+    const orgInfo = getOrgBusinessInfo(orgId);
+    const businessName = (tx.business_name || orgInfo.businessName).trim();
+    const replyTo = orgInfo.replyTo || getUserById(auth.userId)?.email;
+
     const baseUrl = appUrlFrom(req);
     const signUrl = `${baseUrl}/sign-contract/${tx.token_hash}`;
-    const subject = `Action Required: Signature Requested for ${tx.property_address}`;
+    const subject = `Action Required: Signature Requested by ${businessName} for ${tx.property_address}`;
     const text = `
 Hello,
 
-You have been requested to review and electronically sign the wholesale contract for:
+You have been requested by ${businessName} to review and electronically sign the wholesale contract for:
 ${tx.property_address}
 
 Purchase Price: $${Number(tx.purchase_price).toLocaleString()}
@@ -5907,13 +6063,14 @@ Contract Type: ${tx.contract_type === "assignment" ? "Assignment Agreement" : "P
 Review and sign here:
 ${signUrl}
 
-Thank you!
+Thank you,
+${businessName}
     `.trim();
 
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
         <h2 style="color: #0f172a; margin-top: 0;">Electronic Signature Requested</h2>
-        <p style="color: #475569;">Please review and execute the contract for <strong>${tx.property_address}</strong>.</p>
+        <p style="color: #475569;"><strong>${businessName}</strong> has requested your signature on the wholesale contract for <strong>${tx.property_address}</strong>.</p>
         <div style="background: #f8fafc; padding: 16px; border-radius: 6px; margin: 20px 0;">
           <p style="margin: 0 0 8px 0;"><strong>Agreement:</strong> ${tx.contract_type === "assignment" ? "Assignment of PSA" : "Purchase & Sale Agreement (PSA)"}</p>
           <p style="margin: 0;"><strong>Purchase Price:</strong> $${Number(tx.purchase_price).toLocaleString()}</p>
@@ -5921,11 +6078,12 @@ Thank you!
         <div style="text-align: center; margin: 28px 0;">
           <a href="${signUrl}" style="background: #0284c7; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Review & Sign Contract</a>
         </div>
-        <p style="font-size: 12px; color: #94a3b8;">This document is governed by the Electronic Signatures in Global and National Commerce Act (E-SIGN Act).</p>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 4px;">Sent by <strong>${businessName}</strong></p>
+        <p style="font-size: 12px; color: #94a3b8; margin: 0;">This document is governed by the Electronic Signatures in Global and National Commerce Act (E-SIGN Act).</p>
       </div>
     `;
 
-    const sendRes = await sendEmail({ to: recipientEmail, subject, text, html });
+    const sendRes = await sendEmail({ to: recipientEmail, subject, text, html, fromName: businessName, replyTo });
     db.query("UPDATE transactions SET status = 'sent', updated_at = datetime('now') WHERE id = ?").run(txId);
 
     return json({ ok: true, emailStatus: emailStatusOf(sendRes), signUrl });
@@ -6174,6 +6332,7 @@ Thank you!
         org ? parseCustomFields(org.custom_fields) : [],
         org ? parseCustomIntakeGroups(org.custom_intake_groups) : [],
         isOwnerSession(auth), // owner cockpit B — agreement status is owner-only
+        true, // isPartial: true for PUT partial updates
       );
       if (!v.ok) return err(v.error, 400);
       const c = v.value;

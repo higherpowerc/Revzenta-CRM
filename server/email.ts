@@ -31,10 +31,26 @@ export function cleanBranding(str: string): string {
     .replace(/\belevate\b/gi, "Revzenta");
 }
 
-export function resolveEmailFrom(): string {
+export function getSendingEmailAddress(): string {
   const env = (process.env.EMAIL_FROM ?? "").trim();
-  if (!env) return "Revzenta <onboarding@resend.dev>";
-  return cleanBranding(env);
+  if (env) {
+    const match = env.match(/<([^>]+)>/);
+    if (match) return match[1].trim();
+    if (env.includes("@")) return env;
+  }
+  return "onboarding@resend.dev";
+}
+
+export function resolveEmailFrom(fromName?: string): string {
+  const emailAddr = getSendingEmailAddress();
+  const trimmedName = fromName?.trim();
+  if (trimmedName) {
+    const cleanName = trimmedName.replace(/["<>]/g, "").trim();
+    return `${cleanName} <${emailAddr}>`;
+  }
+  const env = (process.env.EMAIL_FROM ?? "").trim();
+  if (env) return cleanBranding(env);
+  return `Revzenta <${emailAddr}>`;
 }
 
 /** The sender shown on every email. */
@@ -54,6 +70,8 @@ export interface SendEmailInput {
   subject: string;
   text: string;
   html?: string;
+  fromName?: string;
+  replyTo?: string;
   /** When TEST_EMAIL_TO is set, redirect the delivery there and prefix the
    *  body with "[TEST] Intended for <to>". Defaults to true — this module
    *  only sends client-facing mail (owner mail, when it exists, can opt out
@@ -94,13 +112,16 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     const redirect = input.testRedirect !== false && testTo !== "";
     const to = redirect ? testTo : input.to;
     const text = redirect ? `[TEST] Intended for ${input.to}\n\n${input.text}` : input.text;
-    const fromSender = resolveEmailFrom();
+    const fromSender = resolveEmailFrom(input.fromName);
     const body: Record<string, unknown> = {
       from: fromSender,
       to: [to],
       subject: cleanBranding(input.subject),
       text: cleanBranding(text),
     };
+    if (input.replyTo && input.replyTo.trim()) {
+      body.reply_to = input.replyTo.trim();
+    }
     if (input.html) body.html = cleanBranding(input.html);
     if (input.attachments && input.attachments.length > 0) body.attachments = input.attachments;
     const res = await fetch(RESEND_API, {
@@ -146,11 +167,14 @@ export function sendIntakeEmail(opts: {
   loginEmail: string;
   tempPassword: string;
   appUrl: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || opts.orgName?.trim() || "Revzenta";
   const text = [
     "Hi there,",
     "",
-    `Great news — your ${opts.orgName} workspace in Revzenta is ready.`,
+    `Great news — your ${opts.orgName} workspace is ready.`,
     "",
     `Sign in here: ${opts.appUrl}`,
     "",
@@ -160,13 +184,15 @@ export function sendIntakeEmail(opts: {
     "Once you're in, you can finish setting up your workspace: add your clients,",
     "set up your pipeline, and start tracking tasks and invoices.",
     "",
-    "Your Revzenta team is here if you need anything.",
+    `Your ${biz} team is here if you need anything.`,
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
-    subject: "Welcome to Revzenta — your workspace is ready",
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: `Welcome to ${biz} — your workspace is ready`,
     text,
   });
 }
@@ -177,11 +203,14 @@ export function sendWelcomeEmail(opts: {
   to: string;
   orgName: string;
   appUrl: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || opts.orgName?.trim() || "Revzenta";
   const text = [
     "Hi there,",
     "",
-    `Welcome to ${opts.orgName}. Your workspace is set up and ready to go — here's a quick orientation:`,
+    `Welcome to ${biz}. Your workspace is set up and ready to go — here's a quick orientation:`,
     "",
     "1. Set up your workspace — rename your pipeline stages and pick your accent color in Settings.",
     "2. Add your clients and move them through your pipeline as work comes in.",
@@ -189,11 +218,13 @@ export function sendWelcomeEmail(opts: {
     "",
     `Sign in anytime at: ${opts.appUrl}`,
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
-    subject: `Welcome to ${opts.orgName} — let's get started`,
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: `Welcome to ${biz} — let's get started`,
     text,
   });
 }
@@ -207,12 +238,15 @@ export function sendPasswordResetEmail(opts: {
   to: string;
   appUrl: string;
   token: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const resetUrl = `${opts.appUrl}/#/reset?token=${opts.token}`;
   const text = [
     "Hi there,",
     "",
-    "We got a request to reset your Revzenta password. Open the link below to choose a new one:",
+    `We got a request to reset your ${biz} password. Open the link below to choose a new one:`,
     "",
     resetUrl,
     "",
@@ -220,11 +254,13 @@ export function sendPasswordResetEmail(opts: {
     "",
     "If you didn't ask to reset your password, you can safely ignore this email — your password won't change.",
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
-    subject: "Reset your password",
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: `Reset your ${biz} password`,
     text,
   });
 }
@@ -238,12 +274,15 @@ export function sendAgreementEmail(opts: {
   clientName: string;
   appUrl: string;
   token: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const signUrl = `${opts.appUrl}/sign/${opts.token}`;
   const text = [
     `Hi ${opts.clientName},`,
     "",
-    "Good news — your agreement with Revzenta is ready to review and sign.",
+    `Good news — your agreement with ${biz} is ready to review and sign.`,
     "",
     "Open the link below to read the agreement and sign it electronically:",
     "",
@@ -253,17 +292,19 @@ export function sendAgreementEmail(opts: {
     "",
     "If you have any questions, just reply to this email.",
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
-    subject: "Your agreement is ready to sign",
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: `Your agreement with ${biz} is ready to sign`,
     text,
   });
 }
 
 /** Phase 5 prep — Stripe payment link (live-test finding 2026-08-17): the
- *  client's unique payment link for their Revzenta CRM subscription. Sent
+ *  client's unique payment link for their subscription / invoice. Sent
  *  only when the payment-link endpoint successfully created the Stripe link
  *  (the caller checks Stripe success BEFORE calling this). The amount is the
  *  OWNER-entered figure at bill time (no hard-coded rates) — it shows in the
@@ -274,7 +315,10 @@ export function sendPaymentLinkEmail(opts: {
   linkUrl: string;
   amountCents?: number;
   interval?: "month" | "one_time";
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const amountText =
     opts.amountCents && opts.amountCents > 0
       ? `Your ${opts.interval === "one_time" ? "invoice" : "monthly"} amount is ${fmtUsd(opts.amountCents)}.`
@@ -282,7 +326,7 @@ export function sendPaymentLinkEmail(opts: {
   const lines = [
     `Hi ${opts.clientName},`,
     "",
-    "Your Revzenta CRM subscription is ready to activate.",
+    `Your invoice / payment link from ${biz} is ready.`,
     "",
   ];
   if (amountText) lines.push(amountText, "");
@@ -295,11 +339,13 @@ export function sendPaymentLinkEmail(opts: {
     "",
     "If you have any questions, just reply to this email.",
     "",
-    "— Revzenta",
+    `— ${biz}`,
   );
   return sendEmail({
     to: opts.to,
-    subject: "Your payment link for Revzenta CRM",
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: `Payment link from ${biz}`,
     text: lines.join("\n"),
   });
 }
@@ -335,7 +381,7 @@ function fmtMstDateTime(dt: string): string {
 
 /** Owner 2026-08-20 sales rework — demo-call confirmation email. Sent when
  *  the owner clicks "Schedule Demo" on a lead: the prospect gets the date/time
- *  of their Revzenta demo call (Arizona MST), the pasted meeting link
+ *  of their demo call (Arizona MST), the pasted meeting link
  *  (Zoom/Google Meet) if provided, and a short calendar line. We do NOT
  *  integrate Zoom/Google APIs — purely "send the provided link in the invite
  *  email". Fire-and-forget (sendEmail never throws) — a delivery failure is
@@ -345,28 +391,31 @@ export function sendDemoCallEmail(opts: {
   clientName: string;
   scheduledAt: string;
   meetingLink?: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const when = fmtMstDateTime(opts.scheduledAt);
   const text: string[] = [
     `Great news, ${opts.clientName}!`,
     "",
-    `Your demo call is scheduled for ${when}.`,
+    `Your call with ${biz} is scheduled for ${when}.`,
   ];
   if (opts.meetingLink) {
     text.push("", `Join the meeting here: ${opts.meetingLink}`, "");
   }
   text.push(
-    "Calendar: add this to your calendar — " + when + " Revzenta demo call.",
-    "",
-    "We'll go over how Revzenta can help you capture and manage your leads.",
+    "Calendar: add this to your calendar — " + when + ` ${biz} call.`,
     "",
     "If you need to reschedule, just reply to this email.",
     "",
-    "— Revzenta",
+    `— ${biz}`,
   );
   return sendEmail({
     to: opts.to,
-    subject: "Your Revzenta demo call is scheduled",
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: `Your ${biz} appointment is scheduled`,
     text: text.join("\n"),
   });
 }
@@ -386,15 +435,18 @@ export function sendAppointmentReminderEmail(opts: {
   confirmUrl: string;
   rescheduleUrl: string;
   reminderKind?: "day" | "hour";
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const when = fmtMstDateTime(opts.scheduledAt);
   const hour = opts.reminderKind === "hour";
   const text = [
     `Hi ${opts.clientName},`,
     "",
     hour
-      ? `A reminder that your appointment with Revzenta is in 1 hour: ${when}.`
-      : `A reminder that your appointment with Revzenta is coming up: ${when}.`,
+      ? `A reminder that your appointment with ${biz} is in 1 hour: ${when}.`
+      : `A reminder that your appointment with ${biz} is coming up: ${when}.`,
     "",
     "Please confirm so we know you're still coming:",
     opts.confirmUrl,
@@ -402,11 +454,13 @@ export function sendAppointmentReminderEmail(opts: {
     "Need a different time? Reschedule here:",
     opts.rescheduleUrl,
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
-    subject: hour ? "Your Revzenta appointment is in 1 hour" : "Your Revzenta appointment is tomorrow",
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: hour ? `Your ${biz} appointment is in 1 hour` : `Your ${biz} appointment is tomorrow`,
     text,
   });
 }
@@ -425,20 +479,25 @@ export function sendInvoiceEmail(opts: {
   paidAt: string;
   invoiceNumber: string;
   pdfBase64: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const text = [
     `Hi ${opts.clientName},`,
     "",
     `We received your payment of ${fmtUsd(opts.amountCents)} — thank you!`,
     "",
-    `Invoice #${opts.invoiceNumber} is paid in full and attached to this email.`,
+    `Invoice #${opts.invoiceNumber} from ${biz} is paid in full and attached to this email.`,
     "",
     "If you have any questions, just reply to this email.",
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
+    fromName: biz,
+    replyTo: opts.replyTo,
     subject: `Invoice ${opts.invoiceNumber} is paid — ${fmtUsd(opts.amountCents)} received`,
     text,
     attachments: [
@@ -461,7 +520,10 @@ export function sendTicketOwnerAlertEmail(opts: {
   subject: string;
   messageSnippet: string;
   appUrl: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const text = [
     `New support ticket from ${opts.clientName}:`,
     "",
@@ -475,10 +537,12 @@ export function sendTicketOwnerAlertEmail(opts: {
     "Reply to the ticket in the app — drafts are only mailed to the client",
     "after you approve them.",
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
+    fromName: biz,
+    replyTo: opts.replyTo,
     subject: `New support ticket from ${opts.clientName}: ${opts.subject}`,
     text,
   });
@@ -491,19 +555,24 @@ export function sendTicketReplyEmail(opts: {
   to: string;
   ticketSubject: string;
   replyBody: string;
+  businessName?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
   const text = [
     `Re: ${opts.ticketSubject}`,
     "",
     opts.replyBody,
     "",
     "If you have more questions, just reply to this email or submit another",
-    "ticket in your Revzenta workspace.",
+    `ticket in your ${biz} workspace.`,
     "",
-    "— Revzenta",
+    `— ${biz}`,
   ].join("\n");
   return sendEmail({
     to: opts.to,
+    fromName: biz,
+    replyTo: opts.replyTo,
     subject: `Re: ${opts.ticketSubject}`,
     text,
   });

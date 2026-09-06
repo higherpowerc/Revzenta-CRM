@@ -642,6 +642,12 @@ db.exec(`
   if (!orgCols.some((c) => c.name === "agreements_pin_hash")) {
     db.exec("ALTER TABLE orgs ADD COLUMN agreements_pin_hash TEXT NOT NULL DEFAULT ''");
   }
+  if (!orgCols.some((c) => c.name === "email_sender_name")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN email_sender_name TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "email_reply_to")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN email_reply_to TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 /**
@@ -1569,13 +1575,15 @@ export interface OrgRow {
   /** Appointments production (backlog 5a104eae): 1 = this account's clients
    *  may schedule appointments for themselves; 0 = view/reschedule only. */
   allow_self_schedule: number;
+  email_sender_name: string;
+  email_reply_to: string;
   created_at: string;
 }
 
 export function getOrg(orgId: number): OrgRow | null {
   return db
     .query(
-      "SELECT id, name, stages, accent_color, dashboard_color, custom_fields, service_model, delivery_type, industry, intake_opts, custom_intake_groups, vertical_key, monthly_subscription_amount, revenue_model, agreement_template, agreements_pin_hash, status, canceled_at, retention_until, allow_self_schedule, created_at FROM orgs WHERE id = ?",
+      "SELECT id, name, stages, accent_color, dashboard_color, custom_fields, service_model, delivery_type, industry, intake_opts, custom_intake_groups, vertical_key, monthly_subscription_amount, revenue_model, agreement_template, agreements_pin_hash, status, canceled_at, retention_until, allow_self_schedule, email_sender_name, email_reply_to, created_at FROM orgs WHERE id = ?",
     )
     .get(orgId) as OrgRow | null;
 }

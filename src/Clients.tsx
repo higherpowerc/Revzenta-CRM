@@ -511,6 +511,10 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   const [deleting, setDeleting] = useState<Client | null>(null);
   const [busy, setBusy] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [cancellingClient, setCancellingClient] = useState<Client | null>(null);
+  const [cancelLeadReason, setCancelLeadReason] = useState("Inspection / repair costs too high");
+  const [cancelLeadNotes, setCancelLeadNotes] = useState("");
+  const [cancellingLeadBusy, setCancellingLeadBusy] = useState(false);
 
   const availableLeadSources = useMemo(() => {
     if (!clients) return [];
@@ -772,6 +776,40 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Restore failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConfirmCancelLead() {
+    if (!cancellingClient) return;
+    setCancellingLeadBusy(true);
+    setError(null);
+    try {
+      const fullReason = `Deal Cancelled: ${cancelLeadReason}${cancelLeadNotes.trim() ? ` — ${cancelLeadNotes.trim()}` : ""}`;
+      await api.updateClient(cancellingClient.id, {
+        ...cancellingClient,
+        lost: true,
+        lostReason: fullReason,
+      });
+      setCancellingClient(null);
+      setCancelLeadNotes("");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to cancel deal.");
+    } finally {
+      setCancellingLeadBusy(false);
+    }
+  }
+
+  async function handleReactivateLead(c: Client) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.updateClient(c.id, { ...c, lost: false, lostReason: undefined });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reactivate deal.");
     } finally {
       setBusy(false);
     }
@@ -1467,7 +1505,24 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                       <span className={`cell-name${blurPii(pii)}`} title={primaryName(ownerOrg, c)}>
                         {primaryName(ownerOrg, c)}
                       </span>
-                      {c.lost && <span className="chip chip-lost">Lost</span>}
+                      {c.lost && (
+                        c.lostReason?.startsWith("Deal Cancelled") ? (
+                          <span
+                            className="chip"
+                            style={{
+                              background: "rgba(239, 68, 68, 0.18)",
+                              color: "#f87171",
+                              border: "1px solid rgba(239, 68, 68, 0.35)",
+                              fontWeight: 600,
+                            }}
+                            title={c.lostReason}
+                          >
+                            🚫 Cancelled Deal
+                          </span>
+                        ) : (
+                          <span className="chip chip-lost">Lost</span>
+                        )
+                      )}
                       {c.dnc && <span className="chip chip-dnc">DNC</span>}
                       {c.archived && <span className="chip chip-archived">archived</span>}
                     </div>
@@ -1511,7 +1566,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                           onClick={() => handleRestore(c)}
                           disabled={busy}
                         >
-                          Restore
+                          {c.lostReason?.startsWith("Deal Cancelled") ? "↺ Reactivate Deal" : "Restore"}
                         </button>
                       )}
                       {canEdit && (
@@ -2312,6 +2367,33 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                             🏠 Calculator
                           </button>
                         )}
+                        {isWholesale && canEdit && !c.lost && (
+                          <button
+                            type="button"
+                            className="icon-btn danger"
+                            title="Cancel Deal"
+                            aria-label={`Cancel deal for ${c.companyName}`}
+                            onClick={() => {
+                              setCancellingClient(c);
+                              setCancelLeadReason("Inspection / repair costs too high");
+                              setCancelLeadNotes("");
+                            }}
+                          >
+                            🚫 Cancel Deal
+                          </button>
+                        )}
+                        {isWholesale && canEdit && c.lost && (
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            title="Reactivate Deal"
+                            aria-label={`Reactivate deal for ${c.companyName}`}
+                            onClick={() => handleReactivateLead(c)}
+                            disabled={busy}
+                          >
+                            ↺ Reactivate
+                          </button>
+                        )}
                         {canEdit && (
                           <button
                             className="icon-btn danger"
@@ -2547,6 +2629,85 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
             load();
           }}
         />
+      )}
+      {cancellingClient && (
+        <div className="modal-backdrop" onClick={() => !cancellingLeadBusy && setCancellingClient(null)}>
+          <div className="modal" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: "#ef4444" }}>🚫</span> Cancel Wholesale Deal
+              </h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setCancellingClient(null)}
+                disabled={cancellingLeadBusy}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted, #94a3b8)" }}>
+                Cancelling this deal will move <strong>{cancellingClient.companyName}</strong> to the Lost pipeline with a cancellation tag and reason. You can reactivate this deal at any time.
+              </p>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "var(--color-text, #f8fafc)" }}>
+                  Primary Cancellation Reason <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  value={cancelLeadReason}
+                  onChange={(e) => setCancelLeadReason(e.target.value)}
+                  className="input"
+                  style={{ width: "100%" }}
+                  disabled={cancellingLeadBusy}
+                >
+                  <option value="Inspection / repair costs too high">Inspection / repair costs too high</option>
+                  <option value="Buyer backed out / funding failed">Buyer backed out / funding failed</option>
+                  <option value="Seller backed out / uncooperative">Seller backed out / uncooperative</option>
+                  <option value="Title or lien defect">Title or lien defect</option>
+                  <option value="Overpriced / margin too thin">Overpriced / margin too thin</option>
+                  <option value="EMD failed / missed deposit">EMD failed / missed deposit</option>
+                  <option value="Mutual agreement to terminate">Mutual agreement to terminate</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "var(--color-text, #f8fafc)" }}>
+                  Cancellation Notes &amp; Context
+                </label>
+                <textarea
+                  value={cancelLeadNotes}
+                  onChange={(e) => setCancelLeadNotes(e.target.value)}
+                  placeholder="Provide context on why this deal fell through..."
+                  className="input"
+                  rows={3}
+                  style={{ width: "100%", resize: "vertical", fontFamily: "inherit" }}
+                  disabled={cancellingLeadBusy}
+                />
+              </div>
+            </div>
+            <div className="modal-actions" style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setCancellingClient(null)}
+                disabled={cancellingLeadBusy}
+              >
+                Keep Deal Active
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleConfirmCancelLead}
+                disabled={cancellingLeadBusy}
+              >
+                {cancellingLeadBusy ? "Cancelling..." : "Confirm Deal Cancellation"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

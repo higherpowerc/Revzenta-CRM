@@ -359,7 +359,7 @@ export default function CsvImportModal({ initialTarget = "properties", stages = 
       const notes = getValue("notes");
 
       const lowerType = rawType.toLowerCase();
-      let safeClientType: "residential" | "commercial" | "single_family" | "multi_family" = "residential";
+      let safeClientType: "residential" | "commercial" | "single_family" | "multi_family" = "single_family";
       if (lowerType.includes("single")) safeClientType = "single_family";
       else if (lowerType.includes("multi")) safeClientType = "multi_family";
       else if (lowerType.includes("commercial")) safeClientType = "commercial";

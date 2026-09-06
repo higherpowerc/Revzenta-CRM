@@ -439,6 +439,8 @@ export const api = {
     /** Appointments production (backlog 5a104eae): per-account toggle — 1 lets
      *  this account's clients schedule appointments for themselves. */
     allowSelfSchedule?: boolean;
+    emailSenderName?: string;
+    emailReplyTo?: string;
   }) =>
     request<{ settings: OrgSettings }>("/api/settings", {
       method: "PUT",
@@ -579,6 +581,15 @@ export const api = {
     }),
   deleteTransaction: (id: number) =>
     request<{ ok: true }>(`/api/transactions/${id}`, { method: "DELETE" }),
+  cancelTransaction: (id: number, data?: { reason?: string; cancelPropertyLead?: boolean }) =>
+    request<{ ok: true; transaction: Transaction }>(`/api/transactions/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }),
+  reactivateTransaction: (id: number) =>
+    request<{ ok: true; transaction: Transaction }>(`/api/transactions/${id}/reactivate`, {
+      method: "POST",
+    }),
   generateContract: (id: number, data?: { stateJurisdiction?: string; customTerms?: string }) =>
     request<{ ok: true; transaction: Transaction }>(`/api/transactions/${id}/generate-contract`, {
       method: "POST",

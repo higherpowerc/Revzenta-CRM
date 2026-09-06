@@ -123,6 +123,11 @@ export default function TransactionHub({ crmBusinessName }: Props) {
   const [titlePacketEmail, setTitlePacketEmail] = useState("");
   const [signRequestModalTx, setSignRequestModalTx] = useState<Transaction | null>(null);
   const [signRequestEmail, setSignRequestEmail] = useState("");
+  const [cancellingTx, setCancellingTx] = useState<Transaction | null>(null);
+  const [cancelTxReason, setCancelTxReason] = useState("Inspection / repair costs too high");
+  const [cancelTxNotes, setCancelTxNotes] = useState("");
+  const [cancelPropertyLead, setCancelPropertyLead] = useState(true);
+  const [cancellingBusy, setCancellingBusy] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Load Data
@@ -269,6 +274,42 @@ export default function TransactionHub({ crmBusinessName }: Props) {
   const copyToClipboard = (url: string, label: string) => {
     navigator.clipboard.writeText(url);
     notify("success", `Copied ${label} to clipboard!`);
+  };
+
+  // Quick Action: Cancel Deal
+  const handleConfirmCancelTx = async () => {
+    if (!cancellingTx) return;
+    setCancellingBusy(true);
+    try {
+      const fullReason = `${cancelTxReason}${cancelTxNotes.trim() ? " — " + cancelTxNotes.trim() : ""}`;
+      const res = await api.cancelTransaction(cancellingTx.id, {
+        reason: fullReason,
+        cancelPropertyLead,
+      });
+      if (res.ok) {
+        setTransactions((prev) => prev.map((item) => (item.id === cancellingTx.id ? res.transaction : item)));
+        notify("success", `Transaction for ${cancellingTx.propertyAddress} marked as Cancelled.`);
+        setCancellingTx(null);
+        setCancelTxNotes("");
+      }
+    } catch (e: any) {
+      notify("error", e?.message || "Failed to cancel transaction.");
+    } finally {
+      setCancellingBusy(false);
+    }
+  };
+
+  // Quick Action: Reactivate Deal
+  const handleReactivateTx = async (tx: Transaction) => {
+    try {
+      const res = await api.reactivateTransaction(tx.id);
+      if (res.ok) {
+        setTransactions((prev) => prev.map((item) => (item.id === tx.id ? res.transaction : item)));
+        notify("success", `Transaction for ${tx.propertyAddress} re-activated as Draft.`);
+      }
+    } catch (e: any) {
+      notify("error", e?.message || "Failed to re-activate transaction.");
+    }
   };
 
   return (
@@ -668,6 +709,27 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             <option value="all">All Types</option>
             <option value="psa">PSA</option>
             <option value="assignment">Assignment</option>
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: "6px",
+              border: "1px solid var(--border)",
+              backgroundColor: "var(--input-bg, var(--panel))",
+              color: "var(--fg)",
+              fontSize: "13px",
+            }}
+            aria-label="Filter by deal status"
+          >
+            <option value="all">All Deal Statuses</option>
+            <option value="draft">📝 Draft</option>
+            <option value="sent">📨 Sent for Signature</option>
+            <option value="signed">✅ Signed</option>
+            <option value="closed">🎉 Closed</option>
+            <option value="cancelled">🚫 Cancelled Deals</option>
           </select>
         </div>
       </div>
@@ -1291,6 +1353,46 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                     >
                       Edit
                     </button>
+                    {tx.status === "cancelled" ? (
+                      <button
+                        onClick={() => handleReactivateTx(tx)}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: "6px",
+                          border: "1px solid rgba(16, 185, 129, 0.4)",
+                          backgroundColor: "rgba(16, 185, 129, 0.1)",
+                          color: "#10b981",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                        title="Reactivate this deal as Draft"
+                      >
+                        ↺ Reactivate Deal
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setCancellingTx(tx);
+                          setCancelTxReason("Inspection / repair costs too high");
+                          setCancelTxNotes("");
+                          setCancelPropertyLead(true);
+                        }}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: "6px",
+                          border: "1px solid rgba(239, 68, 68, 0.4)",
+                          backgroundColor: "rgba(239, 68, 68, 0.1)",
+                          color: "#f87171",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                        title="Cancel this deal (deal fell through)"
+                      >
+                        🚫 Cancel Deal
+                      </button>
+                    )}
                     <button
                       onClick={async () => {
                         if (!confirm(`Are you sure you want to delete transaction for ${tx.propertyAddress}?`)) return;
@@ -1436,11 +1538,25 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                           borderRadius: "4px",
                           fontSize: "11px",
                           fontWeight: 600,
-                          backgroundColor: tx.status === "signed" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                          color: tx.status === "signed" ? "#10b981" : "#f59e0b",
+                          backgroundColor:
+                            tx.status === "signed"
+                              ? "rgba(16, 185, 129, 0.15)"
+                              : tx.status === "cancelled"
+                              ? "rgba(239, 68, 68, 0.15)"
+                              : "rgba(245, 158, 11, 0.15)",
+                          color:
+                            tx.status === "signed"
+                              ? "#10b981"
+                              : tx.status === "cancelled"
+                              ? "#ef4444"
+                              : "#f59e0b",
                         }}
                       >
-                        {tx.status === "signed" ? "✅ Signed" : "⏳ " + tx.status.toUpperCase()}
+                        {tx.status === "signed"
+                          ? "✅ Signed"
+                          : tx.status === "cancelled"
+                          ? "🚫 Cancelled"
+                          : "⏳ " + tx.status.toUpperCase()}
                       </span>
                       {tx.signedAt && (
                         <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
@@ -1499,6 +1615,46 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                         >
                           Email Signer
                         </button>
+                        {tx.status === "cancelled" ? (
+                          <button
+                            onClick={() => handleReactivateTx(tx)}
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              backgroundColor: "rgba(16, 185, 129, 0.15)",
+                              border: "1px solid rgba(16, 185, 129, 0.4)",
+                              color: "#10b981",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                            title="Reactivate deal as Draft"
+                          >
+                            ↺ Reactivate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setCancellingTx(tx);
+                              setCancelTxReason("Inspection / repair costs too high");
+                              setCancelTxNotes("");
+                              setCancelPropertyLead(true);
+                            }}
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              backgroundColor: "rgba(239, 68, 68, 0.1)",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
+                              color: "#ef4444",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                            title="Cancel this transaction deal"
+                          >
+                            🚫 Cancel
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1692,6 +1848,157 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: CANCEL TRANSACTION DEAL
+         ───────────────────────────────────────────────────────────── */}
+      {cancellingTx && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--panel)",
+              borderRadius: "10px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "500px",
+              border: "1px solid var(--border)",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.4)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+              <span style={{ fontSize: "24px" }}>🚫</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "var(--fg)" }}>
+                  Cancel Wholesale Transaction
+                </h3>
+                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+                  {cancellingTx.propertyAddress}
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.5, marginBottom: "16px" }}>
+              Cancelling this deal closes out active contingency clocks, stops reminders, and updates this transaction status to <strong>Cancelled</strong>.
+            </p>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--fg)", marginBottom: "6px" }}>
+                Cancellation Reason *
+              </label>
+              <select
+                value={cancelTxReason}
+                onChange={(e) => setCancelTxReason(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--input-bg, var(--panel))",
+                  color: "var(--fg)",
+                  fontSize: "13px",
+                  boxSizing: "border-box",
+                }}
+              >
+                <option value="Inspection / repair costs too high">Inspection / repair costs too high</option>
+                <option value="Buyer backed out / Couldn't find cash buyer">Buyer backed out / Couldn't find cash buyer</option>
+                <option value="Seller backed out / Uncooperative seller">Seller backed out / Uncooperative seller</option>
+                <option value="Title defects / clouded title / liens">Title defects / clouded title / liens</option>
+                <option value="Numbers don't work / Overpriced">Numbers don't work / Overpriced</option>
+                <option value="EMD not deposited in time">EMD not deposited in time</option>
+                <option value="Mutual termination">Mutual termination</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--fg)", marginBottom: "6px" }}>
+                Additional Notes (Optional)
+              </label>
+              <input
+                type="text"
+                value={cancelTxNotes}
+                onChange={(e) => setCancelTxNotes(e.target.value)}
+                placeholder="e.g. Buyer failed to deposit EMD by 5pm..."
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--input-bg, var(--panel))",
+                  color: "var(--fg)",
+                  fontSize: "13px",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            {cancellingTx.clientId && (
+              <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="checkbox"
+                  id="cancelPropertyLead"
+                  checked={cancelPropertyLead}
+                  onChange={(e) => setCancelPropertyLead(e.target.checked)}
+                  style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                />
+                <label htmlFor="cancelPropertyLead" style={{ fontSize: "13px", color: "var(--fg)", cursor: "pointer" }}>
+                  Also mark property lead as Cancelled in Wholesale Pipeline
+                </label>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setCancellingTx(null)}
+                disabled={cancellingBusy}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "transparent",
+                  color: "var(--fg)",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                Keep Active
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancelTx}
+                disabled={cancellingBusy}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: "6px",
+                  border: "none",
+                  backgroundColor: "#ef4444",
+                  color: "#ffffff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {cancellingBusy ? "Cancelling..." : "Confirm Cancel Deal"}
+              </button>
+            </div>
           </div>
         </div>
       )}
