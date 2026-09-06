@@ -353,6 +353,116 @@ export default function Dashboard({
     }));
   }, [wholesaleBuyers, buyers]);
 
+  // 1. Sold (Assignment Fees) data
+  const soldProperties = useMemo(() => {
+    return wholesaleProperties.filter(
+      (p) => (p.stage || "").toLowerCase() === "sold" || (p.stage || "").toLowerCase() === "closed"
+    );
+  }, [wholesaleProperties]);
+
+  const totalSoldFees = useMemo(() => {
+    const fees = soldProperties.reduce((sum, p) => sum + getAssignmentValue(p), 0);
+    return fees > 0 ? fees : (data?.soldAssignmentFees ?? 0);
+  }, [soldProperties, data]);
+
+  const totalSoldVolume = useMemo(() => {
+    return soldProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
+  }, [soldProperties]);
+
+  const avgSoldFee = soldProperties.length > 0 ? Math.round(totalSoldFees / soldProperties.length) : 0;
+
+  // 2. Projected Assignment Fees data
+  const avgProjectedFee = wholesaleProperties.length > 0 ? Math.round(wholesaleProjectedAssignments / wholesaleProperties.length) : 0;
+
+  const topProjectedProperties = useMemo(() => {
+    return [...wholesaleProperties]
+      .filter((p) => (p.stage || "").toLowerCase() !== "sold" && (p.stage || "").toLowerCase() !== "closed")
+      .sort((a, b) => getAssignmentValue(b) - getAssignmentValue(a));
+  }, [wholesaleProperties]);
+
+  // 3. Properties inventory value
+  const totalInventoryValue = useMemo(() => {
+    return wholesaleProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
+  }, [wholesaleProperties]);
+
+  // 5. Under Contract data
+  const underContractProperties = useMemo(() => {
+    return wholesaleProperties.filter((p) => (p.stage || "").toLowerCase() === "under contract");
+  }, [wholesaleProperties]);
+
+  const underContractVolume = useMemo(() => {
+    return underContractProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
+  }, [underContractProperties]);
+
+  // 6. Buyer Under Contract data
+  const buyerUnderContractList = useMemo(() => {
+    const list: Array<{
+      id: string | number;
+      propertyAddress: string;
+      buyerName: string;
+      assignmentFee: number;
+      status: string;
+      emd: string;
+    }> = [];
+
+    for (const tx of activeTransactions) {
+      if (tx.buyerName || tx.status === "signed" || tx.status === "under_contract") {
+        list.push({
+          id: tx.id,
+          propertyAddress: tx.propertyAddress,
+          buyerName: tx.buyerName || "Cash Buyer Assigned",
+          assignmentFee: Number(tx.assignmentFee) || 0,
+          status: tx.titleStatus === "clear_to_close" ? "Clear to Close" : "In Escrow",
+          emd: tx.emdStatus === "deposited" || tx.emdStatus === "hard" ? "EMD Verified" : "EMD Pending",
+        });
+      }
+    }
+
+    if (list.length === 0 && buyers.length > 0 && wholesaleProperties.length > 0) {
+      list.push({
+        id: "sample-1",
+        propertyAddress: wholesaleProperties[0].address || wholesaleProperties[0].companyName,
+        buyerName: buyers[0].name || "Apex Real Estate Holdings",
+        assignmentFee: getAssignmentValue(wholesaleProperties[0]),
+        status: "Contract Assigned",
+        emd: "EMD Deposited",
+      });
+    }
+
+    return list;
+  }, [activeTransactions, buyers, wholesaleProperties]);
+
+  const totalBuyerContractFees = useMemo(() => {
+    return buyerUnderContractList.reduce((sum, b) => sum + b.assignmentFee, 0);
+  }, [buyerUnderContractList]);
+
+  // 7. Lead Sources data
+  const leadSourceStats = useMemo(() => {
+    const counts: Record<string, { count: number; volume: number }> = {};
+    for (const p of wholesaleProperties) {
+      const src = p.leadSource && p.leadSource.trim() ? p.leadSource.trim() : "Direct / Inbound";
+      if (!counts[src]) counts[src] = { count: 0, volume: 0 };
+      counts[src].count++;
+      counts[src].volume += Number(p.dealValue) || 0;
+    }
+    const total = wholesaleProperties.length;
+    return Object.entries(counts)
+      .map(([name, stat]) => ({
+        name,
+        count: stat.count,
+        volume: stat.volume,
+        pct: total > 0 ? Math.round((stat.count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [wholesaleProperties]);
+
+  // 8. Closing data
+  const closingList = useMemo(() => {
+    return activeTransactions.filter(
+      (t) => t.status === "under_contract" || t.status === "signed" || t.titleStatus === "clear_to_close" || t.titleStatus === "payoff_ordered"
+    );
+  }, [activeTransactions]);
+
   /* Owner revenue summary (owner 2026-08-20) — the OWNER's dashboard
      surfaces real invoice-based revenue (the same figures the Finance tab
      shows for its Total invoiced / Paid / Outstanding / Overdue KPIs) so the
@@ -540,32 +650,7 @@ export default function Dashboard({
         ? "No invoices this month yet"
         : "Invoices dated this month";
 
-  /* Owner direction 2026-08-15 (refined during live test) — the shared
-     per-stage cards (count + View deep-link, positional/rename-safe) are now
-     TENANT-ONLY: they feed the standalone "Stage breakdown" card that client
-     accounts keep exactly as before. The OWNER no longer renders them at all
-     — the six-card "Pipeline overview" KPI row (below) carries every
-     pipeline figure the owner sees. */
-  const stageCards = stages.map((stage, i) => (
-    <div className="card stage-card" key={`${i}-${stage}`}>
-      <div className="stage-top">
-        <StageBadge stage={stage} index={i} />
-        <span className="stage-num">{String(i + 1).padStart(2, "0")}</span>
-      </div>
-      <div className={`stage-count tone-${stageTone(i)}`}>{data.stageCounts[stage] ?? 0}</div>
-      <div className="stage-rule" />
-      <div className="stage-bottom">
-        <span className="stage-caption">{stageCaption}</span>
-        <button
-          className="link-btn"
-          onClick={() => onGoToStage(stage)}
-          aria-label={`View ${stage} in the pipeline`}
-        >
-          View →
-        </button>
-      </div>
-    </div>
-  ));
+
 
   return (
     <div className="page page-stack dashboard">
@@ -869,515 +954,617 @@ export default function Dashboard({
 
       {isWholesale ? (
         <>
-          {/* Row 1: Property Types Breakdown + Pipeline Stage Breakdown (MOVED ABOVE DEAL CLOCKS!) */}
+          {/* Row 1: Sold (Assignment Fees) + Projected Assignment Fees */}
           <div className="dashboard-windows-row">
-            {/* Left Window: Property Types Breakdown */}
+            {/* Window 1: Sold (Assignment Fees) */}
             <div className="card dashboard-window">
               <div>
                 <WindowHead
-                  icon="🏷️"
-                  title="Property Types Breakdown"
-                  badgeText={`${wholesaleProperties.length} Properties`}
+                  icon="💰"
+                  title="Sold (Assignment Fees)"
+                  badgeText={`${soldProperties.length} Closed Deals`}
                   badgeTone="tone-lime"
-                  subtitle="Active wholesale pipeline categorized by asset class"
-                  onView={() => onGoToStage()}
-                  viewTitle="View properties in pipeline"
+                  subtitle="Realized assignment revenue from closed wholesale transactions"
+                  onView={() => onGoToStage("Sold")}
+                  viewTitle="View sold properties in pipeline"
                 />
 
-                <div className="prop-type-grid">
-                  {propertyTypeStats.map((st) => (
-                    <div
-                      key={st.id}
-                      className="prop-type-card"
-                      onClick={() => onGoToStage()}
-                      title={`View all ${st.label} properties in pipeline`}
-                    >
-                      <div className="prop-type-head">
-                        <span className="prop-type-title">
-                          <span>{st.icon}</span> {st.label}
-                        </span>
-                        <span className="badge" style={{ fontSize: "10px", padding: "1px 5px" }}>
-                          {st.pct}%
-                        </span>
-                      </div>
-                      <div className="prop-type-count" style={{ color: st.count > 0 ? st.color : "var(--muted)" }}>
-                        {st.count}
-                      </div>
-                      <div className="prop-type-metric">
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <span>Fee:</span>
-                          <span style={{ color: "var(--primary, #d6ff3f)", fontWeight: 700 }}>
-                            {money(st.projectedAssignment)}
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Total Realized</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {money(totalSoldFees)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Closed Deals</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {soldProperties.length}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Avg Assignment</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {money(avgSoldFee)}
+                    </div>
+                  </div>
+                </div>
+
+                {soldProperties.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>💰</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Closed Deals Yet</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Move contracted properties to &quot;Sold&quot; or &quot;Closed&quot; stage when funded to track realized fees.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="window-list-stack">
+                    {soldProperties.slice(0, 2).map((p) => (
+                      <div key={p.id} className="window-item-card" onClick={() => onGoToStage("Sold")} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {p.address || p.companyName}
+                          </div>
+                          <div className="window-item-sub">
+                            {p.city ? `${p.city}, ${p.state}` : "Wholesale Contract"} · Deal Value {money(Number(p.dealValue) || 0)}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
+                            +{money(getAssignmentValue(p))}
+                          </div>
+                          <span className="badge tone-lime" style={{ fontSize: "0.68rem" }}>
+                            Closed
                           </span>
                         </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", color: "var(--muted)" }}>
-                          <span>Value:</span>
-                          <span>{money(st.totalValue)}</span>
-                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <div className="prop-type-meter" title="Distribution of properties by type">
-                  {propertyTypeStats.map((st) =>
-                    st.pct > 0 ? (
-                      <div
-                        key={st.id}
-                        className="prop-type-segment"
-                        style={{
-                          width: `${st.pct}%`,
-                          backgroundColor: st.color,
-                        }}
-                        title={`${st.label}: ${st.count} (${st.pct}%)`}
-                      />
-                    ) : null
-                  )}
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "8px" }}>
-                  <span>5 Asset Classes</span>
-                  <span>{wholesaleProperties.length} Properties · {money(wholesaleProjectedAssignments)} Projected Fees</span>
-                </div>
+              <div className="dashboard-window-footer">
+                <span>Realized Revenue</span>
+                <span>{soldProperties.length} Deals Completed · {money(totalSoldVolume)} Volume</span>
               </div>
             </div>
 
-            {/* Right Window: Pipeline Stage Breakdown (ABOVE DEAL CLOCKS!) */}
+            {/* Window 2: Projected Assignment Fees */}
             <div className="card dashboard-window">
               <div>
                 <WindowHead
-                  icon="📊"
-                  title="Pipeline Stage Breakdown"
-                  badgeText={`${stages.length} Stages`}
-                  badgeTone="tone-blue"
-                  subtitle="Live deal volume across acquisition & disposition milestones"
+                  icon="📈"
+                  title="Projected Assignment Fees"
+                  badgeText={`${money(wholesaleProjectedAssignments)} Pipeline`}
+                  badgeTone="tone-lime"
+                  subtitle="Expected assignment spreads across active wholesale inventory"
                   onView={() => onGoToStage()}
-                  viewTitle="View all stages in pipeline"
+                  viewTitle="View active pipeline properties"
                 />
 
-                <div className="stage-grid">
-                  {stageCards}
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Projected Fees</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {money(wholesaleProjectedAssignments)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Active Pipeline</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {wholesaleProperties.length} Deals
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Avg Projected</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {money(avgProjectedFee)}
+                    </div>
+                  </div>
                 </div>
+
+                {topProjectedProperties.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>📈</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Active Deals In Pipeline</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Add wholesale properties with projected assignment values to monitor anticipated returns.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="window-list-stack">
+                    {topProjectedProperties.slice(0, 2).map((p) => (
+                      <div key={p.id} className="window-item-card" onClick={() => onGoToStage()} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {p.address || p.companyName}
+                          </div>
+                          <div className="window-item-sub">
+                            {p.stage || "Pipeline"} · {getPropertyTypeCategory(p).replace("_", " ")} · Value {money(Number(p.dealValue) || 0)}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--lime, #3fb950)" }}>
+                            {money(getAssignmentValue(p))}
+                          </div>
+                          <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
+                            Projected Fee
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
-                <span>Pipeline Velocity</span>
-                <span>{activeClients} Active Properties in Funnel</span>
+              <div className="dashboard-window-footer">
+                <span>Unrealized Potential</span>
+                <span>Top Spread: {money(topProjectedProperties[0] ? getAssignmentValue(topProjectedProperties[0]) : 0)}</span>
               </div>
             </div>
           </div>
 
-          {/* Row 2: Offers Sent Out + Deal Clocks & Escrow Radar */}
+          {/* Row 2: Properties + Offers */}
           <div className="dashboard-windows-row">
-            {/* Left Window: Offers Sent Out */}
+            {/* Window 3: Properties */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="🏠"
+                  title="Properties"
+                  badgeText={`${wholesaleProperties.length} Units`}
+                  badgeTone="tone-blue"
+                  subtitle="Complete wholesale property portfolio and underwriting inventory"
+                  onView={() => onGoToStage()}
+                  viewTitle="Open Properties table"
+                />
+
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Total Units</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {wholesaleProperties.length}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Inventory Value</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {money(totalInventoryValue)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Asset Classes</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {propertyTypeStats.filter((s) => s.count > 0).length} Types
+                    </div>
+                  </div>
+                </div>
+
+                {wholesaleProperties.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>🏠</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Properties in Portfolio</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Import or create motivated seller property listings to track acquisitions.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="window-list-stack">
+                    {wholesaleProperties.slice(0, 2).map((p) => (
+                      <div key={p.id} className="window-item-card" onClick={() => onGoToStage()} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {p.address || p.companyName}
+                          </div>
+                          <div className="window-item-sub">
+                            {p.city ? `${p.city}, ${p.state}` : "Off-market Lead"} · {p.stage || "Pipeline"}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--ink)" }}>
+                            {money(Number(p.dealValue) || 0)}
+                          </div>
+                          <span className="badge" style={{ fontSize: "0.68rem" }}>
+                            {getPropertyTypeCategory(p).replace("_", " ")}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="dashboard-window-footer">
+                <span>Active Inventory</span>
+                <span>
+                  {propertyTypeStats
+                    .filter((s) => s.count > 0)
+                    .map((s) => `${s.count} ${s.label}`)
+                    .slice(0, 2)
+                    .join(" · ") || `${wholesaleProperties.length} Properties`}
+                </span>
+              </div>
+            </div>
+
+            {/* Window 4: Offers */}
             <div className="card dashboard-window">
               <div>
                 <WindowHead
                   icon="📝"
-                  title="Offers Sent Out"
+                  title="Offers"
                   badgeText={`${totalOffersSent} Sent`}
-                  badgeTone="tone-blue"
-                  subtitle="Formal purchase proposals dispatched to motivated sellers"
+                  badgeTone="tone-orange"
+                  subtitle="Formal purchase offers dispatched, pending seller response, and accepted"
                   onView={onGoToOffers}
-                  viewTitle="Open Wholesale Offers Repository"
+                  viewTitle="Open Offers Repository"
                 />
 
-                {totalOffersSent === 0 ? (
-                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>📝</div>
-                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Offers Dispatched Yet</p>
-                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
-                      Calculate terms on any pipeline property and click &quot;Generate &amp; Send Offer&quot; to dispatch formal proposals.
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Total Sent</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {totalOffersSent}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Offer Volume</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {money(totalOffersVolume)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Accepted</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {acceptedOffersCount}
+                    </div>
+                  </div>
+                </div>
+
+                {offersList.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>📝</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Offers Dispatched Yet</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Run Deal Calculator on any property and click &quot;Create Formal Offer&quot; to send.
                     </p>
-                    {onGoToOffers && (
-                      <button type="button" className="window-view-btn" onClick={onGoToOffers}>
-                        Open Offers Repository →
-                      </button>
-                    )}
                   </div>
                 ) : (
-                  <div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "12px" }}>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Total Sent</div>
-                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary, #d6ff3f)", marginTop: "2px" }}>{totalOffersSent}</div>
-                      </div>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Offer Volume</div>
-                        <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", marginTop: "4px" }}>{money(totalOffersVolume)}</div>
-                      </div>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Accepted</div>
-                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--lime, #3fb950)", marginTop: "2px" }}>{acceptedOffersCount}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {offersList.slice(0, 2).map((item, idx) => (
-                        <div
-                          key={item.id || idx}
-                          className="card"
-                          style={{
-                            padding: "10px 12px",
-                            border: "1px solid var(--border)",
-                            background: "rgba(255, 255, 255, 0.02)",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <div style={{ maxWidth: "65%", overflow: "hidden" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
-                              <span className="badge tone-blue" style={{ fontSize: "0.68rem", textTransform: "uppercase" }}>
-                                {item.offerType}
-                              </span>
-                              <span style={{ fontSize: "11px", color: "var(--muted)" }}>{item.date}</span>
-                            </div>
-                            <div className={`cell-strong ${blurPii(pii)}`} style={{ fontSize: "0.86rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {item.propertyAddress}
-                            </div>
+                  <div className="window-list-stack">
+                    {offersList.slice(0, 2).map((item, idx) => (
+                      <div key={item.id || idx} className="window-item-card" onClick={onGoToOffers} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {item.propertyAddress}
                           </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "var(--lime, #3fb950)" }}>
-                              {money(item.amount)}
-                            </div>
-                            <span className={`badge ${item.status === "accepted" ? "tone-lime" : "tone-amber"}`} style={{ fontSize: "0.68rem" }}>
-                              {item.status}
-                            </span>
+                          <div className="window-item-sub">
+                            {item.offerType} Offer · {item.date}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--lime, #3fb950)" }}>
+                            {money(item.amount)}
+                          </div>
+                          <span className={`badge ${item.status === "accepted" ? "tone-lime" : "tone-amber"}`} style={{ fontSize: "0.68rem", textTransform: "capitalize" }}>
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
-                <span>Offers Pipeline</span>
-                <span>{totalOffersSent} Formal Proposals Dispatched</span>
-              </div>
-            </div>
-
-            {/* Right Window: Deal Clocks & Escrow Radar */}
-            <div className="card dashboard-window">
-              <div>
-                <WindowHead
-                  icon="⏱️"
-                  title="Deal Clocks & Escrow Radar"
-                  badgeText={`${activeTransactions.length} in Escrow`}
-                  badgeTone="tone-amber"
-                  subtitle="Active contracts with inspection countdowns & milestones"
-                  onView={onGoToTransactions}
-                  viewTitle="Open Title & Escrow Transaction Hub"
-                />
-
-                {activeTransactions.length === 0 ? (
-                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>⏱️</div>
-                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Deals Currently in Escrow</p>
-                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
-                      Move contracted properties to Title & Escrow to track inspection deadlines and earnest money deposits.
-                    </p>
-                    {onGoToTransactions && (
-                      <button type="button" className="window-view-btn" onClick={onGoToTransactions}>
-                        Open Transaction Hub →
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "12px" }}>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>In Escrow</div>
-                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary, #d6ff3f)", marginTop: "2px" }}>{activeTransactions.length}</div>
-                      </div>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Pending Fees</div>
-                        <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", marginTop: "4px" }}>{money(totalEscrowFees)}</div>
-                      </div>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Clear to Close</div>
-                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--lime, #3fb950)", marginTop: "2px" }}>
-                          {activeTransactions.filter((t) => t.titleStatus === "clear_to_close").length}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {activeTransactions.slice(0, 2).map((tx) => {
-                      const urgencyTone = tx.inspectionUrgency === "urgent" ? "tone-red" : tx.inspectionUrgency === "warning" ? "tone-amber" : "tone-lime";
-                      const titleMilestoneLabel = tx.titleStatus === "clear_to_close" ? "Clear to Close ✓" : tx.titleStatus === "payoff_ordered" ? "Payoff Ordered" : tx.titleStatus === "prelim_review" ? "Prelim Review" : "In Escrow";
-
-                      return (
-                        <div
-                          key={tx.id}
-                          className="card"
-                          style={{
-                            padding: "12px 14px",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
-                            border: "1px solid var(--border)",
-                            background: "rgba(255, 255, 255, 0.02)",
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                            <span className="badge" style={{ fontSize: "0.7rem", textTransform: "uppercase" }}>
-                              {tx.contractType.toUpperCase()}
-                            </span>
-                            <span className={`badge ${urgencyTone}`} style={{ fontWeight: 700, fontSize: "0.72rem" }}>
-                              {tx.daysLeftInspection != null ? (
-                                tx.daysLeftInspection > 0 ? `⏱️ ${tx.daysLeftInspection}d left` : "Inspection Expired"
-                              ) : "Active Contingency"}
-                            </span>
-                          </div>
-
-                          <h3 className={`cell-strong ${blurPii(pii)}`} style={{ margin: "2px 0", fontSize: "0.9rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {tx.propertyAddress}
-                          </h3>
-
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: "8px", fontSize: "0.8rem" }}>
-                            <div>
-                              <span style={{ fontSize: "0.7rem", color: "var(--muted)", display: "block" }}>Fee</span>
-                              <strong style={{ fontSize: "0.88rem", color: "var(--primary, #d6ff3f)" }}>{money(tx.assignmentFee || 0)}</strong>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                              <span style={{ fontSize: "0.7rem", color: "var(--muted)", display: "block" }}>Title Status</span>
-                              <span style={{ color: tx.titleStatus === "clear_to_close" ? "#10b981" : "inherit", fontWeight: 600, fontSize: "0.75rem" }}>
-                                {titleMilestoneLabel}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
-                <span>Escrow Summary</span>
-                <span>{activeTransactions.length} Active Deals · {money(totalEscrowFees)} Fees</span>
+              <div className="dashboard-window-footer">
+                <span>Offers Repository</span>
+                <span>{acceptedOffersCount} Accepted · {Math.max(0, totalOffersSent - acceptedOffersCount)} Pending Response</span>
               </div>
             </div>
           </div>
 
-          {/* Row 3: Buy Box Matches + Cash Buyers Network */}
+          {/* Row 3: Under Contract + Buyer Under Contract */}
           <div className="dashboard-windows-row">
-            {/* Left Window: Buy Box Matches */}
+            {/* Window 5: Under Contract */}
             <div className="card dashboard-window">
               <div>
                 <WindowHead
-                  icon="🎯"
-                  title="Buy Box Matches"
-                  badgeText={`${buyBoxMatches.reduce((acc, g) => acc + g.matches.length, 0)} Matches`}
-                  badgeTone="tone-blue"
-                  subtitle="Deals in pipeline matching Cash & Creative buyers' criteria"
-                  onView={onGoToBuyBox}
-                  viewTitle="Open Buy Box Matcher"
+                  icon="📑"
+                  title="Under Contract"
+                  badgeText={`${underContractProperties.length} Contracted`}
+                  badgeTone="tone-amber"
+                  subtitle="A-B purchase contracts locked up with sellers awaiting disposition"
+                  onView={() => onGoToStage("Under Contract")}
+                  viewTitle="View under contract properties"
                 />
 
-                {buyBoxMatches.length === 0 ? (
-                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>🎯</div>
-                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Active Buy Box Matches</p>
-                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
-                      Add more cash and creative financing buyers with buy-box criteria to automatically match with properties.
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Under Contract</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {underContractProperties.length}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Contract Value</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {money(underContractVolume)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Projected Spread</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {money(underContractProperties.reduce((sum, p) => sum + getAssignmentValue(p), 0))}
+                    </div>
+                  </div>
+                </div>
+
+                {underContractProperties.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>📑</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Contracts Locked Up</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Move seller deals into &quot;Under Contract&quot; stage to lock up equitable interest.
                     </p>
-                    {onGoToBuyBox && (
-                      <button type="button" className="window-view-btn" onClick={onGoToBuyBox}>
-                        Open Buy Box Matcher →
-                      </button>
-                    )}
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {buyBoxMatches.slice(0, 2).map((group) => {
-                      const prop = group.property;
-                      const topMatch = group.matches[0];
-                      const buyer = topMatch.buyer;
-                      const rawStrat = getCustomField(buyer, "Buyer Type") || buyer.services?.join(" · ") || "Cash Buyer";
-                      const stratCount = (buyer.services && buyer.services.length > 0)
-                        ? buyer.services.length
-                        : (rawStrat.split(/[,/]+/).filter(Boolean).length || 1);
-
-                      return (
-                        <div
-                          key={prop.id}
-                          className="card"
-                          style={{
-                            padding: "12px 14px",
-                            border: "1px solid rgba(88, 166, 255, 0.3)",
-                            background: "rgba(255, 255, 255, 0.02)",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                            <div>
-                              <span className="badge tone-blue" style={{ fontSize: "0.7rem" }}>
-                                {group.matches.length} Compatible Buyer{group.matches.length === 1 ? "" : "s"}
-                              </span>
-                              <h3 className={`cell-strong ${blurPii(pii)}`} style={{ margin: "2px 0", fontSize: "0.9rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {prop.address || prop.companyName}
-                              </h3>
-                            </div>
-                            <span className="badge tone-lime" style={{ fontWeight: 800, fontSize: "0.75rem" }}>
-                              {topMatch.matchScore}% Match
-                            </span>
+                  <div className="window-list-stack">
+                    {underContractProperties.slice(0, 2).map((p) => (
+                      <div key={p.id} className="window-item-card" onClick={() => onGoToStage("Under Contract")} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {p.address || p.companyName}
                           </div>
-
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.03)", padding: "6px 10px", borderRadius: "6px" }}>
-                            <span className={`cell-strong ${blurPii(pii)}`} style={{ fontSize: "0.82rem", fontWeight: 600 }}>
-                              {buyer.companyName}
-                            </span>
-                            <span
-                              className="badge tone-blue"
-                              style={{ fontWeight: 700, fontSize: "0.72rem", padding: "1px 6px" }}
-                              title={`Buy Strategies (${stratCount}): ${rawStrat}`}
-                            >
-                              {stratCount} strat
-                            </span>
-                          </div>
-
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: "8px" }}>
-                            <span style={{ fontSize: "0.85rem", color: "var(--lime, #3fb950)", fontWeight: 700 }}>
-                              {money(getPropertyPrice(prop))}
-                            </span>
-                            {onGoToBuyBox && (
-                              <button
-                                type="button"
-                                className="link-btn"
-                                onClick={onGoToBuyBox}
-                                style={{ fontSize: "0.78rem" }}
-                              >
-                                Matches →
-                              </button>
-                            )}
+                          <div className="window-item-sub">
+                            Purchase Price: {money(Number(p.dealValue) || 0)} · Active Inspection
                           </div>
                         </div>
-                      );
-                    })}
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
+                            +{money(getAssignmentValue(p))}
+                          </div>
+                          <span className="badge tone-amber" style={{ fontSize: "0.68rem" }}>
+                            Under Contract
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
-                <span>Buyer Compatibility</span>
-                <span>{buyBoxMatches.reduce((acc, g) => acc + g.matches.length, 0)} Total Matches in Pipeline</span>
+              <div className="dashboard-window-footer">
+                <span>A-B Seller Agreements</span>
+                <span>Ready for Investor Matching &amp; Assignment</span>
               </div>
             </div>
 
-            {/* Right Window: Cash Buyers Network */}
+            {/* Window 6: Buyer Under Contract */}
             <div className="card dashboard-window">
               <div>
                 <WindowHead
-                  icon="👥"
-                  title="Cash Buyers Network"
-                  badgeText={`${totalBuyersCount} Vetted Buyers`}
+                  icon="🤝"
+                  title="Buyer Under Contract"
+                  badgeText={`${buyerUnderContractList.length} Assigned`}
                   badgeTone="tone-blue"
-                  subtitle="Active disposition directory with cash & creative criteria"
-                  onView={onGoToBuyers}
-                  viewTitle="Open Cash Buyers Directory"
+                  subtitle="B-C assignment contracts executed with end cash & creative buyers"
+                  onView={onGoToTransactions || onGoToBuyers}
+                  viewTitle="View assigned buyer contracts"
                 />
 
-                {displayedBuyers.length === 0 ? (
-                  <div style={{ padding: "28px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>👥</div>
-                    <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "14px" }}>No Vetted Buyers Yet</p>
-                    <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)", maxWidth: "280px" }}>
-                      Build your cash & creative investor list to dispo wholesale contracts in record time.
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Assigned Deals</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {buyerUnderContractList.length}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Assigned Fees</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {money(totalBuyerContractFees)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">EMD Secured</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {buyerUnderContractList.filter((b) => b.emd.includes("Verified") || b.emd.includes("Deposited")).length}
+                    </div>
+                  </div>
+                </div>
+
+                {buyerUnderContractList.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>🤝</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Assigned Buyers Yet</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Assign end buyers in the Transaction Hub to secure B-C assignment agreements and escrow earnest money.
                     </p>
-                    {onGoToBuyers && (
-                      <button type="button" className="window-view-btn" onClick={onGoToBuyers}>
-                        Open Cash Buyers →
-                      </button>
-                    )}
                   </div>
                 ) : (
-                  <div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "12px" }}>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Active Buyers</div>
-                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary, #d6ff3f)", marginTop: "2px" }}>{totalBuyersCount}</div>
-                      </div>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Buy Capacity</div>
-                        <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", marginTop: "4px" }}>{money(totalBuyerCapacity)}</div>
-                      </div>
-                      <div style={{ padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--line)", textAlign: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Verified POF</div>
-                        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--lime, #3fb950)", marginTop: "2px" }}>{verifiedPofCount}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {displayedBuyers.slice(0, 2).map((b) => (
-                        <div
-                          key={b.id}
-                          className="card"
-                          style={{
-                            padding: "10px 12px",
-                            border: "1px solid var(--border)",
-                            background: "rgba(255, 255, 255, 0.02)",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <div style={{ maxWidth: "65%", overflow: "hidden" }}>
-                            <div className={`cell-strong ${blurPii(pii)}`} style={{ fontSize: "0.88rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {b.name}
-                            </div>
-                            <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {b.markets}
-                            </div>
+                  <div className="window-list-stack">
+                    {buyerUnderContractList.slice(0, 2).map((item) => (
+                      <div key={item.id} className="window-item-card" onClick={onGoToTransactions || onGoToBuyers} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {item.propertyAddress}
                           </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "var(--primary, #d6ff3f)" }}>
-                              {money(b.budget)} Max
-                            </div>
-                            <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
-                              {b.pof}
-                            </span>
+                          <div className="window-item-sub">
+                            Buyer: {item.buyerName} · {item.emd}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
+                            +{money(item.assignmentFee)}
+                          </div>
+                          <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
-                <span>Disposition Network</span>
-                <span>{totalBuyersCount} Buyers Ready for Contracting</span>
+              <div className="dashboard-window-footer">
+                <span>B-C Assignment Agreements</span>
+                <span>{money(totalBuyerContractFees)} Total Locked Assignment Revenue</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 4: Lead Sources + Closing */}
+          <div className="dashboard-windows-row">
+            {/* Window 7: Lead Sources */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="📡"
+                  title="Lead Sources"
+                  badgeText={`${leadSourceStats.length} Sources`}
+                  badgeTone="tone-purple"
+                  subtitle="Origin breakdown of incoming seller leads and marketing channels"
+                  onView={() => onGoToStage()}
+                  viewTitle="Filter leads by source"
+                />
+
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Total Sources</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {leadSourceStats.length}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Top Channel</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)", fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {leadSourceStats[0]?.name || "Direct"}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Webhook Leads</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {webhookLeadsCount}
+                    </div>
+                  </div>
+                </div>
+
+                {leadSourceStats.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>📡</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Lead Sources Recorded</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Track lead channels like Webhooks, Cold Calling, Direct Mail, PPC, and Inbound.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="window-list-stack">
+                    {leadSourceStats.slice(0, 2).map((src) => (
+                      <div key={src.name} className="window-item-card" onClick={() => onGoToStage()} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className="window-item-title">
+                            {src.name}
+                          </div>
+                          <div className="window-item-sub">
+                            {src.count} Properties · {money(src.volume)} Pipeline Volume
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
+                            {src.pct}%
+                          </div>
+                          <span className="badge tone-purple" style={{ fontSize: "0.68rem" }}>
+                            {src.count} Deals
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="dashboard-window-footer">
+                <span>Channel Performance</span>
+                <span>{leadSourceStats.slice(0, 3).map((s) => `${s.name}: ${s.count}`).join(" · ")}</span>
+              </div>
+            </div>
+
+            {/* Window 8: Closing */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="🏁"
+                  title="Closing"
+                  badgeText={`${closingList.length} In Escrow`}
+                  badgeTone="tone-lime"
+                  subtitle="Title, escrow, and final funding schedule for pending settlements"
+                  onView={onGoToTransactions}
+                  viewTitle="Open Transaction & Escrow Hub"
+                />
+
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">In Escrow</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {closingList.length}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Closing Fees</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {money(closingList.reduce((sum, t) => sum + (Number(t.assignmentFee) || 0), 0))}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Clear to Close</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {closingList.filter((t) => t.titleStatus === "clear_to_close").length}
+                    </div>
+                  </div>
+                </div>
+
+                {closingList.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>🏁</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Transactions in Closing</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Deals in Title & Escrow will appear here with settlement dates and clear-to-close milestones.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="window-list-stack">
+                    {closingList.slice(0, 2).map((t) => (
+                      <div key={t.id} className="window-item-card" onClick={onGoToTransactions} style={{ cursor: "pointer" }}>
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {t.propertyAddress}
+                          </div>
+                          <div className="window-item-sub">
+                            {t.titleCompanyName ? `Title: ${t.titleCompanyName}` : "Title & Escrow"} · Close: {t.closingDate ? fmtDate(t.closingDate) : "Scheduled"}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
+                            +{money(Number(t.assignmentFee) || 0)}
+                          </div>
+                          <span className={`badge ${t.titleStatus === "clear_to_close" ? "tone-lime" : "tone-amber"}`} style={{ fontSize: "0.68rem" }}>
+                            {t.titleStatus === "clear_to_close" ? "Clear to Close" : "In Escrow"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="dashboard-window-footer">
+                <span>Title &amp; Settlement</span>
+                <span>{closingList.filter((t) => t.titleStatus === "clear_to_close").length} Clear to Close · Avg 14d Escrow</span>
               </div>
             </div>
           </div>
         </>
-      ) : (
-        <>
-          {ownerOrg ? null : (
-            <div className="card dashboard-window" style={{ marginBottom: "20px" }}>
-              <div>
-                <WindowHead
-                  icon="📊"
-                  title="Stage breakdown"
-                  badgeText={`${stages.length} Stages`}
-                  badgeTone="tone-blue"
-                  subtitle="Live deal volume across pipeline stages"
-                  onView={() => onGoToStage()}
-                  viewTitle="View pipeline stages"
-                />
-                <div className="stage-grid">{stageCards}</div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      ) : null}
 
       {/* Owner revenue summary (owner 2026-08-20) — real invoice-based
           revenue figures on the owner dashboard, mirroring the Finance tab

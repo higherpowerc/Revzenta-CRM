@@ -664,7 +664,7 @@ export default function App() {
                   Dashboard
                 </button>
 
-                {/* 2. Properties */}
+                {/* 2. Opportunities */}
                 <button
                   className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
                   onClick={() => {
@@ -673,8 +673,9 @@ export default function App() {
                     setLeadsFilter("active");
                     setView("leads");
                   }}
+                  title="Wholesale property pipeline and acquisition opportunities"
                 >
-                  Properties
+                  Opportunities
                 </button>
 
                 {/* 3. Offers Repository */}
