@@ -41,6 +41,16 @@
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   color-scheme: dark;
 
+  /* Universal aliases for components & calculators */
+  --fg: #f2f1ec;
+  --text: #f2f1ec;
+  --text-dim: #94a3b8;
+  --surface: #121216;
+  --surface-2: #16161b;
+  --surface-sunken: #0c0d10;
+  --surface-header: #16161c;
+  --input-bg: #16161c;
+
   --rev-billed-bg: #171a1f;
   --rev-billed-border: rgba(242, 241, 236, 0.12);
   --rev-paid-bg: #13251a;
@@ -98,6 +108,16 @@
   --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   color-scheme: light;
+
+  /* Universal aliases for components & calculators */
+  --fg: #0f172a;
+  --text: #0f172a;
+  --text-dim: #64748b;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-sunken: #f1f5f9;
+  --surface-header: #f8fafc;
+  --input-bg: #ffffff;
 
   --rev-billed-bg: #f8fafc;
   --rev-billed-border: #cbd5e1;

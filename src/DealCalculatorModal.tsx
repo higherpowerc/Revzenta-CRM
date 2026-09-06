@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import type { Client } from "./types";
-import { api } from "./api";
+import { api, type ClientInput } from "./api";
 import {
   calculateCashWholesale,
   calculateSellerFinancing,
@@ -17,7 +17,7 @@ interface Props {
   crmBusinessName?: string;
 }
 
-/** Currency input with clean $ prefix and automatic numeric comma formatting */
+/** Currency input with clean $ prefix, high-contrast text, and automatic numeric comma formatting */
 function CurrencyField({
   label,
   value,
@@ -45,17 +45,19 @@ function CurrencyField({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text, #f8fafc)" }}>{label}</span>
-        {hint && <span style={{ fontSize: "11px", color: "var(--text-dim, #94a3b8)" }}>{hint}</span>}
+        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink, #f8fafc)", letterSpacing: "0.01em" }}>
+          {label}
+        </span>
+        {hint && <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 500 }}>{hint}</span>}
       </label>
       <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
         <span
           style={{
             position: "absolute",
             left: "12px",
-            color: "#64748b",
+            color: "var(--muted, #94a3b8)",
             fontSize: "14px",
             fontWeight: 700,
             pointerEvents: "none",
@@ -69,16 +71,17 @@ function CurrencyField({
           inputMode="numeric"
           style={{
             width: "100%",
-            height: "38px",
-            paddingLeft: "26px",
-            paddingRight: "10px",
-            fontSize: "14px",
-            fontWeight: 600,
-            background: "var(--surface, #ffffff)",
-            color: "var(--text, #0f172a)",
-            border: "1px solid var(--border, #cbd5e1)",
-            borderRadius: "6px",
+            height: "40px",
+            paddingLeft: "28px",
+            paddingRight: "12px",
+            fontSize: "15px",
+            fontWeight: 700,
+            background: "var(--panel, #121216)",
+            color: "var(--ink, #f8fafc)",
+            border: "1px solid var(--border, #30363d)",
+            borderRadius: "7px",
             boxSizing: "border-box",
+            outline: "none",
           }}
           placeholder={placeholder}
           value={text}
@@ -89,7 +92,7 @@ function CurrencyField({
   );
 }
 
-/** Percentage or numeric step input */
+/** Percentage or numeric step input with high-contrast text and clean styling */
 function NumberField({
   label,
   value,
@@ -106,10 +109,12 @@ function NumberField({
   hint?: string;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text, #f8fafc)" }}>{label}</span>
-        {hint && <span style={{ fontSize: "11px", color: "var(--text-dim, #94a3b8)" }}>{hint}</span>}
+        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink, #f8fafc)", letterSpacing: "0.01em" }}>
+          {label}
+        </span>
+        {hint && <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 500 }}>{hint}</span>}
       </label>
       <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
         <input
@@ -117,16 +122,17 @@ function NumberField({
           step={step}
           style={{
             width: "100%",
-            height: "38px",
+            height: "40px",
             paddingLeft: "12px",
-            paddingRight: suffix ? "32px" : "12px",
-            fontSize: "14px",
-            fontWeight: 600,
-            background: "var(--surface, #ffffff)",
-            color: "var(--text, #0f172a)",
-            border: "1px solid var(--border, #cbd5e1)",
-            borderRadius: "6px",
+            paddingRight: suffix ? "36px" : "12px",
+            fontSize: "15px",
+            fontWeight: 700,
+            background: "var(--panel, #121216)",
+            color: "var(--ink, #f8fafc)",
+            border: "1px solid var(--border, #30363d)",
+            borderRadius: "7px",
             boxSizing: "border-box",
+            outline: "none",
           }}
           value={value === 0 ? "" : value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
@@ -136,9 +142,9 @@ function NumberField({
             style={{
               position: "absolute",
               right: "12px",
-              color: "#64748b",
+              color: "var(--muted, #94a3b8)",
               fontSize: "13px",
-              fontWeight: 600,
+              fontWeight: 700,
               pointerEvents: "none",
             }}
           >
@@ -216,7 +222,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
     }
   }, [initialSeller]);
 
-  const [recipientEmail, setRecipientEmail] = useState(property?.email || "");
+  const [recipientEmail] = useState(property?.email || "");
   const [acquisitionsCompany, setAcquisitionsCompany] = useState(crmBusinessName || "");
 
   useEffect(() => {
@@ -272,7 +278,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
   const [cashRepairs, setCashRepairs] = useState<number>(initialFields.repairs);
   const [cashInvestorRule, setCashInvestorRule] = useState<number>(initialFields.rule);
   const [cashAssignmentFee, setCashAssignmentFee] = useState<number>(initialFields.fee);
-  const [cashClosingCostPct, setCashClosingCostPct] = useState<number>(1.5);
+  const [cashClosingCostPct] = useState<number>(1.5);
 
   const cashMetrics = useMemo(() => {
     return calculateCashWholesale({
@@ -288,15 +294,15 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
   // 2. CREATIVE SELLER FINANCING (OWNER CARRY) UNDERWRITING STATE
   // ==========================================================================
   const [creativePrice, setCreativePrice] = useState<number>(initialFields.purchasePrice);
-  const [creativeTargetList, setCreativeTargetList] = useState<number>(initialFields.listedPrice);
+  const [creativeTargetList] = useState<number>(initialFields.listedPrice);
   const [creativeDown, setCreativeDown] = useState<number>(initialFields.downPayment);
   const [creativeInterestRate, setCreativeInterestRate] = useState<number>(initialFields.rate);
   const [creativeAmortYears, setCreativeAmortYears] = useState<number>(30);
   const [creativeBalloonYears, setCreativeBalloonYears] = useState<number>(5);
   const [creativeIsIO, setCreativeIsIO] = useState<boolean>(false);
-  const [creativeRehab, setCreativeRehab] = useState<number>(5000);
+  const [creativeRehab] = useState<number>(5000);
   const [creativeAssignmentFee, setCreativeAssignmentFee] = useState<number>(initialFields.fee);
-  const [creativeClosingCosts, setCreativeClosingCosts] = useState<number>(2000);
+  const [creativeClosingCosts] = useState<number>(2000);
   const [creativeRent, setCreativeRent] = useState<number>(initialFields.rent);
   const [creativeTaxes, setCreativeTaxes] = useState<number>(180);
   const [creativeInsurance, setCreativeInsurance] = useState<number>(120);
@@ -342,12 +348,12 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
   const [subtoPrice, setSubtoPrice] = useState<number>(initialFields.purchasePrice);
   const [subtoCashToSeller, setSubtoCashToSeller] = useState<number>(7500);
   const [subtoArrears, setSubtoArrears] = useState<number>(0);
-  const [subtoRehab, setSubtoRehab] = useState<number>(5000);
+  const [subtoRehab] = useState<number>(5000);
   const [subtoAssignmentFee, setSubtoAssignmentFee] = useState<number>(initialFields.fee);
-  const [subtoClosingCosts, setSubtoClosingCosts] = useState<number>(2000);
+  const [subtoClosingCosts] = useState<number>(2000);
   const [subtoRent, setSubtoRent] = useState<number>(initialFields.rent);
   const [subtoTaxesIns, setSubtoTaxesIns] = useState<number>(250);
-  const [subtoHoa, setSubtoHoa] = useState<number>(40);
+  const [subtoHoa] = useState<number>(40);
 
   // Existing debt liens
   const [liens, setLiens] = useState<MortgageLien[]>([
@@ -506,10 +512,11 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
   const handleCopyText = async () => {
     try {
       await navigator.clipboard.writeText(proposalData.plainText);
-      setCopySuccess("Copied plain text LOI to clipboard!");
-      setTimeout(() => setCopySuccess(null), 3000);
+      setCopySuccess("Text proposal copied to clipboard!");
+      setTimeout(() => setCopySuccess(null), 4000);
     } catch {
-      setCopySuccess("Failed to copy");
+      setCopySuccess("Failed to copy automatically. Please select text manually.");
+      setTimeout(() => setCopySuccess(null), 4000);
     }
   };
 
@@ -517,87 +524,89 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
     setSavingToCrm(true);
     setSaveSuccessMsg(null);
     try {
-      const parsed = parseAddressString(propertyAddress);
-      const cleanAddress = parsed.address || propertyAddress.trim();
+      const activeFee =
+        tab === "cash"
+          ? cashAssignmentFee
+          : tab === "creative"
+          ? creativeAssignmentFee
+          : subtoAssignmentFee;
 
-      const nextCustom = [...(property?.customFields || [])];
-      const setCf = (name: string, value: string | number) => {
-        const idx = nextCustom.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
-        if (idx >= 0) nextCustom[idx] = { name, value: String(value) };
-        else nextCustom.push({ name, value: String(value) });
-      };
+      const activeOffer =
+        tab === "cash"
+          ? cashMetrics.netWholesaleOffer
+          : tab === "creative"
+          ? creativePrice
+          : subtoPrice;
 
-      if (propertyAddress.trim()) {
-        setCf("Property address", propertyAddress.trim());
-      }
-      setCf("Assignment Fee", `$${cashAssignmentFee.toLocaleString()}`);
-      setCf("ARV", `$${cashArv.toLocaleString()}`);
-      setCf("Estimated Repairs", `$${cashRepairs.toLocaleString()}`);
-      setCf("Cash Offer (MAO)", `$${cashMetrics.netWholesaleOffer.toLocaleString()}`);
-      setCf("Creative Price", `$${creativePrice.toLocaleString()}`);
-      setCf("Creative Down", `$${creativeDown.toLocaleString()}`);
-      setCf("SubTo Loan Debt", `$${subtoMetrics.totalExistingDebt.toLocaleString()}`);
+      const parsedAddr = parseAddressString(propertyAddress);
+      const customFieldsUpdate = [
+        ...(property?.customFields || []).filter(
+          (c) =>
+            !c.name.toLowerCase().includes("arv") &&
+            !c.name.toLowerCase().includes("repairs") &&
+            !c.name.toLowerCase().includes("assignment fee") &&
+            !c.name.toLowerCase().includes("purchase price") &&
+            !c.name.toLowerCase().includes("property address")
+        ),
+        { id: "cf_arv", name: "ARV", type: "currency", value: String(cashArv) },
+        { id: "cf_repairs", name: "Repairs", type: "currency", value: String(cashRepairs) },
+        { id: "cf_fee", name: "Projected Assignment Fee", type: "currency", value: String(activeFee) },
+        { id: "cf_offer", name: "Underwritten Purchase Price", type: "currency", value: String(activeOffer) },
+      ];
 
-      let savedClient: Client;
-      if (property && property.id) {
-        const updatePayload: Record<string, unknown> = {
-          customFields: nextCustom,
-          dealValue: cashAssignmentFee,
-        };
-        if (cleanAddress) {
-          updatePayload.address = cleanAddress;
-          if (parsed.city) updatePayload.city = parsed.city;
-          if (parsed.state) updatePayload.state = parsed.state;
-          if (parsed.zip) updatePayload.zip = parsed.zip;
-        }
-        if (sellerName.trim()) {
-          updatePayload.contactName = sellerName.trim();
-          if (!property.companyName || property.companyName === "Unknown Owner" || property.companyName === property.address) {
-            updatePayload.companyName = cleanAddress || sellerName.trim();
-          }
-        } else if (cleanAddress && (!property.companyName || property.companyName === "Unknown Owner" || property.companyName === property.address)) {
-          updatePayload.companyName = cleanAddress;
-        }
-
-        const res = await api.updateClient(property.id, updatePayload as any);
-        savedClient = res.client;
-      } else {
-        const res = await api.createClient({
-          companyName: cleanAddress || sellerName.trim() || "New Underwritten Property",
-          contactName: sellerName.trim() || "Unknown Owner",
-          address: cleanAddress,
-          city: parsed.city,
-          state: parsed.state,
-          zip: parsed.zip,
-          clientType: "single_family",
-          customFields: nextCustom,
-          dealValue: cashAssignmentFee,
-          stage: "Lead Sources",
-          email: recipientEmail.trim(),
-          phone: "",
-          industry: "Real Estate Wholesale",
-          services: [],
-          nextAction: "Underwritten - Send Purchase Proposal",
-          notes: `Underwritten via Revzenta Deal Underwriter.\nMAO: $${cashMetrics.netWholesaleOffer.toLocaleString()}\nAssignment Fee: $${cashAssignmentFee.toLocaleString()}\nCreative Price: $${creativePrice.toLocaleString()}\nSubTo Debt: $${subtoMetrics.totalExistingDebt.toLocaleString()}`,
-          archived: false,
-          lost: false,
-          lostReason: "",
-          dnc: false,
-          dncReason: "",
-          dncDate: "",
-          monthlyAmount: 0,
+      if (parsedAddr.address) {
+        customFieldsUpdate.push({
+          id: "cf_prop_address",
+          name: "Property address",
+          type: "text",
+          value: propertyAddress,
         });
-        savedClient = res.client;
       }
 
-      if (savedClient) {
-        const displayLabel = savedClient.address || savedClient.companyName || "Property";
-        setSaveSuccessMsg(`✓ Saved ${displayLabel} to CRM!`);
-        if (onUpdated) onUpdated(savedClient);
-        setTimeout(() => setSaveSuccessMsg(null), 4000);
+      if (property?.id) {
+        const updatePayload: Partial<ClientInput> = {
+          dealValue: activeOffer,
+          customFields: customFieldsUpdate,
+        };
+        if (parsedAddr.address) {
+          updatePayload.address = parsedAddr.address;
+          if (parsedAddr.city) updatePayload.city = parsedAddr.city;
+          if (parsedAddr.state) updatePayload.state = parsedAddr.state;
+          if (parsedAddr.zip) updatePayload.zip = parsedAddr.zip;
+          updatePayload.companyName = propertyAddress;
+        }
+        if (sellerName) {
+          updatePayload.contactName = sellerName;
+        }
+
+        const res = await api.updateClient(property.id, updatePayload);
+        if (res.client) {
+          onUpdated?.(res.client);
+          setSaveSuccessMsg("Saved underwritten terms & address directly to property lead!");
+          setTimeout(() => setSaveSuccessMsg(null), 5000);
+        }
+      } else {
+        const createPayload: ClientInput = {
+          companyName: propertyAddress || "New Property Underwritten",
+          contactName: sellerName || "Unknown Owner",
+          email: recipientEmail || "",
+          dealValue: activeOffer,
+          stage: "Leads",
+          address: parsedAddr.address || propertyAddress,
+          city: parsedAddr.city,
+          state: parsedAddr.state,
+          zip: parsedAddr.zip,
+          customFields: customFieldsUpdate,
+        };
+        const res = await api.createClient(createPayload);
+        if (res.client) {
+          onUpdated?.(res.client);
+          setSaveSuccessMsg("Created new underwritten property lead in your pipeline!");
+          setTimeout(() => setSaveSuccessMsg(null), 5000);
+        }
       }
-    } catch (e) {
-      setSaveSuccessMsg(e instanceof Error ? e.message : "Failed to save terms.");
+    } catch (err: any) {
+      setSaveSuccessMsg("Error saving: " + (err.message || String(err)));
     } finally {
       setSavingToCrm(false);
     }
@@ -605,14 +614,13 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
 
   return (
     <div
-      className="overlay"
       role="dialog"
       aria-modal="true"
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(4px)",
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        backdropFilter: "blur(6px)",
         zIndex: 9999,
         display: "flex",
         alignItems: "center",
@@ -623,48 +631,58 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
       onClick={onClose}
     >
       <div
-        className="modal-card"
         style={{
           width: "100%",
-          maxWidth: "1200px",
+          maxWidth: "1250px",
           maxHeight: "94vh",
-          backgroundColor: "var(--surface-sunken, #0f172a)",
-          border: "1px solid var(--border, #334155)",
+          backgroundColor: "var(--panel, #121216)",
+          color: "var(--ink, #f8fafc)",
+          border: "1px solid var(--border, #30363d)",
           borderRadius: "14px",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.75)",
-          color: "var(--text, #f8fafc)",
+          boxShadow: "0 25px 60px rgba(0, 0, 0, 0.6)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
           style={{
-            padding: "18px 24px",
-            borderBottom: "1px solid var(--border, #1e293b)",
+            padding: "16px 24px",
+            borderBottom: "1px solid var(--border, #30363d)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            backgroundColor: "var(--surface, #090d14)",
+            backgroundColor: "var(--panel-2, #16161b)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span style={{ fontSize: "24px" }}>📐</span>
             <div>
-              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--text, #f8fafc)", letterSpacing: "-0.01em" }}>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", letterSpacing: "-0.01em" }}>
                 Revzenta Deal Underwriter™
               </h2>
-              <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--text-dim, #94a3b8)" }}>
+              <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
                 Proprietary Acquisitions Modeling • Cash Wholesale MAO • Seller Financing • Subject-To
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="icon-btn"
-            style={{ fontSize: "18px", cursor: "pointer", background: "none", border: "none", color: "var(--text-dim, #94a3b8)" }}
+            style={{
+              fontSize: "16px",
+              cursor: "pointer",
+              background: "var(--panel, #121216)",
+              border: "1px solid var(--border, #30363d)",
+              color: "var(--ink, #f8fafc)",
+              width: "32px",
+              height: "32px",
+              borderRadius: "6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
             aria-label="Close modal"
           >
             ✕
@@ -675,8 +693,8 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
         <div
           style={{
             padding: "12px 24px",
-            backgroundColor: "var(--surface, #0f172a)",
-            borderBottom: "1px solid var(--border, #1e293b)",
+            backgroundColor: "var(--panel-2, #16161b)",
+            borderBottom: "1px solid var(--border, #30363d)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -684,15 +702,15 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             gap: "14px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "300px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "320px" }}>
             <span style={{ fontSize: "20px" }}>📍</span>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                <label style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em" }}>
+                <label style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em" }}>
                   Property Address
                 </label>
                 {property && (
-                  <span style={{ fontSize: "11px", color: "var(--text-dim, #94a3b8)" }}>
+                  <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
                     Linked to Property #{property.id}
                   </span>
                 )}
@@ -704,23 +722,24 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                 placeholder="Enter property address (e.g. 1244 E Highland Ave, Phoenix, AZ 85014)..."
                 style={{
                   width: "100%",
-                  height: "36px",
+                  height: "38px",
                   padding: "0 12px",
                   fontSize: "14px",
                   fontWeight: 600,
                   borderRadius: "6px",
-                  border: "1px solid var(--border, #334155)",
-                  backgroundColor: "var(--surface-sunken, #020617)",
-                  color: "var(--text, #f8fafc)",
+                  border: "1px solid var(--border, #30363d)",
+                  backgroundColor: "var(--panel, #121216)",
+                  color: "var(--ink, #f8fafc)",
                   boxSizing: "border-box",
+                  outline: "none",
                 }}
               />
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "190px" }}>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-dim, #94a3b8)", letterSpacing: "0.05em", marginBottom: "4px" }}>
+            <div style={{ width: "200px" }}>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #94a3b8)", letterSpacing: "0.05em", marginBottom: "4px" }}>
                 Seller / Owner Name
               </label>
               <input
@@ -730,15 +749,16 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                 placeholder="Owner name (optional)"
                 style={{
                   width: "100%",
-                  height: "36px",
+                  height: "38px",
                   padding: "0 12px",
-                  fontSize: "13px",
-                  fontWeight: 500,
+                  fontSize: "14px",
+                  fontWeight: 600,
                   borderRadius: "6px",
-                  border: "1px solid var(--border, #334155)",
-                  backgroundColor: "var(--surface-sunken, #020617)",
-                  color: "var(--text, #f8fafc)",
+                  border: "1px solid var(--border, #30363d)",
+                  backgroundColor: "var(--panel, #121216)",
+                  color: "var(--ink, #f8fafc)",
                   boxSizing: "border-box",
+                  outline: "none",
                 }}
               />
             </div>
@@ -746,18 +766,23 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", alignSelf: "flex-end" }}>
               <button
                 type="button"
-                className="btn btn-primary"
                 onClick={handleSaveTermsToProperty}
                 disabled={savingToCrm}
                 style={{
-                  height: "36px",
-                  padding: "0 16px",
+                  height: "38px",
+                  padding: "0 18px",
                   fontWeight: 700,
                   fontSize: "13px",
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
                   whiteSpace: "nowrap",
+                  borderRadius: "6px",
+                  border: "none",
+                  backgroundColor: "var(--lime, #d6ff3f)",
+                  color: "var(--lime-ink, #0c0d08)",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                 }}
               >
                 <span>💾</span>
@@ -766,19 +791,21 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             </div>
           </div>
           {saveSuccessMsg && (
-            <div style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", fontWeight: 600 }}>
+            <div style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", fontWeight: 700 }}>
               {saveSuccessMsg}
             </div>
           )}
         </div>
+
+        {/* Tab Navigation */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            backgroundColor: "var(--surface-header, #0a1120)",
-            padding: "12px 20px",
+            backgroundColor: "var(--panel-2, #16161b)",
+            padding: "12px 24px",
             gap: "10px",
-            borderBottom: "1px solid var(--border, #1e293b)",
+            borderBottom: "1px solid var(--border, #30363d)",
             overflowX: "auto",
           }}
         >
@@ -797,18 +824,19 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                 style={{
                   padding: "10px 18px",
                   borderRadius: "8px",
-                  border: isActive ? "1px solid #38bdf8" : "1px solid var(--border, #334155)",
+                  border: isActive ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
                   background: isActive
                     ? "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)"
-                    : "var(--surface, #1e293b)",
-                  color: isActive ? "#ffffff" : "var(--text-dim, #cbd5e1)",
-                  fontWeight: 600,
+                    : "var(--panel, #121216)",
+                  color: isActive ? "#ffffff" : "var(--ink-dim, #cfcec8)",
+                  fontWeight: 700,
                   fontSize: "13px",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
                   whiteSpace: "nowrap",
+                  boxShadow: isActive ? "0 2px 8px rgba(2, 132, 199, 0.35)" : "none",
                   transition: "all 0.15s ease",
                 }}
               >
@@ -826,51 +854,61 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
           {/* TAB 1: MULTI-OPTION LOI & PROPOSAL */}
           {/* ================================================================ */}
           {tab === "proposal" && (
-            <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: "20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: "20px" }}>
               {/* Controls Column */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--surface, #1e293b)", padding: "16px", borderRadius: "10px", border: "1px solid var(--border, #334155)" }}>
-                  <h3 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: 700 }}>Proposal Settings</h3>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 14px 0", fontSize: "14px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
+                    Proposal Settings
+                  </h3>
                   
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                     <div>
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Property Address</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                        Property Address
+                      </span>
                       <input
                         type="text"
                         value={propertyAddress}
                         onChange={(e) => setPropertyAddress(e.target.value)}
-                        style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--surface-sunken)" }}
+                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
                       />
                     </div>
                     <div>
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Seller / Owner</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                        Seller / Owner Name
+                      </span>
                       <input
                         type="text"
                         value={sellerName}
                         onChange={(e) => setSellerName(e.target.value)}
-                        style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--surface-sunken)" }}
+                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
                       />
                     </div>
                     <div>
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Buyer Vesting Entity</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                        Buyer Vesting Entity
+                      </span>
                       <input
                         type="text"
                         value={acquisitionsCompany}
                         onChange={(e) => setAcquisitionsCompany(e.target.value)}
                         placeholder="Revzenta Capital"
-                        style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--surface-sunken)" }}
+                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
                       />
                     </div>
 
-                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "8px" }}>Include Purchase Options:</span>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ borderTop: "1px solid var(--border, #30363d)", paddingTop: "12px" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "8px", color: "var(--ink, #f8fafc)" }}>
+                        Include Purchase Options:
+                      </span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         {[
                           { id: "cash" as const, label: "Immediate All-Cash ($" + cashMetrics.netWholesaleOffer.toLocaleString() + ")" },
                           { id: "subto" as const, label: "Subject-To Mortgage Takeover" },
                           { id: "creative" as const, label: "Seller Financing ($" + creativePrice.toLocaleString() + ")" },
                         ].map((opt) => (
-                          <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer" }}>
+                          <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer", color: "var(--ink, #f8fafc)" }}>
                             <input
                               type="checkbox"
                               checked={selectedProposalOptions.includes(opt.id)}
@@ -884,7 +922,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                                 }
                               }}
                             />
-                            <span>{opt.label}</span>
+                            <span style={{ fontWeight: 600 }}>{opt.label}</span>
                           </label>
                         ))}
                       </div>
@@ -897,20 +935,22 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                         checked={includeAssignability}
                         onChange={(e) => setIncludeAssignability(e.target.checked)}
                       />
-                      <label htmlFor="assignClause" style={{ fontSize: "12px", cursor: "pointer" }}>
+                      <label htmlFor="assignClause" style={{ fontSize: "12px", cursor: "pointer", fontWeight: 600, color: "var(--ink, #f8fafc)" }}>
                         Include Assignability Clause
                       </label>
                     </div>
 
                     <div>
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Closing Timeline (Days)</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                        Closing Timeline (Days)
+                      </span>
                       <input
                         type="number"
                         min={3}
                         max={90}
                         value={closingDays}
                         onChange={(e) => setClosingDays(Number(e.target.value) || 14)}
-                        style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--surface-sunken)" }}
+                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
                       />
                     </div>
                   </div>
@@ -920,29 +960,45 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ width: "100%", padding: "10px", fontWeight: 700 }}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      fontWeight: 700,
+                      backgroundColor: "var(--lime, #d6ff3f)",
+                      color: "var(--lime-ink, #0c0d08)",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                    }}
                     onClick={handleCopyText}
                   >
                     📋 Copy Text LOI
                   </button>
                   <button
                     type="button"
-                    className="btn btn-secondary"
-                    style={{ width: "100%", padding: "10px", fontWeight: 600 }}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      fontWeight: 600,
+                      backgroundColor: "var(--panel-2, #16161b)",
+                      color: "var(--ink, #f8fafc)",
+                      border: "1px solid var(--border, #30363d)",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                    }}
                     onClick={handleSaveTermsToProperty}
-                    disabled={savingToCrm || !property}
+                    disabled={savingToCrm}
                   >
                     {savingToCrm ? "Saving..." : "💾 Save Terms & Fee to Property"}
                   </button>
 
                   {copySuccess && (
-                    <div style={{ padding: "6px 10px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", fontSize: "12px", textAlign: "center" }}>
+                    <div style={{ padding: "8px 10px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", textAlign: "center", fontWeight: 700 }}>
                       {copySuccess}
                     </div>
                   )}
                   {saveSuccessMsg && (
-                    <div style={{ padding: "6px 10px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", fontSize: "12px", textAlign: "center" }}>
+                    <div style={{ padding: "8px 10px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", textAlign: "center", fontWeight: 700 }}>
                       {saveSuccessMsg}
                     </div>
                   )}
@@ -960,10 +1016,10 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                         padding: "6px 14px",
                         borderRadius: "6px",
                         fontSize: "12px",
-                        fontWeight: 600,
-                        border: "1px solid var(--border)",
-                        background: viewMode === "formatted" ? "var(--primary, #0284c7)" : "transparent",
-                        color: viewMode === "formatted" ? "#ffffff" : "var(--text-dim)",
+                        fontWeight: 700,
+                        border: viewMode === "formatted" ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                        background: viewMode === "formatted" ? "var(--primary, #0284c7)" : "var(--panel-2, #16161b)",
+                        color: "#ffffff",
                         cursor: "pointer",
                       }}
                     >
@@ -976,36 +1032,36 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                         padding: "6px 14px",
                         borderRadius: "6px",
                         fontSize: "12px",
-                        fontWeight: 600,
-                        border: "1px solid var(--border)",
-                        background: viewMode === "plain" ? "var(--primary, #0284c7)" : "transparent",
-                        color: viewMode === "plain" ? "#ffffff" : "var(--text-dim)",
+                        fontWeight: 700,
+                        border: viewMode === "plain" ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                        background: viewMode === "plain" ? "var(--primary, #0284c7)" : "var(--panel-2, #16161b)",
+                        color: "#ffffff",
                         cursor: "pointer",
                       }}
                     >
                       Plain Text / Email
                     </button>
                   </div>
-                  <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>
+                  <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 500 }}>
                     Live Synchronized Proposal
                   </span>
                 </div>
 
                 <div
                   style={{
-                    background: "var(--surface, #1e293b)",
+                    background: "var(--panel-2, #16161b)",
                     borderRadius: "10px",
-                    border: "1px solid var(--border, #334155)",
+                    border: "1px solid var(--border, #30363d)",
                     padding: "20px",
                     minHeight: "500px",
-                    maxHeight: "650px",
+                    maxHeight: "680px",
                     overflowY: "auto",
                   }}
                 >
                   {viewMode === "formatted" ? (
                     <div dangerouslySetInnerHTML={{ __html: proposalData.htmlMarkup }} />
                   ) : (
-                    <pre style={{ whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: "13px", lineHeight: "1.5", margin: 0 }}>
+                    <pre style={{ whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: "13px", lineHeight: "1.6", margin: 0, color: "var(--ink, #f8fafc)", background: "var(--panel, #121216)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
                       {proposalData.plainText}
                     </pre>
                   )}
@@ -1021,9 +1077,11 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
               {/* Inputs */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 700 }}>Property Valuation & Rehab Scope</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Property Valuation & Rehab Scope
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                     <CurrencyField label="After-Repair Value (ARV)" value={cashArv} onChange={setCashArv} hint="Appraised retail" />
                     <CurrencyField label="Estimated Repairs" value={cashRepairs} onChange={setCashRepairs} hint="Scope of rehab" />
                     <NumberField label="Target Investor Rule" value={cashInvestorRule} onChange={setCashInvestorRule} suffix="%" hint="Usually 70% or 75%" />
@@ -1031,32 +1089,60 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                   </div>
                 </div>
 
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 700 }}>Wholesale MAO Breakdown</h3>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Wholesale MAO Breakdown
+                  </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
                       <span>1. ARV × Investor Target ({cashInvestorRule}%):</span>
-                      <strong>${Math.round(cashArv * (cashInvestorRule / 100)).toLocaleString()}</strong>
+                      <strong style={{ fontSize: "15px", color: "var(--ink, #f8fafc)" }}>
+                        ${Math.round(cashArv * (cashInvestorRule / 100)).toLocaleString()}
+                      </strong>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
                       <span>2. Less Estimated Rehab:</span>
-                      <span style={{ color: "#ef4444" }}>-${cashRepairs.toLocaleString()}</span>
+                      <span style={{ color: "#f87171", fontWeight: 700, fontSize: "14px" }}>
+                        -${cashRepairs.toLocaleString()}
+                      </span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
                       <span>3. Less Buyer Closing Friction (1.5%):</span>
-                      <span style={{ color: "#ef4444" }}>-${cashMetrics.buyerClosingCostAmount.toLocaleString()}</span>
+                      <span style={{ color: "#f87171", fontWeight: 700, fontSize: "14px" }}>
+                        -${cashMetrics.buyerClosingCostAmount.toLocaleString()}
+                      </span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontWeight: 700 }}>
-                      <span>Gross Max Allowable Offer (MAO):</span>
-                      <span style={{ color: "#38bdf8" }}>${cashMetrics.maxAllowableOffer.toLocaleString()}</span>
+                    
+                    {/* Highlight MAO Row */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderRadius: "8px", background: "rgba(56, 189, 248, 0.1)", border: "1px solid rgba(56, 189, 248, 0.3)" }}>
+                      <span style={{ fontWeight: 800, color: "#38bdf8", fontSize: "14px" }}>
+                        Gross Max Allowable Offer (MAO):
+                      </span>
+                      <span style={{ color: "#38bdf8", fontWeight: 900, fontSize: "17px" }}>
+                        ${cashMetrics.maxAllowableOffer.toLocaleString()}
+                      </span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
                       <span>4. Less Wholesale Assignment Fee:</span>
-                      <span style={{ color: "#10b981", fontWeight: 700 }}>-${cashAssignmentFee.toLocaleString()}</span>
+                      <span style={{ color: "#34d399", fontWeight: 800, fontSize: "15px" }}>
+                        -${cashAssignmentFee.toLocaleString()}
+                      </span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 4px 0", fontSize: "16px", fontWeight: 800 }}>
-                      <span>Your Net Purchase Offer to Seller:</span>
-                      <span style={{ color: "#10b981" }}>${cashMetrics.netWholesaleOffer.toLocaleString()}</span>
+
+                    {/* Prominent Offer Box */}
+                    <div style={{ marginTop: "8px", padding: "16px 18px", borderRadius: "10px", background: "rgba(16, 185, 129, 0.12)", border: "2px solid #10b981", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                          YOUR NET PURCHASE OFFER TO SELLER
+                        </div>
+                        <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                          Contract purchase price written on state PSA
+                        </div>
+                      </div>
+                      <div style={{ fontSize: "24px", fontWeight: 900, color: "#10b981" }}>
+                        ${cashMetrics.netWholesaleOffer.toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1065,24 +1151,28 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
               {/* Viability & End Buyer Output */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {/* Viability Card */}
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>Revzenta Deal Viability Index</h3>
-                      <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>{currentViability.verdict}</span>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                        Revzenta Deal Viability Index
+                      </h3>
+                      <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                        {currentViability.verdict}
+                      </span>
                     </div>
-                    <span style={{ fontSize: "22px", fontWeight: 800, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
                       {currentViability.score}/100 ({currentViability.grade})
                     </span>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {currentViability.checks.map((c, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "6px 8px", borderRadius: "6px", background: "var(--surface-sunken)" }}>
-                        <span>{c.title}</span>
-                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                          <span style={{ fontWeight: 600 }}>{c.metricValue}</span>
-                          <span style={{ color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 600 }}>{c.title}</span>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)" }}>{c.metricValue}</span>
+                          <span style={{ fontWeight: 800, color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
                             {c.status === "passed" ? "✓" : c.status === "warning" ? "!" : "✕"}
                           </span>
                         </div>
@@ -1092,24 +1182,45 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                 </div>
 
                 {/* Cash Buyer Pitch Box */}
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: 700 }}>Cash Buyer Metrics (Pitch Deck)</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "13px" }}>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Buyer Purchase Price</span>
-                      <strong style={{ fontSize: "16px" }}>${(cashMetrics.netWholesaleOffer + cashAssignmentFee).toLocaleString()}</strong>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 14px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Cash Buyer Metrics (Pitch Deck)
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Buyer Purchase Price
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${(cashMetrics.netWholesaleOffer + cashAssignmentFee).toLocaleString()}
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Projected Flip Profit</span>
-                      <strong style={{ fontSize: "16px", color: "#10b981" }}>${cashMetrics.investorGrossProfit.toLocaleString()}</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Projected Flip Profit
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                        ${cashMetrics.investorGrossProfit.toLocaleString()}
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Buyer ROI</span>
-                      <strong style={{ fontSize: "16px", color: "#38bdf8" }}>{cashMetrics.investorROI.toFixed(1)}%</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Buyer Target ROI
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                        {cashMetrics.investorROI.toFixed(1)}%
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Your Assignment Fee</span>
-                      <strong style={{ fontSize: "16px", color: "#10b981" }}>${cashAssignmentFee.toLocaleString()}</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Your Assignment Fee
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#a855f7", marginTop: "4px", display: "block" }}>
+                        ${cashAssignmentFee.toLocaleString()}
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -1124,9 +1235,11 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
               {/* Inputs */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 700 }}>Note Terms & Purchase Price</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Note Terms & Purchase Price
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                     <CurrencyField label="Purchase Price" value={creativePrice} onChange={setCreativePrice} />
                     <CurrencyField label="Down Payment" value={creativeDown} onChange={setCreativeDown} hint={creativeMetrics.downPaymentPct.toFixed(1) + "% down"} />
                     <NumberField label="Annual Interest Rate" value={creativeInterestRate} onChange={setCreativeInterestRate} suffix="%" step={0.25} />
@@ -1135,51 +1248,57 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                     <CurrencyField label="Wholesale Assignment Fee" value={creativeAssignmentFee} onChange={setCreativeAssignmentFee} />
                   </div>
 
-                  <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ marginTop: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
                     <input
                       type="checkbox"
                       id="isIOCheck"
                       checked={creativeIsIO}
                       onChange={(e) => setCreativeIsIO(e.target.checked)}
                     />
-                    <label htmlFor="isIOCheck" style={{ fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                    <label htmlFor="isIOCheck" style={{ fontSize: "12px", cursor: "pointer", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
                       Interest-Only (I/O) Monthly Payments
                     </label>
                   </div>
                 </div>
 
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 700 }}>Property Rental & Expenses</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-                    <CurrencyField label="Market Rent" value={creativeRent} onChange={setCreativeRent} hint="Gross rental revenue" />
-                    <CurrencyField label="Monthly Taxes" value={creativeTaxes} onChange={setCreativeTaxes} />
-                    <CurrencyField label="Monthly Insurance" value={creativeInsurance} onChange={setCreativeInsurance} />
-                    <CurrencyField label="Monthly HOA" value={creativeHoa} onChange={setCreativeHoa} />
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Property Revenue & Holding Costs
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    <CurrencyField label="Expected Monthly Rent" value={creativeRent} onChange={setCreativeRent} hint="Gross rental revenue" />
+                    <CurrencyField label="Monthly Property Taxes" value={creativeTaxes} onChange={setCreativeTaxes} />
+                    <CurrencyField label="Monthly Hazard Insurance" value={creativeInsurance} onChange={setCreativeInsurance} />
+                    <CurrencyField label="Monthly HOA (if any)" value={creativeHoa} onChange={setCreativeHoa} />
                   </div>
                 </div>
               </div>
 
-              {/* Yield & Viability Output */}
+              {/* Viability & Summary Output */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {/* Scorecard */}
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>Deal Viability Index</h3>
-                      <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>{currentViability.verdict}</span>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                        Deal Viability Index
+                      </h3>
+                      <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                        {currentViability.verdict}
+                      </span>
                     </div>
-                    <span style={{ fontSize: "22px", fontWeight: 800, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
                       {currentViability.score}/100 ({currentViability.grade})
                     </span>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {currentViability.checks.map((c, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "6px 8px", borderRadius: "6px", background: "var(--surface-sunken)" }}>
-                        <span>{c.title}</span>
-                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                          <span style={{ fontWeight: 600 }}>{c.metricValue}</span>
-                          <span style={{ color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 600 }}>{c.title}</span>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)" }}>{c.metricValue}</span>
+                          <span style={{ fontWeight: 800, color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
                             {c.status === "passed" ? "✓" : c.status === "warning" ? "!" : "✕"}
                           </span>
                         </div>
@@ -1188,35 +1307,64 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                   </div>
                 </div>
 
-                {/* Returns Summary */}
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: 700 }}>Operational Cash Flow & Exit</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "13px" }}>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Monthly Note Payment (P&I)</span>
-                      <strong style={{ fontSize: "16px", color: "#38bdf8" }}>${Math.round(creativeMetrics.monthlyDebtService).toLocaleString()}/mo</strong>
+                {/* Seller Finance Economics Output */}
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 14px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Owner Carry Note Economics
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Monthly Note Payment (P&I)
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${Math.round(creativeMetrics.monthlyDebtService).toLocaleString()}/mo
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Net Monthly Cash Flow</span>
-                      <strong style={{ fontSize: "16px", color: creativeMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444" }}>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Net Monthly Cash Flow
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: creativeMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444", marginTop: "4px", display: "block" }}>
                         ${Math.round(creativeMetrics.netMonthlyCashFlow).toLocaleString()}/mo
                       </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Cash-on-Cash Return</span>
-                      <strong style={{ fontSize: "16px", color: "#10b981" }}>{creativeMetrics.cashOnCashReturn.toFixed(1)}%</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Cash-on-Cash Return
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                        {creativeMetrics.cashOnCashReturn.toFixed(1)}%
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Buyer Total Entry Capital</span>
-                      <strong style={{ fontSize: "16px" }}>${creativeMetrics.totalBuyerEntryCapital.toLocaleString()} ({creativeMetrics.entryCapitalPct.toFixed(1)}%)</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Buyer Total Entry Capital
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${creativeMetrics.totalBuyerEntryCapital.toLocaleString()}
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Balloon Payoff Balance ({creativeBalloonYears} yr)</span>
-                      <strong style={{ fontSize: "16px" }}>${Math.round(creativeMetrics.balloonRemainingBalance).toLocaleString()}</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Balloon Payoff ({creativeBalloonYears} yr)
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${Math.round(creativeMetrics.balloonRemainingBalance).toLocaleString()}
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Total Wealth Paid to Seller</span>
-                      <strong style={{ fontSize: "16px", color: "#38bdf8" }}>${Math.round(creativeMetrics.totalPayoutToSeller).toLocaleString()}</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Total Paid to Seller
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                        ${Math.round(creativeMetrics.totalPayoutToSeller).toLocaleString()}
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -1231,12 +1379,16 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
             <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
               {/* Inputs */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 700 }}>Existing Debt Portfolios (Mortgage Liens)</h3>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Existing Debt Portfolios (Mortgage Liens)
+                  </h3>
                   {liens.map((lien, index) => (
-                    <div key={lien.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "10px", marginBottom: "12px", alignItems: "end" }}>
+                    <div key={lien.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "12px", marginBottom: "14px", alignItems: "end" }}>
                       <div>
-                        <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block", marginBottom: "4px" }}>Lien Label</span>
+                        <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, display: "block", marginBottom: "6px" }}>
+                          Lien Label
+                        </span>
                         <input
                           type="text"
                           value={lien.label}
@@ -1245,7 +1397,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                             next[index].label = e.target.value;
                             setLiens(next);
                           }}
-                          style={{ width: "100%", height: "36px", padding: "0 8px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--surface-sunken)" }}
+                          style={{ width: "100%", height: "40px", padding: "0 10px", borderRadius: "7px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "14px", fontWeight: 600, boxSizing: "border-box" }}
                         />
                       </div>
                       <CurrencyField
@@ -1281,9 +1433,11 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                   ))}
                 </div>
 
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 700 }}>Cash-to-Seller & Entry Costs</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Cash-to-Seller & Entry Costs
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                     <CurrencyField label="Contract Purchase Price" value={subtoPrice} onChange={setSubtoPrice} />
                     <CurrencyField label="Cash to Seller at Closing" value={subtoCashToSeller} onChange={setSubtoCashToSeller} hint="Seller walkaway cash" />
                     <CurrencyField label="Arrears / Reinstatement" value={subtoArrears} onChange={setSubtoArrears} hint="Catch up missed payments" />
@@ -1297,24 +1451,28 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
               {/* Viability & Summary Output */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {/* Scorecard */}
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>Deal Viability Index</h3>
-                      <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>{currentViability.verdict}</span>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                        Deal Viability Index
+                      </h3>
+                      <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                        {currentViability.verdict}
+                      </span>
                     </div>
-                    <span style={{ fontSize: "22px", fontWeight: 800, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
                       {currentViability.score}/100 ({currentViability.grade})
                     </span>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {currentViability.checks.map((c, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "6px 8px", borderRadius: "6px", background: "var(--surface-sunken)" }}>
-                        <span>{c.title}</span>
-                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                          <span style={{ fontWeight: 600 }}>{c.metricValue}</span>
-                          <span style={{ color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 600 }}>{c.title}</span>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)" }}>{c.metricValue}</span>
+                          <span style={{ fontWeight: 800, color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
                             {c.status === "passed" ? "✓" : c.status === "warning" ? "!" : "✕"}
                           </span>
                         </div>
@@ -1324,34 +1482,63 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
                 </div>
 
                 {/* SubTo Metrics Summary */}
-                <div style={{ background: "var(--surface, #1e293b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                  <h3 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: 700 }}>Mortgage Assumption Economics</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "13px" }}>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Total Debt Taken Over</span>
-                      <strong style={{ fontSize: "16px", color: "#38bdf8" }}>${subtoMetrics.totalExistingDebt.toLocaleString()}</strong>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <h3 style={{ margin: "0 0 14px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Mortgage Assumption Economics
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Total Debt Taken Over
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                        ${subtoMetrics.totalExistingDebt.toLocaleString()}
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Monthly Debt Service</span>
-                      <strong style={{ fontSize: "16px" }}>${Math.round(subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Monthly Debt Service
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${Math.round(subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Net Monthly Cash Flow</span>
-                      <strong style={{ fontSize: "16px", color: subtoMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444" }}>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Net Monthly Cash Flow
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: subtoMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444", marginTop: "4px", display: "block" }}>
                         ${Math.round(subtoMetrics.netMonthlyCashFlow).toLocaleString()}/mo
                       </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Total Buyer Entry Capital</span>
-                      <strong style={{ fontSize: "16px", color: "#10b981" }}>${subtoMetrics.totalBuyerEntryCapital.toLocaleString()} ({subtoMetrics.entryCapitalPct.toFixed(1)}%)</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Total Buyer Entry Capital
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                        ${subtoMetrics.totalBuyerEntryCapital.toLocaleString()} ({subtoMetrics.entryCapitalPct.toFixed(1)}%)
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Cash-on-Cash Return</span>
-                      <strong style={{ fontSize: "16px", color: "#10b981" }}>{subtoMetrics.cashOnCashReturn.toFixed(1)}%</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Cash-on-Cash Return
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                        {subtoMetrics.cashOnCashReturn.toFixed(1)}%
+                      </strong>
                     </div>
-                    <div style={{ background: "var(--surface-sunken)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block" }}>Captured Equity Spread</span>
-                      <strong style={{ fontSize: "16px", color: "#38bdf8" }}>${subtoMetrics.sellerEquityCaptured.toLocaleString()} ({subtoMetrics.equityPct.toFixed(1)}%)</strong>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
+                        Captured Equity Spread
+                      </span>
+                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                        ${subtoMetrics.sellerEquityCaptured.toLocaleString()} ({subtoMetrics.equityPct.toFixed(1)}%)
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -1365,31 +1552,49 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
         <div
           style={{
             padding: "14px 24px",
-            borderTop: "1px solid var(--border, #1e293b)",
+            borderTop: "1px solid var(--border, #30363d)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            backgroundColor: "var(--surface, #090d14)",
+            backgroundColor: "var(--panel-2, #16161b)",
           }}
         >
-          <div style={{ fontSize: "12px", color: "var(--text-dim)" }}>
+          <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 500 }}>
             Revzenta Acquisitions Engine • 100% Proprietary Underwriting
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               type="button"
-              className="btn btn-secondary"
               onClick={onClose}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "6px",
+                border: "1px solid var(--border, #30363d)",
+                background: "transparent",
+                color: "var(--ink, #f8fafc)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
             >
               Close
             </button>
             <button
               type="button"
-              className="btn btn-primary"
               onClick={handleSaveTermsToProperty}
               disabled={savingToCrm}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "6px",
+                border: "none",
+                background: "var(--lime, #d6ff3f)",
+                color: "var(--lime-ink, #0c0d08)",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
             >
-              {savingToCrm ? "Saving..." : property ? "Save Terms to Property" : "Save as New Property"}
+              {savingToCrm ? "Saving…" : "Apply & Save to CRM"}
             </button>
           </div>
         </div>
