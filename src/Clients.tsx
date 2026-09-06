@@ -74,6 +74,7 @@ interface Props {
   initialFilter?: Filter;
   crmBusinessName?: string;
   onGoToBuyBox?: () => void;
+  onGoToTransactions?: () => void;
   verticalKey?: string;
 }
 
@@ -473,7 +474,7 @@ function OwnerActionsMenu({ client, busy, onEdit, onDemo, onFlag }: {
     </div>
   );
 }
-export default function Clients({ stages, scope = "all", ownerOrg = false, initialStage = null, initialFilter, canEdit = true, isWholesale: isWholesaleProp = false, crmBusinessName, onGoToBuyBox, verticalKey = "" }: Props) {
+export default function Clients({ stages, scope = "all", ownerOrg = false, initialStage = null, initialFilter, canEdit = true, isWholesale: isWholesaleProp = false, crmBusinessName, onGoToBuyBox, onGoToTransactions, verticalKey = "" }: Props) {
   const isWholesale = Boolean(isWholesaleProp || verticalKey === "wholesalebiz" || verticalKey === "wholesale");
   const [clients, setClients] = useState<Client[] | null>(null);
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([]);
@@ -691,6 +692,8 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
     }
     return clients.filter((c) => {
       if (isWholesale && (c.clientType === "buyer" || c.stage === "Buyer")) return false;
+      // When an offer has been sent, it advances to Transaction Hub and out of Opportunities
+      if (isWholesale && isOfferSentForClient(c)) return false;
       /* Positional pipeline buckets (owner request 2026-08-14/15): only
          clients whose stage is inside THIS view's scoped stage slice are
          pipeline records here. Everything else — for the owner that means the
@@ -714,7 +717,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
       if (!matchesSource(c)) return false;
       return matchesQuery(c);
     });
-  }, [clients, filter, query, activeStageFilter, scopedStages, matchesQuery, sourceFilter]);
+  }, [clients, filter, query, activeStageFilter, scopedStages, matchesQuery, sourceFilter, isWholesale]);
 
   /* Owner request 2026-08-14 — chip counts. Non-archived clients per stage,
      computed live from the same loaded list the table renders, so the chips
@@ -729,12 +732,14 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
         if (c.archived) continue;
         if (c.lost) continue; // lost leads never count toward pipeline chips
         if (c.demoOutcome === "maybe") continue; // maybe leads live in the Maybe bin
+        if (isWholesale && (c.clientType === "buyer" || c.stage === "Buyer")) continue;
+        if (isWholesale && isOfferSentForClient(c)) continue;
         if (!scopedStages.includes(c.stage)) continue;
         m[c.stage] = (m[c.stage] ?? 0) + 1;
       }
     }
     return m;
-  }, [clients, scopedStages]);
+  }, [clients, scopedStages, isWholesale]);
 
   const totalValue = useMemo(
     () => visible.filter((c) => !c.archived).reduce((sum, c) => sum + (isWholesale ? getAssignmentValue(c) : (c.dealValue || 0)), 0),
@@ -1147,7 +1152,17 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
      scoped stage slice only — clients in other buckets (the owner's other
      pipeline tab, or the terminal/sold stage for tenants) are counted on
      their own tabs, not here. */
-  const scoped = clients.filter((c) => scopedStages.includes(c.stage));
+  const scoped = clients.filter((c) => {
+    if (isWholesale && (c.clientType === "buyer" || c.stage === "Buyer")) return false;
+    if (isWholesale && isOfferSentForClient(c)) return false;
+    return scopedStages.includes(c.stage);
+  });
+
+  const sentOffersCount = useMemo(() => {
+    if (!isWholesale || !clients) return 0;
+    return clients.filter((c) => isOfferSentForClient(c)).length;
+  }, [isWholesale, clients]);
+
   /* Owner request 2026-08-14 — lost leads are excluded from the pipeline seg
      counts (Active/Archived/All); they surface on the "Lost" seg (and DNC
      carries its own list). */
@@ -1205,16 +1220,16 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
      Tenant orgs (role=member) keep the single pipeline — every stage except
      terminal — with "clients" wording for their records. Same page, same
      data — only the visible wording and the scoped stage slice differ. */
-  const heading = isWholesale ? "Properties" : scope === "middle" ? "Onboarding" : ownerOrg ? "Leads" : (<>
+  const heading = isWholesale ? "Opportunities" : scope === "middle" ? "Onboarding" : ownerOrg ? "Leads" : (<>
     Client <em className="serif">book</em>
   </>);
-  const addCta = isWholesale ? "+ New property" : ownerOrg ? "+ New lead" : "+ New client";
-  const emptyTitle = isWholesale ? "No properties yet"
+  const addCta = isWholesale ? "+ New opportunity" : ownerOrg ? "+ New lead" : "+ New client";
+  const emptyTitle = isWholesale ? "No opportunities yet"
     : scope === "middle" ? "No onboarding clients yet"
     : ownerOrg && scope === "first" ? "No leads yet"
     : ownerOrg ? "No leads yet" : "No clients yet";
   const emptySub = isWholesale
-    ? "Add your first property to start tracking your wholesale deals."
+    ? "Add your first property opportunity to start tracking your wholesale deals."
     : scope === "middle"
     ? "Intake leads between your first and final pipeline stages live here — move one into your final stage and it becomes a client."
     : ownerOrg && scope === "first"
@@ -1223,7 +1238,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
     ? "Add your first lead to start tracking the pipeline."
     : "Add your first client to start tracking the pipeline.";
   const emptyCta = isWholesale
-    ? "New Property"
+    ? "New Opportunity"
     : scope === "middle"
     ? "Add your first lead"
     : ownerOrg && scope === "first"
@@ -1283,6 +1298,45 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
       {error && (
         <div className="alert alert-error" role="alert">
           {error}
+        </div>
+      )}
+
+      {isWholesale && sentOffersCount > 0 && (
+        <div
+          style={{
+            margin: "0 0 16px 0",
+            padding: "10px 16px",
+            background: "rgba(56, 189, 248, 0.08)",
+            border: "1px solid rgba(56, 189, 248, 0.25)",
+            borderRadius: "10px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "18px" }}>💼</span>
+            <div>
+              <span style={{ fontWeight: 700, color: "var(--ink)" }}>
+                {sentOffersCount} {sentOffersCount === 1 ? "Property has" : "Properties have"} an Active Offer Sent
+              </span>
+              <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+                Properties with sent offers advance out of Opportunities and into the <strong>Transaction Hub</strong> for contract tracking &amp; escrow.
+              </div>
+            </div>
+          </div>
+          {onGoToTransactions && (
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={onGoToTransactions}
+              style={{ borderColor: "rgba(56, 189, 248, 0.4)", color: "#38bdf8", fontWeight: 700 }}
+            >
+              Open Transaction Hub ({sentOffersCount}) →
+            </button>
+          )}
         </div>
       )}
 

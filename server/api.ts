@@ -5202,6 +5202,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       console.warn("[offer] follow-up task error:", err);
     }
 
+    // Auto-sync into Transaction Hub
+    await syncOffersToTransactions(orgId);
+
     const updated = db.query("SELECT * FROM clients WHERE id = ? AND org_id = ?").get(id, orgId) as ClientRow;
 
     return json({
@@ -5385,6 +5388,98 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const offerId = Number(offerPatchMatch[1]);
     db.query("DELETE FROM offers WHERE id = ? AND org_id = ?").run(offerId, orgId);
     return json({ ok: true });
+  }
+
+  /* Wholesale Offers Repository — create an offer */
+  if (pathname === "/api/offers" && method === "POST") {
+    const body = await readBody(req);
+    if (!body) return err("Invalid JSON body.", 400);
+
+    const clientId = body.clientId ? Number(body.clientId) : null;
+    const propertyAddress = typeof body.propertyAddress === "string" && body.propertyAddress.trim()
+      ? body.propertyAddress.trim()
+      : "Subject Property";
+    const sellerName = typeof body.sellerName === "string" ? body.sellerName.trim() : "";
+    const sellerEmail = typeof body.sellerEmail === "string" ? body.sellerEmail.trim() : "";
+    const offerType = typeof body.offerType === "string" ? body.offerType.trim() : "cash";
+    const cashOfferAmount = Number(body.cashOfferAmount) || 0;
+    const creativePurchasePrice = Number(body.creativePurchasePrice) || 0;
+    const subtoPurchasePrice = Number(body.subtoPurchasePrice) || 0;
+    const status = typeof body.status === "string" ? body.status.trim() : "Sent";
+    const notes = typeof body.notes === "string" ? body.notes : "";
+    const closingDays = Number(body.closingDays) || 14;
+
+    const org = db.query("SELECT name FROM orgs WHERE id = ?").get(orgId) as { name: string } | null;
+    const businessName = (org?.name || "Revzenta Capital").trim();
+    const pdfId = crypto.randomUUID().replace(/-/g, "");
+
+    const insertResult = db.query(`
+      INSERT INTO offers (
+        org_id, client_id, pdf_id, property_address, seller_name, seller_email,
+        business_name, offer_type, selected_offers,
+        cash_offer_amount, subto_purchase_price, subto_debt, subto_cash_to_seller, subto_monthly_payment,
+        creative_purchase_price, creative_down_payment, creative_monthly_payment, creative_interest_rate,
+        creative_balloon_years, creative_total_paid, closing_days, email_status, status, notes, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, '["cash"]',
+        ?, ?, 0, 0, 0,
+        ?, 0, 0, 0,
+        0, 0, ?, 'sent', ?, ?, datetime('now'), datetime('now')
+      )
+    `).run(
+      orgId,
+      clientId,
+      pdfId,
+      propertyAddress,
+      sellerName,
+      sellerEmail,
+      businessName,
+      offerType,
+      cashOfferAmount,
+      subtoPurchasePrice,
+      creativePurchasePrice,
+      closingDays,
+      status,
+      notes
+    );
+
+    const newOfferId = Number(insertResult.lastInsertRowid);
+
+    // If linked to a client, stamp Offer Sent custom fields so it is marked offer sent
+    if (clientId) {
+      try {
+        const client = db.query("SELECT * FROM clients WHERE id = ? AND org_id = ?").get(clientId, orgId) as ClientRow | null;
+        if (client) {
+          let customFields: Array<{ name: string; value: string }> = [];
+          try {
+            customFields = JSON.parse(client.custom_fields || "[]");
+          } catch {
+            customFields = [];
+          }
+          const setField = (n: string, v: string) => {
+            const idx = customFields.findIndex((f) => f.name.toLowerCase() === n.toLowerCase());
+            if (idx >= 0) customFields[idx].value = v;
+            else customFields.push({ name: n, value: v });
+          };
+          setField("Offer Sent", new Date().toISOString().split("T")[0]);
+          if (cashOfferAmount > 0) setField("Cash Offer", `$${cashOfferAmount.toLocaleString()}`);
+          setField("Offer Structure", offerType);
+          db.query("UPDATE clients SET custom_fields = ?, updated_at = datetime('now') WHERE id = ?").run(
+            JSON.stringify(customFields),
+            clientId
+          );
+        }
+      } catch (clientErr) {
+        console.warn("[offers-post] error updating client customFields:", clientErr);
+      }
+    }
+
+    // Automatically sync into Transaction Hub
+    await syncOffersToTransactions(orgId);
+
+    const created = db.query("SELECT * FROM offers WHERE id = ?").get(newOfferId) as any;
+    return json({ ok: true, offer: created });
   }
 
   /* ── Wholesale Document & Transaction Hub ──────────────────────────────
@@ -5616,9 +5711,143 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     );
   }
 
+  // Auto-sync properties where an offer has been sent into the Transaction Hub
+  async function syncOffersToTransactions(curOrgId: number) {
+    try {
+      // 1. From offers repository table
+      const offers = db.query("SELECT * FROM offers WHERE org_id = ?").all(curOrgId) as any[];
+      for (const o of offers) {
+        const propAddr = (o.property_address || "").trim();
+        if (!propAddr) continue;
+
+        const existing = db.query(
+          "SELECT id FROM transactions WHERE org_id = ? AND (client_id = ? OR LOWER(TRIM(property_address)) = LOWER(TRIM(?)))"
+        ).get(curOrgId, o.client_id || -1, propAddr) as any;
+
+        if (!existing) {
+          const now = new Date();
+          const emd = new Date(now.getTime() + 3 * 86400000).toISOString().split("T")[0];
+          const insp = new Date(now.getTime() + 14 * 86400000).toISOString().split("T")[0];
+          const close = new Date(now.getTime() + 21 * 86400000).toISOString().split("T")[0];
+          const token = randomBytes(16).toString("hex");
+          const price = o.cash_offer_amount || o.creative_purchase_price || o.subto_purchase_price || 0;
+
+          db.query(`
+            INSERT INTO transactions (
+              org_id, client_id, contract_type, property_address, seller_name, seller_email,
+              buyer_name, purchase_price, assignment_fee, earnest_money,
+              emd_due_date, emd_status, inspection_days, inspection_deadline, inspection_status,
+              closing_date, title_company_name, escrow_officer_name, escrow_officer_email,
+              escrow_officer_phone, escrow_file_number, title_status, state_jurisdiction,
+              token_hash, status, notes
+            ) VALUES (
+              ?, ?, 'psa', ?, ?, ?,
+              'Assignee Pending', ?, 15000, 2500,
+              ?, 'pending', 14, ?, 'active',
+              ?, 'First American Title & Escrow', 'Sarah Jenkins', 'sjenkins@firstamtitle.com',
+              '(312) 555-0199', ?, 'opened', 'US General',
+              ?, 'sent', ?
+            )
+          `).run(
+            curOrgId,
+            o.client_id || null,
+            propAddr,
+            o.seller_name || "Property Seller",
+            o.seller_email || "",
+            price,
+            emd,
+            insp,
+            close,
+            `FAT-${Math.floor(10000 + Math.random() * 90000)}`,
+            token,
+            o.notes || "Offer sent out; under review for purchase contract & title assignment."
+          );
+        }
+      }
+
+      // 2. From clients with Offer Sent in custom_fields or notes
+      const clientsWithOffers = db.query(`
+        SELECT * FROM clients 
+         WHERE org_id = ? 
+           AND (custom_fields LIKE '%Offer Sent%' OR custom_fields LIKE '%Cash Offer%' OR notes LIKE '%Offer Sent%')
+      `).all(curOrgId) as ClientRow[];
+
+      for (const c of clientsWithOffers) {
+        const propAddr = (c.address || c.company_name || "").trim();
+        if (!propAddr) continue;
+
+        const existing = db.query(
+          "SELECT id FROM transactions WHERE org_id = ? AND (client_id = ? OR LOWER(TRIM(property_address)) = LOWER(TRIM(?)))"
+        ).get(curOrgId, c.id, propAddr) as any;
+
+        if (!existing) {
+          const now = new Date();
+          const emd = new Date(now.getTime() + 3 * 86400000).toISOString().split("T")[0];
+          const insp = new Date(now.getTime() + 14 * 86400000).toISOString().split("T")[0];
+          const close = new Date(now.getTime() + 21 * 86400000).toISOString().split("T")[0];
+          const token = randomBytes(16).toString("hex");
+
+          let price = Number(c.deal_value) || 0;
+          let fee = 15000;
+          try {
+            const cf = JSON.parse(c.custom_fields || "[]");
+            for (const f of cf) {
+              const fn = f.name.toLowerCase();
+              if (fn === "cash offer" || fn === "creative price") {
+                const num = Number(String(f.value).replace(/[^0-9.]/g, ""));
+                if (num > 0) price = num;
+              }
+              if (fn === "assignment value" || fn === "assignment fee") {
+                const num = Number(String(f.value).replace(/[^0-9.]/g, ""));
+                if (num > 0) fee = num;
+              }
+            }
+          } catch {}
+
+          db.query(`
+            INSERT INTO transactions (
+              org_id, client_id, contract_type, property_address, seller_name, seller_email, seller_phone,
+              buyer_name, purchase_price, assignment_fee, earnest_money,
+              emd_due_date, emd_status, inspection_days, inspection_deadline, inspection_status,
+              closing_date, title_company_name, escrow_officer_name, escrow_officer_email,
+              escrow_officer_phone, escrow_file_number, title_status, state_jurisdiction,
+              token_hash, status, notes
+            ) VALUES (
+              ?, ?, 'psa', ?, ?, ?, ?,
+              'Assignee Pending', ?, ?, 2500,
+              ?, 'pending', 14, ?, 'active',
+              ?, 'First American Title & Escrow', 'Sarah Jenkins', 'sjenkins@firstamtitle.com',
+              '(312) 555-0199', ?, 'opened', ?,
+              ?, 'sent', ?
+            )
+          `).run(
+            curOrgId,
+            c.id,
+            propAddr,
+            c.contact_name || "Property Seller",
+            c.email || "",
+            c.phone || "",
+            price,
+            fee,
+            emd,
+            insp,
+            close,
+            `FAT-${Math.floor(10000 + Math.random() * 90000)}`,
+            c.state || "US General",
+            token,
+            c.notes || "Offer sent out; under review for purchase contract & title assignment."
+          );
+        }
+      }
+    } catch (err) {
+      console.warn("[syncOffersToTransactions] err:", err);
+    }
+  }
+
   // GET /api/transactions — list all transactions for org
   if (pathname === "/api/transactions" && method === "GET") {
     await ensureSampleTransactions(orgId);
+    await syncOffersToTransactions(orgId);
     const baseUrl = appUrlFrom(req);
     const rows = db.query("SELECT * FROM transactions WHERE org_id = ? ORDER BY id DESC").all(orgId) as any[];
     const transactions = rows.map((r) => formatTransactionRow(r, baseUrl));

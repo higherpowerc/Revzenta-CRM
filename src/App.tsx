@@ -986,6 +986,7 @@ export default function App() {
             isWholesale={isWholesale}
             crmBusinessName={orgName}
             onGoToBuyBox={() => setView("buybox")}
+            onGoToTransactions={() => setView("documents")}
             verticalKey={verticalKey}
           />
         ) : effectiveViewFinal === "offers" ? (
@@ -1005,7 +1006,16 @@ export default function App() {
              the pipeline to the MIDDLE stages (between first and terminal).
              Client accounts never reach this view — no nav item, and the
              dashboard routes middle stages to their single Leads tab. */
-          <Clients stages={stages} ownerOrg={isOwnerCockpit} scope="middle" initialStage={onboardingStage} canEdit isWholesale={isWholesale} verticalKey={verticalKey} />
+          <Clients
+            stages={stages}
+            ownerOrg={isOwnerCockpit}
+            scope="middle"
+            initialStage={onboardingStage}
+            canEdit
+            isWholesale={isWholesale}
+            onGoToTransactions={() => setView("documents")}
+            verticalKey={verticalKey}
+          />
         ) : effectiveViewFinal === "clients" ? (
           /* Owner live-test reorg 2026-08-18 — the owner's Clients tab hosts
              the ACCOUNT management panel (create / view / reset / delete) via
