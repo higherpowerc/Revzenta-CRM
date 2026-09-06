@@ -977,6 +977,7 @@ export default function App() {
             isOrgAdmin={user.isOrgAdmin === true}
             currentUserId={user.id}
             isOwnerOrg={isOwnerOrg}
+            isWholesale={isWholesale}
           />
         )}
       </main>

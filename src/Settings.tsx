@@ -71,6 +71,7 @@ export default function Settings({
   isOrgAdmin = false,
   currentUserId,
   isOwnerOrg = false,
+  isWholesale = false,
 }: {
   /** Team-users UI (owner request 2026-08-14) — false for a restricted member
    *  with view-only "settings" access: every save/apply affordance is hidden
@@ -87,9 +88,19 @@ export default function Settings({
    *  gate below; the agreement template editor moved to Administration →
    *  Agreements in 2026-08-17 — Settings no longer hosts it). */
   isOwnerOrg?: boolean;
+  /** Wholesale CRM workspace indicator */
+  isWholesale?: boolean;
 }) {
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const isWholesaleEffective = isWholesale || Boolean(
+    settings?.verticalKey === "wholesalebiz" ||
+    settings?.verticalKey === "wholesale" ||
+    settings?.verticalKey === "wholesale_real_estate" ||
+    (settings?.verticalKey && settings.verticalKey.toLowerCase().includes("wholesale")) ||
+    (settings?.orgName && settings.orgName.toLowerCase().includes("wholesale"))
+  );
 
   /* Workspace (branding) */
   const [orgName, setOrgName] = useState("");
@@ -1054,30 +1065,32 @@ export default function Settings({
                 default.
               </span>
             </div>
-            <div className="field">
-              <span className="field-label">Revenue dashboard windows</span>
-              <div className="revenue-color-grid">
-                {([
-                  ["totalBilled", "Total billed"],
-                  ["paid", "Paid"],
-                  ["outstanding", "Outstanding"],
-                  ["overdue", "Overdue"],
-                ] as const).map(([key, label]) => (
-                  <label className="revenue-color-item" key={key}>
-                    <span>{label}</span>
-                    <input
-                      type="color"
-                      className="color-input"
-                      value={revenueCardColors[key]}
-                      onChange={(e) => setRevenueCardColors((colors) => ({ ...colors, [key]: e.target.value }))}
-                      aria-label={`${label} window color`}
-                      disabled={!canEdit}
-                    />
-                  </label>
-                ))}
+            {!isWholesaleEffective && (
+              <div className="field">
+                <span className="field-label">Revenue dashboard windows</span>
+                <div className="revenue-color-grid">
+                  {([
+                    ["totalBilled", "Total billed"],
+                    ["paid", "Paid"],
+                    ["outstanding", "Outstanding"],
+                    ["overdue", "Overdue"],
+                  ] as const).map(([key, label]) => (
+                    <label className="revenue-color-item" key={key}>
+                      <span>{label}</span>
+                      <input
+                        type="color"
+                        className="color-input"
+                        value={revenueCardColors[key]}
+                        onChange={(e) => setRevenueCardColors((colors) => ({ ...colors, [key]: e.target.value }))}
+                        aria-label={`${label} window color`}
+                        disabled={!canEdit}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <span className="field-hint">Choose a separate background color for each Revenue window.</span>
               </div>
-              <span className="field-hint">Choose a separate background color for each Revenue window.</span>
-            </div>
+            )}
             {canEdit && (
               <button className="btn btn-primary" disabled={busy} type="submit">
                 {busy ? "Saving…" : "Save branding"}
@@ -1139,6 +1152,8 @@ export default function Settings({
           </div>
         </div>
 
+        {!isWholesaleEffective && (
+        <>
         <div className="card admin-form">
           <div className="admin-card-head">
             <h2 className="admin-card-title">Revenue model</h2>
@@ -1497,6 +1512,8 @@ export default function Settings({
             )}
           </div>
         </div>
+        </>
+        )}
         </>
         )}
 
