@@ -2453,15 +2453,15 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                           <button
                             type="button"
                             className="icon-btn danger"
-                            title="Cancel Deal"
-                            aria-label={`Cancel deal for ${c.companyName}`}
+                            title="Cancelation Notice"
+                            aria-label={`Cancelation notice for ${c.companyName}`}
                             onClick={() => {
                               setCancellingClient(c);
                               setCancelLeadReason("Inspection / repair costs too high");
                               setCancelLeadNotes("");
                             }}
                           >
-                            🚫 Cancel Deal
+                            🚫 Cancelation Notice
                           </button>
                         )}
                         {isWholesale && canEdit && c.lost && (
@@ -2717,7 +2717,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           <div className="modal" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: "#ef4444" }}>🚫</span> Cancel Wholesale Deal
+                <span style={{ color: "#ef4444" }}>🚫</span> Cancelation Notice
               </h3>
               <button
                 type="button"
@@ -2785,7 +2785,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 onClick={handleConfirmCancelLead}
                 disabled={cancellingLeadBusy}
               >
-                {cancellingLeadBusy ? "Cancelling..." : "Confirm Deal Cancellation"}
+                {cancellingLeadBusy ? "Cancelling..." : "Confirm Cancelation Notice"}
               </button>
             </div>
           </div>
