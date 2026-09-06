@@ -2734,7 +2734,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         propState,
         propZip,
         "",
-        `Webhook: ${normalized.distressType || source}`,
+        normalized.source || (source ? `Webhook: ${source}` : "Inbound Webhook"),
         "",
         "",
         "",

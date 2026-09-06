@@ -510,6 +510,18 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   const [csvModal, setCsvModal] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<string>("");
+
+  const availableLeadSources = useMemo(() => {
+    if (!clients) return [];
+    const set = new Set<string>();
+    for (const c of clients) {
+      if (c.leadSource && c.leadSource.trim()) {
+        set.add(c.leadSource.trim());
+      }
+    }
+    return Array.from(set).sort();
+  }, [clients]);
 
   /** Loads the FULL client list (active AND archived) plus org settings.
    *  The tab buttons filter this in-memory list client-side, so archived
@@ -577,6 +589,10 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
 
   const visible = useMemo(() => {
     if (!clients) return [];
+    const matchesSource = (c: Client): boolean => {
+      if (!sourceFilter) return true;
+      return (c.leadSource || "").trim().toLowerCase() === sourceFilter.trim().toLowerCase();
+    };
     /* Owner request 2026-08-14 — the Lost / DNC views list every record in
        THIS view's stage scope with the flag set (the stage chip + search
        still intersect). */
@@ -586,6 +602,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           c.lost &&
           scopedStages.includes(c.stage) &&
           (!activeStageFilter || c.stage === activeStageFilter) &&
+          matchesSource(c) &&
           matchesQuery(c),
       );
     }
@@ -595,6 +612,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           c.dnc &&
           scopedStages.includes(c.stage) &&
           (!activeStageFilter || c.stage === activeStageFilter) &&
+          matchesSource(c) &&
           matchesQuery(c),
       );
     }
@@ -608,6 +626,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           c.demoOutcome === "maybe" &&
           scopedStages.includes(c.stage) &&
           (!activeStageFilter || c.stage === activeStageFilter) &&
+          matchesSource(c) &&
           matchesQuery(c),
       );
     }
@@ -615,7 +634,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
        stage is no longer in the org's stage list surfaces here regardless of
        scope, so no record ever silently vanishes. */
     if (filter === "orphaned") {
-      return clients.filter((c) => c.orphanedStage === true && matchesQuery(c));
+      return clients.filter((c) => c.orphanedStage === true && matchesSource(c) && matchesQuery(c));
     }
     return clients.filter((c) => {
       if (isWholesale && (c.clientType === "buyer" || c.stage === "Buyer")) return false;
@@ -639,9 +658,10 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
       /* Stage chip filter — intersects with the toggle above and the search
          below. A selected chip narrows to exactly that pipeline stage. */
       if (activeStageFilter && c.stage !== activeStageFilter) return false;
+      if (!matchesSource(c)) return false;
       return matchesQuery(c);
     });
-  }, [clients, filter, query, activeStageFilter, scopedStages, matchesQuery]);
+  }, [clients, filter, query, activeStageFilter, scopedStages, matchesQuery, sourceFilter]);
 
   /* Owner request 2026-08-14 — chip counts. Non-archived clients per stage,
      computed live from the same loaded list the table renders, so the chips
@@ -1203,6 +1223,35 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search clients"
         />
+        {availableLeadSources.length > 0 && (
+          <select
+            className="filter-select"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            style={{
+              padding: "7px 12px",
+              borderRadius: "8px",
+              border: "1px solid var(--border, #cbd5e1)",
+              background: "var(--card-bg, #ffffff)",
+              color: "var(--text, #1e293b)",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+            title="Filter leads by Acquisition Channel / Source"
+            aria-label="Filter by Lead Source"
+          >
+            <option value="ALL">All Sources ({scoped.length})</option>
+            {availableLeadSources.map((src) => {
+              const srcCount = scoped.filter((c) => (c.leadSource || "").trim().toLowerCase() === src.toLowerCase()).length;
+              return (
+                <option key={src} value={src}>
+                  📡 {src} ({srcCount})
+                </option>
+              );
+            })}
+          </select>
+        )}
         {ownerLeadsTab && scoped.length > 0 && canEdit && (
           <button className="btn btn-primary" onClick={() => setModal({ mode: "create" })}>
             + New lead
@@ -1562,6 +1611,28 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                           </div>
                         );
                       })()}
+                      {c.leadSource && (
+                        <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                          <span
+                            className="chip chip-lead-source"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              background: "rgba(14, 165, 233, 0.12)",
+                              color: "#0284c7",
+                              border: "1px solid rgba(14, 165, 233, 0.25)",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                            }}
+                            title={`Lead Acquisition Channel: ${c.leadSource}`}
+                          >
+                            📡 {c.leadSource}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <TypeBadgeCell c={c} />
                     <td data-label="Contact information">
@@ -1881,6 +1952,28 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                           </div>
                         );
                       })()}
+                      {c.leadSource && (
+                        <div style={{ marginTop: "4px", display: "flex", justifyContent: ownerOrg ? "flex-start" : "center", flexWrap: "wrap", gap: "4px" }}>
+                          <span
+                            className="chip chip-lead-source"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              background: "rgba(14, 165, 233, 0.12)",
+                              color: "#0284c7",
+                              border: "1px solid rgba(14, 165, 233, 0.25)",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                            }}
+                            title={`Lead Acquisition Channel: ${c.leadSource}`}
+                          >
+                            📡 {c.leadSource}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <TypeBadgeCell c={c} isWholesale={isWholesale} />
                     <td data-label={isWholesale ? "Owner" : "Contact"} style={{ textAlign: "center" }}>

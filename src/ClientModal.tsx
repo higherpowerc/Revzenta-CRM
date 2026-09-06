@@ -947,6 +947,7 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
         agentName: form.agentName.trim(),
         agentEmail: form.agentEmail.trim(),
         agentPhone: form.agentPhone.trim(),
+        leadSource: form.leadSource.trim(),
         services: [...form.services],
         stage: form.stage || (stages[0] ?? "Leads"),
         dealValue: Number(assignmentFee) || Number(form.dealValue) || 0,
@@ -1152,7 +1153,84 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
               </div>
             </div>
 
-            {/* 3. Owner */}
+            {/* 3. Lead Source & Channel */}
+            <section className="intake-section" aria-label="Lead Source">
+              <div className="intake-section-title">📡 Lead Source &amp; Acquisition Channel</div>
+              <div className="form-grid intake-grid">
+                <div className="field" style={{ gridColumn: "1 / -1" }}>
+                  <label className="field-label" htmlFor="wholesale-lead-source">
+                    Where did this lead come from?
+                  </label>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      id="wholesale-lead-source"
+                      type="text"
+                      value={form.leadSource}
+                      onChange={(e) => set("leadSource", e.target.value)}
+                      placeholder="e.g. Inbound Webhook, PropStream, BatchLeads, Driving for Dollars, Direct Mail..."
+                      maxLength={100}
+                      list="wholesale-lead-sources"
+                      aria-label="Lead source"
+                      style={{ flex: "1 1 280px" }}
+                    />
+                    <datalist id="wholesale-lead-sources">
+                      <option value="Inbound Webhook" />
+                      <option value="PropStream" />
+                      <option value="BatchLeads" />
+                      <option value="Driving for Dollars" />
+                      <option value="Direct Mail" />
+                      <option value="Cold Calling" />
+                      <option value="SMS Campaign" />
+                      <option value="PPC / Google Ads" />
+                      <option value="Facebook / Meta Ads" />
+                      <option value="Website Form" />
+                      <option value="Referral / JV" />
+                      <option value="MLS / Agent" />
+                      <option value="Tax Delinquent List" />
+                      <option value="Foreclosure List" />
+                    </datalist>
+                  </div>
+                  {/* Quick attribution pills */}
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "8px" }}>
+                    {[
+                      "Inbound Webhook",
+                      "PropStream",
+                      "BatchLeads",
+                      "Driving for Dollars",
+                      "Direct Mail",
+                      "Cold Calling",
+                      "SMS Campaign",
+                      "Website Form",
+                      "Referral",
+                      "MLS / Agent",
+                    ].map((src) => (
+                      <button
+                        key={src}
+                        type="button"
+                        className={`chip ${form.leadSource === src ? "active" : ""}`}
+                        style={{
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          padding: "3px 8px",
+                          background: form.leadSource === src ? "var(--primary)" : "var(--surface-sunken)",
+                          color: form.leadSource === src ? "var(--primary-fg, #000)" : "var(--text-dim)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "12px",
+                        }}
+                        onClick={() => set("leadSource", src)}
+                      >
+                        + {src}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="field-hint" style={{ fontSize: "11px", color: "var(--text-dim)", marginTop: "4px" }}>
+                    Pinpoint lead origin for marketing ROI, conversion metrics, and webhook attribution.
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* 4. Owner */}
             <section className="intake-section" aria-label="Owner">
               <div className="intake-section-title">👤 Owner</div>
               <div className="form-grid intake-grid">

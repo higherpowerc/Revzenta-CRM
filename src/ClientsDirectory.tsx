@@ -520,6 +520,28 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
                           <span className={blurPii(pii)}>{c.contactName}</span>
                         </div>
                       )}
+                      {c.leadSource && (
+                        <div style={{ marginTop: "3px" }}>
+                          <span
+                            className="chip chip-lead-source"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              background: "rgba(14, 165, 233, 0.12)",
+                              color: "#0284c7",
+                              border: "1px solid rgba(14, 165, 233, 0.25)",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                            }}
+                            title={`Acquisition Channel: ${c.leadSource}`}
+                          >
+                            📡 {c.leadSource}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td data-label="Contact Info">
                       <div className="cell-contact">
@@ -620,6 +642,28 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
                         {c.archived && <span className="chip chip-archived">archived</span>}
                       </div>
                       {c.industry && <div className="cell-sub">{c.industry}</div>}
+                      {c.leadSource && (
+                        <div style={{ marginTop: "3px" }}>
+                          <span
+                            className="chip chip-lead-source"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              background: "rgba(14, 165, 233, 0.12)",
+                              color: "#0284c7",
+                              border: "1px solid rgba(14, 165, 233, 0.25)",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                            }}
+                            title={`Lead Source: ${c.leadSource}`}
+                          >
+                            📡 {c.leadSource}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td data-label="Address">
                       {fullAddress ? (

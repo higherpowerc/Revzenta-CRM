@@ -297,6 +297,18 @@ export function normalizeWebhookPayload(body: Record<string, any>) {
     0
   );
 
+  const rawSource = (
+    data.source ||
+    data.lead_source ||
+    data.leadSource ||
+    data.channel ||
+    data.platform ||
+    body.source ||
+    body.lead_source ||
+    body.leadSource ||
+    ""
+  ).trim();
+
   const distressType = (
     data.lead_type ||
     data.distress_type ||
@@ -304,8 +316,12 @@ export function normalizeWebhookPayload(body: Record<string, any>) {
     data.tag ||
     data.list_name ||
     data.tags ||
-    "Inbound Webhook"
+    ""
   ).trim();
+
+  const resolvedSource = rawSource
+    ? (distressType && distressType.toLowerCase() !== rawSource.toLowerCase() ? `${rawSource} (${distressType})` : rawSource)
+    : (distressType ? `Webhook: ${distressType}` : "Inbound Webhook");
 
   const notes = (
     data.notes ||
@@ -329,7 +345,8 @@ export function normalizeWebhookPayload(body: Record<string, any>) {
     email,
     estimatedValue,
     askingPrice,
-    distressType,
+    distressType: distressType || "Inbound Webhook",
+    source: resolvedSource,
     notes,
     bedrooms,
     bathrooms,

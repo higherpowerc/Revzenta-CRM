@@ -596,6 +596,7 @@ export default function DealCalculatorModal({ property, onClose, onUpdated, crmB
           city: parsedAddr.city,
           state: parsedAddr.state,
           zip: parsedAddr.zip,
+          leadSource: property?.leadSource || "Deal Underwriter",
           customFields: customFieldsUpdate,
         };
         const res = await api.createClient(createPayload);
