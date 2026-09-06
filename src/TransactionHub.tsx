@@ -75,28 +75,194 @@ export const WHOLESALE_STEPS: WholesaleStepDef[] = [
 ];
 
 export function getDealWholesaleStep(tx: Transaction): 1 | 2 | 3 | 4 | 5 {
-  if (tx.titleStatus === "closed" || tx.status === "closed") {
+  if (tx.titleStatus === "closed" || tx.status === "closed" || tx.titleStatus === "clear_to_close") {
     return 5;
   }
   if (tx.contractType === "assignment") {
-    if (tx.titleStatus === "clear_to_close" || (tx.status === "signed" && tx.titleStatus === "payoff_ordered")) {
-      return 5;
-    }
     return 4;
   }
-  // For PSA / pre-assignment deals:
-  if (tx.buyerId || (tx.buyerName && !tx.buyerName.toLowerCase().includes("assigns") && tx.buyerName.trim() !== "" && tx.buyerName !== "Buyer")) {
+  // Step 3: Cash buyer sourced or under title prelim review for disposition
+  if (tx.buyerId || (tx.buyerName && !tx.buyerName.toLowerCase().includes("assigns") && tx.buyerName.trim() !== "" && tx.buyerName !== "Buyer") || tx.titleStatus === "prelim_review") {
     return 3;
   }
-  if (tx.emdStatus === "deposited" || tx.emdStatus === "hard" || tx.titleStatus === "prelim_review" || tx.titleStatus === "payoff_ordered") {
-    return 3;
-  }
-  if (tx.titleStatus === "opened" || tx.emdStatus === "pending") {
+  // Step 2: Escrow opened or earnest money deposited
+  if (tx.titleStatus === "opened" || tx.emdStatus === "deposited" || tx.emdStatus === "hard") {
     return 2;
   }
+  // Step 1: Assignable PSA under contract with seller (pre-escrow)
   return 1;
 }
 
+export function getWholesaleStepInfo(step: 1 | 2 | 3 | 4 | 5) {
+  switch (step) {
+    case 1:
+      return {
+        step: 1 as const,
+        title: "Step 1: Under Contract (PSA)",
+        shortTitle: "1. Contract (PSA)",
+        badge: "Assignable Clause",
+        icon: "📝",
+        color: "#3b82f6",
+        bg: "rgba(59, 130, 246, 0.12)",
+        border: "rgba(59, 130, 246, 0.35)",
+        hint: "PSA Signed with Seller",
+      };
+    case 2:
+      return {
+        step: 2 as const,
+        title: "Step 2: Open Escrow & EMD",
+        shortTitle: "2. Open Escrow",
+        badge: "Escrow Opened",
+        icon: "🏦",
+        color: "#06b6d4",
+        bg: "rgba(6, 182, 212, 0.12)",
+        border: "rgba(6, 182, 212, 0.35)",
+        hint: "EMD Deposited to Title",
+      };
+    case 3:
+      return {
+        step: 3 as const,
+        title: "Step 3: Find Cash Buyer",
+        shortTitle: "3. Find Cash Buyer",
+        badge: "Buyer Disposition",
+        icon: "🎯",
+        color: "#f59e0b",
+        bg: "rgba(245, 158, 11, 0.12)",
+        border: "rgba(245, 158, 11, 0.35)",
+        hint: "Marketing to Cash Buyers",
+      };
+    case 4:
+      return {
+        step: 4 as const,
+        title: "Step 4: Sign Assignment Agreement",
+        shortTitle: "4. Sign Assignment",
+        badge: "Wholesaler & Investor",
+        icon: "✍️",
+        color: "#a855f7",
+        bg: "rgba(168, 85, 247, 0.12)",
+        border: "rgba(168, 85, 247, 0.35)",
+        hint: "Assignment Executed",
+      };
+    case 5:
+      return {
+        step: 5 as const,
+        title: "Step 5: Collect Fee & Close",
+        shortTitle: "5. Close & Payout",
+        badge: "Fee Disbursed",
+        icon: "💰",
+        color: "#10b981",
+        bg: "rgba(16, 185, 129, 0.12)",
+        border: "rgba(16, 185, 129, 0.35)",
+        hint: "Assignment Fee Paid & Closed",
+      };
+  }
+}
+
+export function WholesaleStageBadge({
+  step,
+  showDots = true,
+  interactive = false,
+  onStepChange,
+}: {
+  step: 1 | 2 | 3 | 4 | 5;
+  showDots?: boolean;
+  interactive?: boolean;
+  onStepChange?: (targetStep: 1 | 2 | 3 | 4 | 5) => void;
+}) {
+  const info = getWholesaleStepInfo(step);
+  return (
+    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "5px",
+          padding: "3px 9px",
+          borderRadius: "16px",
+          backgroundColor: info.bg,
+          border: `1px solid ${info.border}`,
+          color: info.color,
+          fontSize: "12px",
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+        }}
+        title={info.title}
+      >
+        <span>{info.icon}</span>
+        <span>{info.shortTitle}</span>
+      </div>
+
+      {showDots && (
+        <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "1px" }} title={`Stage ${step} of 5: ${info.title}`}>
+          {[1, 2, 3, 4, 5].map((s) => (
+            <span
+              key={s}
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: s <= step ? info.color : "var(--border)",
+                display: "inline-block",
+                transition: "all 0.2s ease",
+              }}
+            />
+          ))}
+          <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 600, marginLeft: "3px" }}>
+            {step}/5
+          </span>
+        </div>
+      )}
+
+      <div style={{ fontSize: "10px", color: "var(--muted)", fontStyle: "italic", textAlign: "center", lineHeight: 1.2 }}>
+        {info.hint}
+      </div>
+
+      {interactive && onStepChange && (
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
+          <select
+            value={step}
+            onChange={(e) => onStepChange(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
+            style={{
+              padding: "2px 5px",
+              borderRadius: "4px",
+              border: "1px solid var(--border)",
+              backgroundColor: "var(--panel)",
+              color: "var(--fg)",
+              fontSize: "10px",
+              cursor: "pointer",
+            }}
+            title="Move property to another wholesale stage"
+          >
+            <option value="1">1. Under Contract</option>
+            <option value="2">2. Open Escrow &amp; EMD</option>
+            <option value="3">3. Find Cash Buyer</option>
+            <option value="4">4. Sign Assignment</option>
+            <option value="5">5. Collect Fee &amp; Close</option>
+          </select>
+          {step < 5 && (
+            <button
+              onClick={() => onStepChange((step + 1) as 1 | 2 | 3 | 4 | 5)}
+              style={{
+                padding: "2px 6px",
+                borderRadius: "4px",
+                border: "1px solid rgba(59, 130, 246, 0.4)",
+                backgroundColor: "rgba(59, 130, 246, 0.1)",
+                color: "#3b82f6",
+                fontSize: "10px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+              title={`Advance deal to ${getWholesaleStepInfo((step + 1) as 1 | 2 | 3 | 4 | 5).shortTitle}`}
+            >
+              Next &rarr;
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TransactionHub({ crmBusinessName }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -106,8 +272,8 @@ export default function TransactionHub({ crmBusinessName }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Active view tab
-  // Active view tab
   const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title">("process");
+  const [processViewMode, setProcessViewMode] = useState<"board" | "table">("board");
   const [stepFilter, setStepFilter] = useState<number | "all">("all");
 
   // Search & Filters
@@ -224,6 +390,52 @@ export default function TransactionHub({ crmBusinessName }: Props) {
       }
     } catch (e: any) {
       notify("error", e?.message || "Failed to update inspection.");
+    }
+  };
+
+  // Quick Action: Advance / Change deal stage
+  const handleQuickChangeStep = async (tx: Transaction, targetStep: 1 | 2 | 3 | 4 | 5) => {
+    try {
+      let updatePayload: Record<string, any> = {};
+      if (targetStep === 1) {
+        updatePayload = {
+          contractType: "psa",
+          emdStatus: "pending",
+          titleStatus: "pending",
+          status: "sent",
+        };
+      } else if (targetStep === 2) {
+        updatePayload = {
+          contractType: "psa",
+          emdStatus: "deposited",
+          titleStatus: "opened",
+        };
+      } else if (targetStep === 3) {
+        updatePayload = {
+          contractType: "psa",
+          emdStatus: "deposited",
+          titleStatus: "prelim_review",
+        };
+      } else if (targetStep === 4) {
+        updatePayload = {
+          contractType: "assignment",
+          status: "signed",
+          titleStatus: "payoff_ordered",
+        };
+      } else if (targetStep === 5) {
+        updatePayload = {
+          status: "closed",
+          titleStatus: "closed",
+        };
+      }
+
+      const res = await api.updateTransaction(tx.id, updatePayload);
+      if (res.ok) {
+        setTransactions((prev) => prev.map((item) => (item.id === tx.id ? res.transaction : item)));
+        notify("success", `Updated ${tx.propertyAddress} to ${WHOLESALE_STEPS[targetStep - 1].title}`);
+      }
+    } catch (e: any) {
+      notify("error", e?.message || "Failed to update transaction stage.");
     }
   };
 
@@ -619,7 +831,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
               color: activeTab === "contracts" ? "#ffffff" : "var(--fg)",
             }}
           >
-            📄 Contracts &amp; E-Sign
+            📄 Deals &amp; Contracts Table
           </button>
           <button
             onClick={() => setActiveTab("title")}
@@ -806,34 +1018,271 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                 1. PSA with assignable clause &rarr; 2. Open escrow &amp; EMD &rarr; 3. Market to cash buyers &rarr; 4. Assignment agreement (Wholesaler &amp; Investor) &rarr; 5. Closing &amp; title fee payout.
               </span>
             </div>
-            {stepFilter !== "all" && (
-              <button
-                onClick={() => setStepFilter("all")}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "4px",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--card-bg, var(--panel))",
-                  fontSize: "12px",
-                  color: "var(--accent, #3b82f6)",
-                  cursor: "pointer",
-                }}
-              >
-                Clear Step Filter (Show All 5 Steps)
-              </button>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ display: "inline-flex", borderRadius: "6px", border: "1px solid var(--border)", overflow: "hidden" }}>
+                <button
+                  type="button"
+                  onClick={() => setProcessViewMode("board")}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: "none",
+                    backgroundColor: processViewMode === "board" ? "var(--accent, #3b82f6)" : "var(--panel)",
+                    color: processViewMode === "board" ? "#ffffff" : "var(--fg)",
+                  }}
+                >
+                  🧭 Board View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProcessViewMode("table")}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: "none",
+                    backgroundColor: processViewMode === "table" ? "var(--accent, #3b82f6)" : "var(--panel)",
+                    color: processViewMode === "table" ? "#ffffff" : "var(--fg)",
+                  }}
+                >
+                  📋 Table View
+                </button>
+              </div>
+              {stepFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setStepFilter("all")}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: "4px",
+                    border: "1px solid var(--border)",
+                    backgroundColor: "var(--card-bg, var(--panel))",
+                    fontSize: "12px",
+                    color: "var(--accent, #3b82f6)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear Step Filter (Show All 5 Steps)
+                </button>
+              )}
+            </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-              gap: "14px",
-              alignItems: "start",
-            }}
-          >
-            {WHOLESALE_STEPS.filter((s) => stepFilter === "all" || stepFilter === s.step).map((col) => {
-              const dealsInStep = filtered.filter((t) => getDealWholesaleStep(t) === col.step);
+          {processViewMode === "table" ? (
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  backgroundColor: "var(--card-bg, var(--panel))",
+                  border: "1px solid var(--border)",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  fontSize: "13px",
+                }}
+              >
+                <thead>
+                  <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Property Address</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center", minWidth: "210px" }}>Wholesale Stage &amp; Progress</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Type &amp; State</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Parties (Wholesaler &amp; Buyer)</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Contract &amp; Fee</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Escrow / Clocks</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Status</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ padding: "32px", textAlign: "center", color: "var(--muted)" }}>
+                        No transactions found matching your filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((tx) => {
+                      const stepNum = getDealWholesaleStep(tx);
+                      return (
+                        <tr key={tx.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                          <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--fg)", textAlign: "center" }}>
+                            <div>{tx.propertyAddress}</div>
+                            <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 400, marginTop: "2px" }}>
+                              Created {new Date(tx.createdAt).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <WholesaleStageBadge
+                              step={stepNum}
+                              interactive={true}
+                              onStepChange={(newStep) => handleQuickChangeStep(tx, newStep)}
+                            />
+                          </td>
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <span
+                              style={{
+                                textTransform: "uppercase",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.1)" : "rgba(59, 130, 246, 0.1)",
+                                color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
+                              }}
+                            >
+                              {tx.contractType.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: "12px", color: "var(--muted)", marginLeft: "6px" }}>
+                              ({tx.stateJurisdiction})
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px 16px", color: "var(--fg)", textAlign: "center" }}>
+                            {tx.contractType === "assignment" ? (
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#a855f7", textTransform: "uppercase" }}>
+                                    Wholesaler
+                                  </span>
+                                  <strong style={{ color: "var(--fg)" }}>{tx.sellerName || crmBusinessName || "Wholesaler"}</strong>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: "4px" }}>
+                                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", textTransform: "uppercase" }}>
+                                    Investor
+                                  </span>
+                                  <strong style={{ color: "var(--fg)" }}>{tx.buyerName || "Investor (Cash Buyer)"}</strong>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                                <div>
+                                  <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Seller:</span>{" "}
+                                  <strong>{tx.sellerName || "Seller"}</strong>
+                                </div>
+                                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+                                  <span style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase" }}>Buyer:</span>{" "}
+                                  {tx.buyerName || "Buyer (Wholesaler)"}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--fg)", textAlign: "center" }}>
+                            ${tx.purchasePrice.toLocaleString()}
+                            {tx.assignmentFee > 0 && (
+                              <div style={{ fontSize: "11px", color: "#a855f7", fontWeight: 600, textAlign: "center" }}>
+                                +${tx.assignmentFee.toLocaleString()} fee
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px 16px", textAlign: "center", fontSize: "12px" }}>
+                            <div>
+                              EMD: <strong style={{ color: tx.emdStatus === "hard" ? "#10b981" : "inherit" }}>{tx.emdStatus}</strong>
+                            </div>
+                            <div style={{ fontSize: "11px", color: tx.inspectionUrgency === "urgent" ? "#ef4444" : "var(--muted)", marginTop: "2px" }}>
+                              {tx.inspectionDays > 0 ? `${tx.daysLeftInspection ?? 0}d inspection left` : "No inspection"}
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "3px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                backgroundColor:
+                                  tx.status === "signed"
+                                    ? "rgba(16, 185, 129, 0.15)"
+                                    : tx.status === "cancelled"
+                                    ? "rgba(239, 68, 68, 0.15)"
+                                    : "rgba(245, 158, 11, 0.15)",
+                                color:
+                                  tx.status === "signed"
+                                    ? "#10b981"
+                                    : tx.status === "cancelled"
+                                    ? "#ef4444"
+                                    : "#f59e0b",
+                              }}
+                            >
+                              {tx.status === "signed"
+                                ? "✅ Signed"
+                                : tx.status === "cancelled"
+                                ? "🚫 Cancelled"
+                                : "⏳ " + tx.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <div style={{ display: "flex", gap: "6px", justifyContent: "center", flexWrap: "wrap" }}>
+                              <button
+                                onClick={() => setEditingTx(tx)}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid var(--border)",
+                                  backgroundColor: "var(--panel)",
+                                  color: "var(--fg)",
+                                  fontSize: "12px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Manage
+                              </button>
+                              {tx.contractPdfUrl && (
+                                <a
+                                  href={tx.contractPdfUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    backgroundColor: "var(--panel)",
+                                    border: "1px solid var(--border)",
+                                    color: "var(--fg)",
+                                    fontSize: "12px",
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  PDF
+                                </a>
+                              )}
+                              <a
+                                href={tx.titlePortalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  backgroundColor: "var(--panel)",
+                                  border: "1px solid var(--border)",
+                                  color: "var(--fg)",
+                                  fontSize: "12px",
+                                  textDecoration: "none",
+                                }}
+                              >
+                                Title
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                gap: "14px",
+                alignItems: "start",
+              }}
+            >
+              {WHOLESALE_STEPS.filter((s) => stepFilter === "all" || stepFilter === s.step).map((col) => {
+                const dealsInStep = filtered.filter((t) => getDealWholesaleStep(t) === col.step);
 
               return (
                 <div
@@ -921,6 +1370,14 @@ export default function TransactionHub({ crmBusinessName }: Props) {
 
                           <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--fg)", lineHeight: 1.3 }}>
                             {tx.propertyAddress}
+                          </div>
+
+                          <div style={{ margin: "2px 0 4px 0" }}>
+                            <WholesaleStageBadge
+                              step={col.step}
+                              interactive={true}
+                              onStepChange={(targetStep) => handleQuickChangeStep(tx, targetStep)}
+                            />
                           </div>
 
                           {/* Party Information strictly displayed */}
@@ -1031,8 +1488,9 @@ export default function TransactionHub({ crmBusinessName }: Props) {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* ─────────────────────────────────────────────────────────────
           TAB 1: CONTINGENCY CLOCKS & DEALS
@@ -1111,17 +1569,13 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                       )}
                     </div>
                     {/* Wholesale 5-step milestone indicator */}
-                    {(() => {
-                      const stepNum = getDealWholesaleStep(tx);
-                      const stepDef = WHOLESALE_STEPS.find((s) => s.step === stepNum) || WHOLESALE_STEPS[0];
-                      return (
-                        <div style={{ marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px", padding: "3px 8px", borderRadius: "4px", backgroundColor: "var(--bg-soft, rgba(0,0,0,0.04))", border: "1px solid var(--border)", fontSize: "11px" }}>
-                          <span style={{ fontWeight: 700, color: "var(--accent, #3b82f6)" }}>{stepDef.icon} Step {stepNum}:</span>
-                          <span style={{ fontWeight: 600, color: "var(--fg)" }}>{stepDef.shortTitle}</span>
-                          <span style={{ color: "var(--muted)" }}>&bull; {stepDef.badge}</span>
-                        </div>
-                      );
-                    })()}
+                    <div style={{ marginTop: "8px" }}>
+                      <WholesaleStageBadge
+                        step={getDealWholesaleStep(tx)}
+                        interactive={true}
+                        onStepChange={(targetStep) => handleQuickChangeStep(tx, targetStep)}
+                      />
+                    </div>
                   </div>
 
                   {/* Financials pill */}
@@ -1459,6 +1913,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
               <thead>
                 <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Property Address</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center", minWidth: "190px" }}>Wholesale Stage</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Type &amp; State</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Parties (Wholesaler &amp; Investor / Seller &amp; Buyer)</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Contract Price</th>
@@ -1474,6 +1929,13 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                       <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 400, textAlign: "center" }}>
                         Created {new Date(tx.createdAt).toLocaleDateString()}
                       </div>
+                    </td>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                      <WholesaleStageBadge
+                        step={getDealWholesaleStep(tx)}
+                        interactive={true}
+                        onStepChange={(newStep) => handleQuickChangeStep(tx, newStep)}
+                      />
                     </td>
                     <td style={{ padding: "12px 16px", textAlign: "center" }}>
                       <span
