@@ -3938,11 +3938,21 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
             .get(orgId, firstStage) as { v: number }).v
         : 0;
     }
-    const recent = (
+    const recentRaw = (
       db
-        .query("SELECT * FROM clients WHERE org_id = ? AND archived = 0 ORDER BY updated_at DESC, id DESC LIMIT 5")
+        .query("SELECT * FROM clients WHERE org_id = ? AND archived = 0 ORDER BY updated_at DESC, id DESC LIMIT 20")
         .all(orgId) as ClientRow[]
     ).map((r) => toClient(r, isOwnerSession(auth)));
+
+    const seenRecentAddresses = new Set<string>();
+    const recent: ReturnType<typeof toClient>[] = [];
+    for (const c of recentRaw) {
+      const key = (c.address || c.companyName || "").trim().toLowerCase().replace(/\s+/g, " ");
+      if (key && seenRecentAddresses.has(key)) continue;
+      if (key) seenRecentAddresses.add(key);
+      recent.push(c);
+      if (recent.length >= 5) break;
+    }
 
     /* Task overview (2026-08-14 owner request): open / overdue / due soon /
        done counts plus the next few open tasks with a due date. Every query
@@ -5881,6 +5891,21 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const contractType = body.contractType === "assignment" ? "assignment" : "psa";
     const propertyAddress = typeof body.propertyAddress === "string" ? body.propertyAddress.trim() : "";
     if (!propertyAddress) return err("Property address is required.", 400);
+
+    // Prevent duplicate active transactions for the same property & contract type
+    const existingTx = db.query(
+      `SELECT id FROM transactions 
+       WHERE org_id = ? 
+         AND LOWER(TRIM(property_address)) = LOWER(TRIM(?))
+         AND contract_type = ?
+         AND status != 'cancelled'
+       ORDER BY id DESC LIMIT 1`
+    ).get(orgId, propertyAddress, contractType) as { id: number } | null;
+
+    if (existingTx) {
+      const existingRow = db.query("SELECT * FROM transactions WHERE id = ?").get(existingTx.id) as any;
+      return json({ ok: true, transaction: formatTransactionRow(existingRow, appUrlFrom(req)), duplicatePrevented: true });
+    }
 
     const sellerName = typeof body.sellerName === "string" ? body.sellerName.trim() : "";
     const sellerEmail = typeof body.sellerEmail === "string" ? body.sellerEmail.trim() : "";

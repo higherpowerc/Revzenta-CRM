@@ -161,6 +161,31 @@ function getPropertyTypeCategory(c: Client): "single_family" | "multi_family" | 
   return "single_family";
 }
 
+function normAddr(str?: string | null): string {
+  return (str || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getStreetKey(str?: string | null): string {
+  if (!str) return "";
+  const cleaned = (str || "").trim().toLowerCase().replace(/\s+/g, " ");
+  return cleaned.split(",")[0].trim();
+}
+
+function hasAddressKey(set: Set<string>, addr?: string | null): boolean {
+  if (!addr) return false;
+  const full = normAddr(addr);
+  const street = getStreetKey(addr);
+  return (Boolean(full) && set.has(full)) || (Boolean(street) && set.has(street));
+}
+
+function addAddressKeys(set: Set<string>, addr?: string | null) {
+  if (!addr) return;
+  const full = normAddr(addr);
+  const street = getStreetKey(addr);
+  if (full) set.add(full);
+  if (street) set.add(street);
+}
+
 export default function Dashboard({
   onGoToStage,
   onGoToLost,
@@ -188,8 +213,20 @@ export default function Dashboard({
     }
   }, [isWholesale]);
 
+  // Normalized deduplicated active transactions
   const activeTransactions = useMemo(() => {
-    return transactions.filter((t) => t.status === "under_contract" || t.status === "sent" || t.status === "signed");
+    const raw = transactions.filter(
+      (t) => t.status === "under_contract" || t.status === "sent" || t.status === "signed"
+    );
+    const seen = new Set<string>();
+    const list: Transaction[] = [];
+    for (const t of raw) {
+      const key = normAddr(t.propertyAddress);
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      list.push(t);
+    }
+    return list;
   }, [transactions]);
 
   const totalEscrowFees = useMemo(() => {
@@ -200,20 +237,304 @@ export default function Dashboard({
     return allClients.filter((c) => (c.leadSource || "").toLowerCase().includes("webhook")).length;
   }, [allClients]);
 
+  // Normalized deduplicated wholesale properties
   const wholesaleProperties = useMemo(() => {
     if (allClients.length === 0) return [];
-    return allClients.filter(
-      (c) => !c.archived && !c.lost && c.clientType !== "buyer" && c.stage !== "Buyer",
-    );
+    const seen = new Set<string>();
+    const list: Client[] = [];
+    for (const c of allClients) {
+      if (c.archived || c.lost || c.clientType === "buyer" || c.stage === "Buyer") continue;
+      const key = normAddr(c.address || c.companyName);
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      list.push(c);
+    }
+    return list;
   }, [allClients]);
 
-  const wholesaleProjectedAssignments = useMemo(() => {
-    if (wholesaleProperties.length === 0) return 0;
-    return wholesaleProperties.reduce((sum, c) => sum + getAssignmentValue(c), 0);
+  // 1. Sold (Assignment Fees) data & address keys
+  const soldProperties = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Client[] = [];
+    for (const p of wholesaleProperties) {
+      const st = (p.stage || "").toLowerCase();
+      if (st === "sold" || st === "closed") {
+        const key = normAddr(p.address || p.companyName);
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        list.push(p);
+      }
+    }
+    return list;
   }, [wholesaleProperties]);
 
+  const soldAddressKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const p of soldProperties) {
+      addAddressKeys(keys, p.address || p.companyName);
+    }
+    for (const t of transactions) {
+      if (t.status === "closed") {
+        addAddressKeys(keys, t.propertyAddress);
+      }
+    }
+    return keys;
+  }, [soldProperties, transactions]);
+
+  const totalSoldFees = useMemo(() => {
+    const fees = soldProperties.reduce((sum, p) => sum + getAssignmentValue(p), 0);
+    return fees > 0 ? fees : (data?.soldAssignmentFees ?? 0);
+  }, [soldProperties, data]);
+
+  const totalSoldVolume = useMemo(() => {
+    return soldProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
+  }, [soldProperties]);
+
+  const avgSoldFee = soldProperties.length > 0 ? Math.round(totalSoldFees / soldProperties.length) : 0;
+
+  // 8. Closing data (strictly transactions in settlement, clear to close, or closing payoff, excluding sold)
+  const closingList = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Transaction[] = [];
+    for (const t of activeTransactions) {
+      const key = normAddr(t.propertyAddress);
+      if (!key || seen.has(key) || hasAddressKey(soldAddressKeys, t.propertyAddress)) continue;
+      const isClosingStage =
+        t.titleStatus === "clear_to_close" ||
+        t.titleStatus === "payoff_ordered" ||
+        (Boolean(t.closingDate) && t.titleStatus !== "pending");
+      if (isClosingStage) {
+        seen.add(key);
+        list.push(t);
+      }
+    }
+    return list;
+  }, [activeTransactions, soldAddressKeys]);
+
+  const closingAddressKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const t of closingList) {
+      addAddressKeys(keys, t.propertyAddress);
+    }
+    return keys;
+  }, [closingList]);
+
+  // 6. Buyer Under Contract data (assigned cash buyers, excluding sold and closing deals)
+  const buyerUnderContractList = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Array<{
+      id: string | number;
+      propertyAddress: string;
+      buyerName: string;
+      assignmentFee: number;
+      status: string;
+      emd: string;
+    }> = [];
+
+    for (const tx of activeTransactions) {
+      const key = normAddr(tx.propertyAddress);
+      if (!key || seen.has(key) || hasAddressKey(soldAddressKeys, tx.propertyAddress) || hasAddressKey(closingAddressKeys, tx.propertyAddress)) continue;
+      const hasBuyer = Boolean(tx.buyerName && tx.buyerName.trim() && tx.buyerName !== "Apex Real Estate Holdings");
+      const isContracted = tx.status === "signed" || tx.status === "under_contract";
+      if (hasBuyer || isContracted) {
+        seen.add(key);
+        list.push({
+          id: tx.id,
+          propertyAddress: tx.propertyAddress,
+          buyerName: tx.buyerName || "Cash Buyer Assigned",
+          assignmentFee: Number(tx.assignmentFee) || 0,
+          status: tx.titleStatus === "clear_to_close" ? "Clear to Close" : "In Escrow",
+          emd: tx.emdStatus === "deposited" || tx.emdStatus === "hard" ? "EMD Verified" : "EMD Pending",
+        });
+      }
+    }
+
+    return list;
+  }, [activeTransactions, soldAddressKeys, closingAddressKeys]);
+
+  const buyerUnderContractAddressKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const b of buyerUnderContractList) {
+      addAddressKeys(keys, b.propertyAddress);
+    }
+    return keys;
+  }, [buyerUnderContractList]);
+
+  const totalBuyerContractFees = useMemo(() => {
+    return buyerUnderContractList.reduce((sum, b) => sum + b.assignmentFee, 0);
+  }, [buyerUnderContractList]);
+
+  // 5. Under Contract data (A-B seller contracts locked up awaiting disposition)
+  const underContractProperties = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Client[] = [];
+    for (const p of wholesaleProperties) {
+      const key = normAddr(p.address || p.companyName);
+      if (!key || seen.has(key)) continue;
+      const addr = p.address || p.companyName;
+      if (
+        hasAddressKey(soldAddressKeys, addr) ||
+        hasAddressKey(closingAddressKeys, addr) ||
+        hasAddressKey(buyerUnderContractAddressKeys, addr)
+      ) continue;
+
+      const st = (p.stage || "").toLowerCase();
+      if (st === "under contract") {
+        seen.add(key);
+        list.push(p);
+      }
+    }
+    return list;
+  }, [wholesaleProperties, soldAddressKeys, closingAddressKeys, buyerUnderContractAddressKeys]);
+
+  const underContractAddressKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const p of underContractProperties) {
+      addAddressKeys(keys, p.address || p.companyName);
+    }
+    return keys;
+  }, [underContractProperties]);
+
+  const underContractVolume = useMemo(() => {
+    return underContractProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
+  }, [underContractProperties]);
+
+  // 4. Offers data (formal purchase offers dispatched, excluding downstream contracted/sold deals)
+  const offersList = useMemo(() => {
+    const list: Array<{
+      id: string | number;
+      propertyAddress: string;
+      offerType: string;
+      amount: number;
+      status: string;
+      date: string;
+    }> = [];
+    const seen = new Set<string>();
+
+    // 1. From formal offers repository
+    for (const o of offers) {
+      const addr = o.propertyAddress || o.client?.address || o.client?.companyName || "";
+      const key = normAddr(addr);
+      if (!key || seen.has(key)) continue;
+      if (
+        hasAddressKey(soldAddressKeys, addr) ||
+        hasAddressKey(closingAddressKeys, addr) ||
+        hasAddressKey(buyerUnderContractAddressKeys, addr) ||
+        hasAddressKey(underContractAddressKeys, addr)
+      ) {
+        continue;
+      }
+      seen.add(key);
+      list.push({
+        id: o.id,
+        propertyAddress: addr || "Property Offer",
+        offerType: (o.offerType || "Cash").toUpperCase(),
+        amount: o.cashOfferAmount || o.creativePurchasePrice || o.subtoPurchasePrice || 0,
+        status: o.status || "sent",
+        date: o.createdAt ? fmtDate(o.createdAt) : "Recent",
+      });
+    }
+
+    // 2. From pipeline properties with offer customFields
+    for (const p of wholesaleProperties) {
+      if (!isOfferSentForClient(p)) continue;
+      const addr = p.address || p.companyName;
+      const key = normAddr(addr);
+      if (!key || seen.has(key)) continue;
+      if (
+        hasAddressKey(soldAddressKeys, addr) ||
+        hasAddressKey(closingAddressKeys, addr) ||
+        hasAddressKey(buyerUnderContractAddressKeys, addr) ||
+        hasAddressKey(underContractAddressKeys, addr)
+      ) {
+        continue;
+      }
+      seen.add(key);
+      const cashOffer = Number(getCustomField(p, "Cash Offer").replace(/[^0-9.]/g, "")) || 0;
+      const creativePrice = Number(getCustomField(p, "Creative Price").replace(/[^0-9.]/g, "")) || 0;
+      const offerAmount = cashOffer || creativePrice || Number(p.dealValue) || 0;
+      const offerType = getCustomField(p, "Offer Structure") || (cashOffer ? "Cash" : "Creative");
+      const offerDate = getCustomField(p, "Offer Sent") || fmtDate(p.updatedAt);
+      list.push({
+        id: `prop-${p.id}`,
+        propertyAddress: addr,
+        offerType: offerType.toUpperCase(),
+        amount: offerAmount,
+        status: "sent",
+        date: offerDate,
+      });
+    }
+
+    return list;
+  }, [offers, wholesaleProperties, soldAddressKeys, closingAddressKeys, buyerUnderContractAddressKeys, underContractAddressKeys]);
+
+  const offersAddressKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const o of offersList) {
+      addAddressKeys(keys, o.propertyAddress);
+    }
+    return keys;
+  }, [offersList]);
+
+  const totalOffersSent = offersList.length;
+  const totalOffersVolume = useMemo(() => {
+    return offersList.reduce((sum, o) => sum + (o.amount || 0), 0);
+  }, [offersList]);
+  const acceptedOffersCount = useMemo(() => {
+    return offersList.filter((o) => (o.status || "").toLowerCase() === "accepted").length;
+  }, [offersList]);
+
+  // 2. Projected Assignment Fees data (active pipeline inventory awaiting offers/contracts)
+  const topProjectedProperties = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Client[] = [];
+    for (const p of wholesaleProperties) {
+      const key = normAddr(p.address || p.companyName);
+      if (!key || seen.has(key)) continue;
+      const addr = p.address || p.companyName;
+      if (
+        hasAddressKey(soldAddressKeys, addr) ||
+        hasAddressKey(closingAddressKeys, addr) ||
+        hasAddressKey(buyerUnderContractAddressKeys, addr) ||
+        hasAddressKey(underContractAddressKeys, addr) ||
+        hasAddressKey(offersAddressKeys, addr)
+      ) {
+        continue;
+      }
+      seen.add(key);
+      list.push(p);
+    }
+    list.sort((a, b) => getAssignmentValue(b) - getAssignmentValue(a));
+    return list;
+  }, [wholesaleProperties, soldAddressKeys, closingAddressKeys, buyerUnderContractAddressKeys, underContractAddressKeys, offersAddressKeys]);
+
+  const wholesaleProjectedAssignments = useMemo(() => {
+    if (topProjectedProperties.length === 0) return 0;
+    return topProjectedProperties.reduce((sum, c) => sum + getAssignmentValue(c), 0);
+  }, [topProjectedProperties]);
+
+  const avgProjectedFee = topProjectedProperties.length > 0 ? Math.round(wholesaleProjectedAssignments / topProjectedProperties.length) : 0;
+
+  // 3. Properties inventory portfolio (available active properties, excluding sold)
+  const availableProperties = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Client[] = [];
+    for (const p of wholesaleProperties) {
+      const key = normAddr(p.address || p.companyName);
+      const addr = p.address || p.companyName;
+      if (!key || seen.has(key) || hasAddressKey(soldAddressKeys, addr)) continue;
+      seen.add(key);
+      list.push(p);
+    }
+    return list;
+  }, [wholesaleProperties, soldAddressKeys]);
+
+  const totalInventoryValue = useMemo(() => {
+    return availableProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
+  }, [availableProperties]);
+
   const propertyTypeStats = useMemo(() => {
-    const props = wholesaleProperties;
+    const props = availableProperties;
     const total = props.length;
     const categories: Array<{
       id: "single_family" | "multi_family" | "commercial" | "condo_townhouse" | "land_lots";
@@ -242,72 +563,16 @@ export default function Dashboard({
         pct,
       };
     });
-  }, [wholesaleProperties]);
-
-  const offersList = useMemo(() => {
-    const list: Array<{
-      id: string | number;
-      propertyAddress: string;
-      offerType: string;
-      amount: number;
-      status: string;
-      date: string;
-    }> = [];
-
-    // 1. From formal offers repository
-    for (const o of offers) {
-      list.push({
-        id: o.id,
-        propertyAddress: o.propertyAddress || o.client?.address || o.client?.companyName || "Property Offer",
-        offerType: (o.offerType || "Cash").toUpperCase(),
-        amount: o.cashOfferAmount || o.creativePurchasePrice || o.subtoPurchasePrice || 0,
-        status: o.status || "sent",
-        date: o.createdAt ? fmtDate(o.createdAt) : "Recent",
-      });
-    }
-
-    // 2. From pipeline properties with offer customFields
-    for (const p of wholesaleProperties) {
-      if (!isOfferSentForClient(p)) continue;
-      const exists = list.some(
-        (item) => item.propertyAddress.toLowerCase() === (p.address || p.companyName).toLowerCase(),
-      );
-      if (!exists) {
-        const cashOffer = Number(getCustomField(p, "Cash Offer").replace(/[^0-9.]/g, "")) || 0;
-        const creativePrice = Number(getCustomField(p, "Creative Price").replace(/[^0-9.]/g, "")) || 0;
-        const offerAmount = cashOffer || creativePrice || Number(p.dealValue) || 0;
-        const offerType = getCustomField(p, "Offer Structure") || (cashOffer ? "Cash" : "Creative");
-        const offerDate = getCustomField(p, "Offer Sent") || fmtDate(p.updatedAt);
-        list.push({
-          id: `prop-${p.id}`,
-          propertyAddress: p.address || p.companyName,
-          offerType: offerType.toUpperCase(),
-          amount: offerAmount,
-          status: p.stage === "Under Contract" || p.stage === "Closed" ? "accepted" : "sent",
-          date: offerDate,
-        });
-      }
-    }
-
-    return list;
-  }, [offers, wholesaleProperties]);
-
-  const totalOffersSent = offersList.length;
-  const totalOffersVolume = useMemo(() => {
-    return offersList.reduce((sum, o) => sum + (o.amount || 0), 0);
-  }, [offersList]);
-  const acceptedOffersCount = useMemo(() => {
-    return offersList.filter((o) => (o.status || "").toLowerCase() === "accepted").length;
-  }, [offersList]);
+  }, [availableProperties]);
 
   const buyBoxMatches = useMemo(() => {
     if (allClients.length === 0) return [];
-    const props = wholesaleProperties;
+    const props = availableProperties;
     const buyrs = allClients.filter(
       (c) => !c.archived && !c.lost && (c.clientType === "buyer" || c.stage === "Buyer"),
     );
     return getMatchesByProperty(props, buyrs);
-  }, [allClients, wholesaleProperties]);
+  }, [allClients, availableProperties]);
 
   const wholesaleBuyers = useMemo(() => {
     return allClients.filter(
@@ -353,90 +618,7 @@ export default function Dashboard({
     }));
   }, [wholesaleBuyers, buyers]);
 
-  // 1. Sold (Assignment Fees) data
-  const soldProperties = useMemo(() => {
-    return wholesaleProperties.filter(
-      (p) => (p.stage || "").toLowerCase() === "sold" || (p.stage || "").toLowerCase() === "closed"
-    );
-  }, [wholesaleProperties]);
-
-  const totalSoldFees = useMemo(() => {
-    const fees = soldProperties.reduce((sum, p) => sum + getAssignmentValue(p), 0);
-    return fees > 0 ? fees : (data?.soldAssignmentFees ?? 0);
-  }, [soldProperties, data]);
-
-  const totalSoldVolume = useMemo(() => {
-    return soldProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
-  }, [soldProperties]);
-
-  const avgSoldFee = soldProperties.length > 0 ? Math.round(totalSoldFees / soldProperties.length) : 0;
-
-  // 2. Projected Assignment Fees data
-  const avgProjectedFee = wholesaleProperties.length > 0 ? Math.round(wholesaleProjectedAssignments / wholesaleProperties.length) : 0;
-
-  const topProjectedProperties = useMemo(() => {
-    return [...wholesaleProperties]
-      .filter((p) => (p.stage || "").toLowerCase() !== "sold" && (p.stage || "").toLowerCase() !== "closed")
-      .sort((a, b) => getAssignmentValue(b) - getAssignmentValue(a));
-  }, [wholesaleProperties]);
-
-  // 3. Properties inventory value
-  const totalInventoryValue = useMemo(() => {
-    return wholesaleProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
-  }, [wholesaleProperties]);
-
-  // 5. Under Contract data
-  const underContractProperties = useMemo(() => {
-    return wholesaleProperties.filter((p) => (p.stage || "").toLowerCase() === "under contract");
-  }, [wholesaleProperties]);
-
-  const underContractVolume = useMemo(() => {
-    return underContractProperties.reduce((sum, p) => sum + (Number(p.dealValue) || 0), 0);
-  }, [underContractProperties]);
-
-  // 6. Buyer Under Contract data
-  const buyerUnderContractList = useMemo(() => {
-    const list: Array<{
-      id: string | number;
-      propertyAddress: string;
-      buyerName: string;
-      assignmentFee: number;
-      status: string;
-      emd: string;
-    }> = [];
-
-    for (const tx of activeTransactions) {
-      if (tx.buyerName || tx.status === "signed" || tx.status === "under_contract") {
-        list.push({
-          id: tx.id,
-          propertyAddress: tx.propertyAddress,
-          buyerName: tx.buyerName || "Cash Buyer Assigned",
-          assignmentFee: Number(tx.assignmentFee) || 0,
-          status: tx.titleStatus === "clear_to_close" ? "Clear to Close" : "In Escrow",
-          emd: tx.emdStatus === "deposited" || tx.emdStatus === "hard" ? "EMD Verified" : "EMD Pending",
-        });
-      }
-    }
-
-    if (list.length === 0 && buyers.length > 0 && wholesaleProperties.length > 0) {
-      list.push({
-        id: "sample-1",
-        propertyAddress: wholesaleProperties[0].address || wholesaleProperties[0].companyName,
-        buyerName: buyers[0].name || "Apex Real Estate Holdings",
-        assignmentFee: getAssignmentValue(wholesaleProperties[0]),
-        status: "Contract Assigned",
-        emd: "EMD Deposited",
-      });
-    }
-
-    return list;
-  }, [activeTransactions, buyers, wholesaleProperties]);
-
-  const totalBuyerContractFees = useMemo(() => {
-    return buyerUnderContractList.reduce((sum, b) => sum + b.assignmentFee, 0);
-  }, [buyerUnderContractList]);
-
-  // 7. Lead Sources data
+  // 7. Lead Sources data (deduplicated by property address)
   const leadSourceStats = useMemo(() => {
     const counts: Record<string, { count: number; volume: number }> = {};
     for (const p of wholesaleProperties) {
@@ -456,12 +638,21 @@ export default function Dashboard({
       .sort((a, b) => b.count - a.count);
   }, [wholesaleProperties]);
 
-  // 8. Closing data
-  const closingList = useMemo(() => {
-    return activeTransactions.filter(
-      (t) => t.status === "under_contract" || t.status === "signed" || t.titleStatus === "clear_to_close" || t.titleStatus === "payoff_ordered"
-    );
-  }, [activeTransactions]);
+  // Deduplicated recently updated properties (bottom table)
+  const recentProperties = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Client[] = [];
+    const source = allClients.length > 0 ? allClients : (data?.recentClients || []);
+    for (const c of source) {
+      if (c.archived || c.lost || c.clientType === "buyer" || c.stage === "Buyer") continue;
+      const key = normAddr(c.address || c.companyName);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      list.push(c);
+    }
+    list.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+    return list.slice(0, 10);
+  }, [allClients, data?.recentClients]);
 
   /* Owner revenue summary (owner 2026-08-20) — the OWNER's dashboard
      surfaces real invoice-based revenue (the same figures the Finance tab
@@ -1053,7 +1244,7 @@ export default function Dashboard({
                   <div className="window-stat-card">
                     <div className="window-stat-label">Active Pipeline</div>
                     <div className="window-stat-value" style={{ color: "var(--ink)" }}>
-                      {wholesaleProperties.length} Deals
+                      {topProjectedProperties.length} Deals
                     </div>
                   </div>
                   <div className="window-stat-card">
@@ -1113,7 +1304,7 @@ export default function Dashboard({
                 <WindowHead
                   icon="🏠"
                   title="Properties"
-                  badgeText={`${wholesaleProperties.length} Units`}
+                  badgeText={`${availableProperties.length} Units`}
                   badgeTone="tone-blue"
                   subtitle="Complete wholesale property portfolio and underwriting inventory"
                   onView={() => onGoToStage()}
@@ -1124,7 +1315,7 @@ export default function Dashboard({
                   <div className="window-stat-card">
                     <div className="window-stat-label">Total Units</div>
                     <div className="window-stat-value" style={{ color: "var(--ink)" }}>
-                      {wholesaleProperties.length}
+                      {availableProperties.length}
                     </div>
                   </div>
                   <div className="window-stat-card">
@@ -1141,7 +1332,7 @@ export default function Dashboard({
                   </div>
                 </div>
 
-                {wholesaleProperties.length === 0 ? (
+                {availableProperties.length === 0 ? (
                   <div className="window-empty-state">
                     <div style={{ fontSize: "26px", marginBottom: "6px" }}>🏠</div>
                     <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Properties in Portfolio</p>
@@ -1151,7 +1342,7 @@ export default function Dashboard({
                   </div>
                 ) : (
                   <div className="window-list-stack">
-                    {wholesaleProperties.slice(0, 2).map((p) => (
+                    {availableProperties.slice(0, 2).map((p) => (
                       <div key={p.id} className="window-item-card" onClick={() => onGoToStage()} style={{ cursor: "pointer" }}>
                         <div style={{ maxWidth: "68%", overflow: "hidden" }}>
                           <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
@@ -1182,7 +1373,7 @@ export default function Dashboard({
                     .filter((s) => s.count > 0)
                     .map((s) => `${s.count} ${s.label}`)
                     .slice(0, 2)
-                    .join(" · ") || `${wholesaleProperties.length} Properties`}
+                    .join(" · ") || `${availableProperties.length} Properties`}
                 </span>
               </div>
             </div>
@@ -1604,7 +1795,7 @@ export default function Dashboard({
           <WindowHead
             icon="🕒"
             title={isWholesale ? "Recently Updated Properties" : "Recently Updated"}
-            badgeText={`${data.recentClients.length} Recent`}
+            badgeText={`${isWholesale ? recentProperties.length : data.recentClients.length} Recent`}
             badgeTone="tone-blue"
             subtitle={isWholesale ? "Latest property activity, deal underwriting, and stage transitions" : "Latest activity and client updates"}
             onView={() => onGoToStage()}
@@ -1633,7 +1824,7 @@ export default function Dashboard({
                   </tr>
                 </thead>
                 <tbody>
-                  {data.recentClients.map((c) => (
+                  {(isWholesale ? recentProperties : data.recentClients).map((c) => (
                     <tr key={c.id}>
                       <td className="cell-strong" style={{ textAlign: "center" }}>
                         <span className={`cell-name${blurPii(pii)}`} title={c.address || c.companyName}>
