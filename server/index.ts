@@ -122,6 +122,7 @@ function withSecurityHeaders(res: Response): Response {
   res.headers.set("X-Frame-Options", "SAMEORIGIN");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.headers.set("X-Robots-Tag", "noindex, nofollow");
   return res;
 }
 
@@ -131,7 +132,15 @@ const server = serve({
   async fetch(req, srv) {
     const url = new URL(req.url);
     let res: Response;
-    if (url.pathname.startsWith("/api/")) {
+    if (req.method === "GET" && url.pathname === "/robots.txt") {
+      res = new Response("User-agent: *\nDisallow: /\n", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    } else if (url.pathname.startsWith("/api/")) {
       res = await handleApi(req, url, srv);
     } else if (req.method === "GET" && url.pathname.startsWith("/sign/")) {
       const token = decodeURIComponent(url.pathname.slice("/sign/".length));
