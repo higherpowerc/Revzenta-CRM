@@ -433,7 +433,7 @@ export interface DashboardData {
   /** Wholesale — all assignment fees that have not been sold (active pipeline) */
   projectedAssignmentFees?: number;
   clientMrr?: number;
-  orgCount?: number;
+  saasMetrics?: SaasMetrics;
   /** Owner direction 2026-08-26 — the new "Lost" window: LOST (soft) clients
    *  in this org, restorable but excluded from every active pipeline KPI.
    *  Org-scoped (isolation) — a tenant only ever sees their own lost rows. */
@@ -447,6 +447,44 @@ export interface DashboardData {
     lostReason: string;
     clientType: string;
   }[];
+}
+
+export interface OwnerSubscriberSummary {
+  id: number;
+  name: string;
+  verticalKey: string;
+  status: string;
+  monthlySubscriptionAmount: number;
+  createdAt: string;
+  propertyCount: number;
+  adminEmail: string;
+}
+
+export interface OwnerSalesLead {
+  id: number;
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  stage: string;
+  dealValue: number;
+  demoOutcome: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaasMetrics {
+  mrr: number;
+  arr: number;
+  activeSubscribers: number;
+  totalSubscribers: number;
+  arpu: number;
+  ltv: number;
+  platformDeals: number;
+  platformAssignmentVolume: number;
+  platformClosedVolume: number;
+  subscribersList: OwnerSubscriberSummary[];
+  salesLeads: OwnerSalesLead[];
 }
 
 export interface User {

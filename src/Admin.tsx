@@ -47,12 +47,10 @@ export default function Admin() {
       <div className="page-head">
         <div>
           <h1>
-            Owner <em className="serif">administration</em>
+            Template &amp; <em className="serif">Admin</em>
           </h1>
           <p className="page-sub">
-            The agreement template sent to every client, its PIN, and your data export.
-            Account management (create / view / reset password / delete) lives on the
-            Clients tab.
+            Master Wholesaling SaaS subscription agreements, PIN security, and platform workspace data backups.
           </p>
         </div>
       </div>

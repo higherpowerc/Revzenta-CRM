@@ -567,9 +567,9 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
     <div className="accounts-section">
       <div className="page-head accounts-head">
         <div>
-          <h2>Accounts</h2>
+          <h2>Subscriber Workspaces</h2>
           <p className="page-sub">
-            Client workspaces — provision a new one, view a client's CRM, reset a password, or delete an account.
+            Real Estate Wholesale client organizations — provision workspaces, 1-click launch subscriber CRMs, manage subscriptions, or reset passwords.
           </p>
         </div>
       </div>

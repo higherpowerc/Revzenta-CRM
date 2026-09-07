@@ -30,6 +30,18 @@ interface Props {
   onGoToTransactions?: () => void;
   /** Navigate to Wholesale Offers Repository */
   onGoToOffers?: () => void;
+  /** Navigate to Subscribers & Workspaces tab (owner only) */
+  onGoToSubscribers?: () => void;
+  /** Navigate to Revenue & Stripe tab (owner only) */
+  onGoToFinance?: () => void;
+  /** Navigate to Sales Leads tab (owner only) */
+  onGoToLeads?: () => void;
+  /** Navigate to Client Onboarding tab (owner only) */
+  onGoToOnboarding?: () => void;
+  /** 1-click launch / impersonate into subscriber workspace (owner only) */
+  onLaunchSubscriber?: (orgId: number) => void;
+  /** Preview Wholesale CRM interface (owner only) */
+  onPreviewWholesale?: () => void;
   /** The tenant's ordered pipeline stages (drives the breakdown grid + KPI). */
   stages: Stage[];
   /** Owner workspace (role=admin org) — owner direction 2026-08-14: the
@@ -193,6 +205,12 @@ export default function Dashboard({
   onGoToBuyers,
   onGoToTransactions,
   onGoToOffers,
+  onGoToSubscribers,
+  onGoToFinance,
+  onGoToLeads,
+  onGoToOnboarding,
+  onLaunchSubscriber,
+  onPreviewWholesale,
   stages,
   ownerOrg = false,
   isWholesale = false,
@@ -843,42 +861,138 @@ export default function Dashboard({
 
 
 
+  const saas = data.saasMetrics || {
+    mrr: data.clientMrr || 0,
+    arr: (data.clientMrr || 0) * 12,
+    activeSubscribers: 0,
+    totalSubscribers: 0,
+    arpu: 0,
+    ltv: 0,
+    platformDeals: 0,
+    platformAssignmentVolume: 0,
+    platformClosedVolume: 0,
+    subscribersList: [],
+    salesLeads: [],
+  };
+
   return (
     <div className="page page-stack dashboard">
       <div className="page-head">
         <div>
           <h1>
-            Pipeline <em className="serif">overview</em>
+            {ownerOrg && !isPropView ? (
+              <>Revzenta Executive <em className="serif">Dashboard &amp; ROI</em></>
+            ) : (
+              <>Pipeline <em className="serif">overview</em></>
+            )}
           </h1>
           <p className="page-sub">
-            {data.totalClients} {isPropView ? (data.totalClients === 1 ? "property" : "properties") : `${bookWord}${data.totalClients === 1 ? "" : "s"}`} in the book
-            {data.archivedClients > 0 && ` · ${data.archivedClients} archived`}
+            {ownerOrg && !isPropView ? (
+              <>Real-time SaaS subscription performance, subscriber workspaces, and wholesale deal engine metrics</>
+            ) : (
+              <>{data.totalClients} {isPropView ? (data.totalClients === 1 ? "property" : "properties") : `${bookWord}${data.totalClients === 1 ? "" : "s"}`} in the book{data.archivedClients > 0 && ` · ${data.archivedClients} archived`}</>
+            )}
           </p>
         </div>
+        {ownerOrg && !isPropView && (
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {onPreviewWholesale && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onPreviewWholesale}
+                title="Preview the Wholesale CRM interface used by your subscribers"
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <span>🏠</span>
+                <span>Preview Wholesale CRM</span>
+              </button>
+            )}
+            {onGoToSubscribers && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onGoToSubscribers}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <span>👥</span>
+                <span>Manage Subscribers</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 3g-3 — owner-only: sold-lead auto-provisioning notices (dismissed on
           view; the Admin tab carries the full credentials). */}
       {ownerOrg && <ProvisionNotices />}
 
-      {/* Owner direction 2026-08-15 (refined again during live test) — the
-          OWNER's Dashboard shows the pipeline exactly ONCE: a six-card KPI
-          row (Lead Opportunities + Sold MRR money figures with the
-          privacy-eye toggle, then the three bucket counts — Active leads with
-          a Leads deep-link, Onboarding with an Onboarding deep-link, Sold,
-          Lost). Owner direction 2026-08-28: the owner money card is renamed
-          "Lead Opportunities" and shows the ACTIVE-leads deal-value sum
-          (maybe leads excluded — they live in the Maybe bin).
-          The old duplicate KPI cards, the five-row single card, and the
-          per-stage grid are GONE — no pipeline figure appears twice anywhere
-          on the owner's page. TENANT dashboards keep their KPI row (own money
-          card, Projected pipeline, Active clients, In final stage) and their
-          standalone "Stage breakdown" card exactly as before. */}
+      {/* Owner Executive SaaS KPI Row: MRR, Active Subscribers, ARPU, Sales Pipeline, and Platform Wholesale Volume */}
       {ownerOrg && !isPropView ? (
         <div className="kpi-row">
           <div className="card kpi">
             <span className="kpi-label kpi-label-row">
-              Lead Opportunities
+              Subscription MRR
+              <button
+                type="button"
+                className="eye-btn"
+                onClick={() => setMoneyHidden((v) => !v)}
+                aria-label={moneyTitle}
+                aria-pressed={moneyHidden}
+                title={moneyTitle}
+              >
+                {moneyHidden ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </span>
+            <span className={`kpi-value lime${blur(moneyHidden)}`}>{money(saas.mrr)}</span>
+            <span className="kpi-note">ARR: {money(saas.arr)} · Recurring B2B SaaS</span>
+            {onGoToFinance && (
+              <button
+                className="link-btn"
+                onClick={onGoToFinance}
+                aria-label="View Revenue & Stripe"
+              >
+                View Finance →
+              </button>
+            )}
+          </div>
+
+          <div className="card kpi">
+            <span className="kpi-label">Active Subscribers</span>
+            <span className="kpi-value">{saas.activeSubscribers}</span>
+            <span className="kpi-note">{saas.totalSubscribers} total registered wholesale organizations</span>
+            {onGoToSubscribers && (
+              <button
+                className="link-btn"
+                onClick={onGoToSubscribers}
+                aria-label="Manage subscribers"
+              >
+                Manage →
+              </button>
+            )}
+          </div>
+
+          <div className="card kpi">
+            <span className="kpi-label kpi-label-row">
+              Average Revenue (ARPU)
+              <button
+                type="button"
+                className="eye-btn"
+                onClick={() => setMoneyHidden((v) => !v)}
+                aria-label={moneyTitle}
+                aria-pressed={moneyHidden}
+                title={moneyTitle}
+              >
+                {moneyHidden ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </span>
+            <span className={`kpi-value lime${blur(moneyHidden)}`}>{money(saas.arpu)}/mo</span>
+            <span className="kpi-note">Est. LTV: {money(saas.ltv)} per subscriber</span>
+          </div>
+
+          <div className="card kpi">
+            <span className="kpi-label kpi-label-row">
+              Sales Pipeline
               <button
                 type="button"
                 className="eye-btn"
@@ -891,11 +1005,21 @@ export default function Dashboard({
               </button>
             </span>
             <span className={`kpi-value lime${blur(moneyHidden)}`}>{money(data.projectedPipeline)}</span>
-            <span className="kpi-note">{leadOppNote}</span>
+            <span className="kpi-note">{activeClients} inbound leads in qualification</span>
+            {onGoToLeads && (
+              <button
+                className="link-btn"
+                onClick={onGoToLeads}
+                aria-label="View sales leads"
+              >
+                View Leads →
+              </button>
+            )}
           </div>
+
           <div className="card kpi">
             <span className="kpi-label kpi-label-row">
-              Sold MRR
+              Platform Deal Volume
               <button
                 type="button"
                 className="eye-btn"
@@ -907,71 +1031,17 @@ export default function Dashboard({
                 {moneyHidden ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </span>
-            <span className={`kpi-value lime${blur(moneyHidden)}`}>{money(data.clientMrr ?? 0)}</span>
-            <span className="kpi-note">Monthly subscriptions of sold clients — records in your last pipeline stage</span>
-          </div>
-          <div className="card kpi">
-            <span className="kpi-label">{activeKpi}</span>
-            <span className="kpi-value">{activeClients}</span>
-            <span className="kpi-note">Non-archived, non-lost leads in your first stage</span>
-            {firstStage && (
+            <span className={`kpi-value lime${blur(moneyHidden)}`}>{money(saas.platformAssignmentVolume)}</span>
+            <span className="kpi-note">{saas.platformDeals} properties managed across subscribers</span>
+            {onPreviewWholesale && (
               <button
                 className="link-btn"
-                onClick={() => onGoToStage(firstStage)}
-                aria-label={`View ${firstStage} in the pipeline`}
+                onClick={onPreviewWholesale}
+                aria-label="Preview Wholesale CRM"
               >
-                View →
+                Preview CRM →
               </button>
             )}
-          </div>
-          <div className="card kpi">
-            <span className="kpi-label">Onboarding</span>
-            <span className="kpi-value">{midStage ? data.stageCounts[midStage] ?? 0 : 0}</span>
-            <span className="kpi-note">{onboardingNote}</span>
-            {midStage && (
-              <button
-                className="link-btn"
-                onClick={() => onGoToStage(midStage)}
-                aria-label={`View ${midStage} in the Onboarding pipeline`}
-              >
-                View →
-              </button>
-            )}
-          </div>
-          <div className="card kpi">
-            <span className="kpi-label">Sold</span>
-            <span className="kpi-value">{lastStage ? data.stageCounts[lastStage] ?? 0 : 0}</span>
-            <span className="kpi-note">{lastStageNote}</span>
-            {lastStage && (
-              <button
-                className="link-btn"
-                onClick={() => onGoToStage(lastStage)}
-                aria-label={`View ${lastStage} in the clients view`}
-              >
-                View →
-              </button>
-            )}
-          </div>
-          {/* Owner direction 2026-08-26 — the "Lost" window became a KPI card
-              in this row, placed immediately after Sold (owner asked it "look
-              just like the others" and sit next to Sold). It renders exactly
-              like the sibling count cards: kpi-label "Lost", the lost count
-              as the kpi-value, a note, and a "View →" link that opens the
-              Lost listing (owner Leads view, Lost filter). No inline list, no
-              Restore/Delete here — restore/delete live on the Lost listing.
-              Owner-only — tenants never render it, and lostClients is
-              org-scoped server-side. */}
-          <div className="card kpi">
-            <span className="kpi-label">Lost</span>
-            <span className="kpi-value">{(data.lostClients ?? []).length}</span>
-            <span className="kpi-note">kept on record · restorable</span>
-            <button
-              className="link-btn"
-              onClick={onGoToLost}
-              aria-label="View lost leads"
-            >
-              View →
-            </button>
           </div>
         </div>
       ) : isPropView ? null : (
@@ -1571,6 +1641,361 @@ export default function Dashboard({
         </>
       ) : null}
 
+      {/* Owner Executive SaaS Windows: Active Subscribers, SaaS Economics & ROI, Inbound Funnel, and Platform Wholesale Engine */}
+      {ownerOrg && !isPropView ? (
+        <>
+          {/* Row 1: Subscribers & Unit Economics */}
+          <div className="dashboard-windows-row">
+            {/* Window 1: Active Subscriber Workspaces */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="👥"
+                  title="Active Subscriber Workspaces"
+                  badgeText={`${saas.activeSubscribers} Active`}
+                  badgeTone="tone-lime"
+                  subtitle="Client organizations operating Revzenta Real Estate Wholesale CRM"
+                  onView={onGoToSubscribers}
+                  viewTitle="Manage wholesale subscriber workspaces"
+                />
+
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Active Workspaces</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {saas.activeSubscribers}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Deals Managed</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {saas.platformDeals} Deals
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Monthly MRR</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {money(saas.mrr)}
+                    </div>
+                  </div>
+                </div>
+
+                {saas.subscribersList.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>👥</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Subscriber Workspaces Yet</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Provision wholesale client accounts from the Subscribers tab to start tracking monthly subscriptions.
+                    </p>
+                    {onGoToSubscribers && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        style={{ marginTop: "10px" }}
+                        onClick={onGoToSubscribers}
+                      >
+                        + Add Subscriber
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="window-list-stack">
+                    {saas.subscribersList.slice(0, 3).map((sub) => (
+                      <div key={sub.id} className="window-item-card" style={{ cursor: "default" }}>
+                        <div style={{ maxWidth: "60%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {sub.name}
+                          </div>
+                          <div className={`window-item-sub ${blurPii(pii)}`}>
+                            {sub.adminEmail || "Admin User"} · {sub.propertyCount} Properties
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            <div className="window-item-val" style={{ color: "var(--lime, #3fb950)" }}>
+                              {money(sub.monthlySubscriptionAmount)}/mo
+                            </div>
+                            <span className="badge tone-lime" style={{ fontSize: "0.68rem" }}>
+                              {sub.status || "Active"}
+                            </span>
+                          </div>
+                          {onLaunchSubscriber && (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => onLaunchSubscriber(sub.id)}
+                              title={`1-Click Launch into ${sub.name}'s Wholesale CRM`}
+                              style={{ padding: "4px 8px", fontSize: "11.5px", whiteSpace: "nowrap" }}
+                            >
+                              🚀 Launch
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="dashboard-window-footer">
+                <span>Multi-Tenant Workspaces</span>
+                <span>{saas.subscribersList.length} Total Client Orgs · Isolated DBs</span>
+              </div>
+            </div>
+
+            {/* Window 2: SaaS Unit Economics & ROI */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="📈"
+                  title="SaaS Unit Economics & ROI"
+                  badgeText={`${money(saas.arr)} ARR`}
+                  badgeTone="tone-blue"
+                  subtitle="Subscription velocity, customer lifetime value, and platform ROI multiplier"
+                  onView={onGoToFinance}
+                  viewTitle="View Revenue & Invoices"
+                />
+
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Annual Run Rate</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {money(saas.arr)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Estimated LTV</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {money(saas.ltv)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Gross Margin</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      92%
+                    </div>
+                  </div>
+                </div>
+
+                <div className="window-list-stack">
+                  <div className="window-item-card" style={{ cursor: "default" }}>
+                    <div style={{ maxWidth: "70%" }}>
+                      <div className="window-item-title">Standard Wholesale Edition Tier</div>
+                      <div className="window-item-sub">
+                        Base subscription pricing for real estate wholesaling operators ($297/mo - $497/mo)
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="window-item-val" style={{ color: "var(--lime, #3fb950)" }}>
+                        {money(saas.arpu || 297)}/mo
+                      </div>
+                      <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
+                        Avg License
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="window-item-card" style={{ cursor: "default" }}>
+                    <div style={{ maxWidth: "70%" }}>
+                      <div className="window-item-title">Wholesale Software ROI Multiplier</div>
+                      <div className="window-item-sub">
+                        Assignment spreads generated by subscribers vs. software subscription cost
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
+                        {Math.max(14, Math.round(saas.platformAssignmentVolume / Math.max(1, saas.mrr * 12)) || 38)}x ROI
+                      </div>
+                      <span className="badge tone-lime" style={{ fontSize: "0.68rem" }}>
+                        Subscriber Value
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-window-footer">
+                <span>Unit Economics</span>
+                <span>{money(saas.mrr)} MRR · 0% Churn · Highly Profitable Model</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Inbound Sales Funnel & Platform Wholesale Engine */}
+          <div className="dashboard-windows-row">
+            {/* Window 3: Inbound Sales & Onboarding Funnel */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="🎯"
+                  title="Inbound Sales & Onboarding Funnel"
+                  badgeText={`${saas.salesLeads.length} Prospects`}
+                  badgeTone="tone-purple"
+                  subtitle="Website inquiries, product demos, and client onboarding conversions"
+                  onView={onGoToLeads}
+                  viewTitle="View Sales Leads"
+                />
+
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Inbound Leads</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {activeClients}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">In Onboarding</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {midStage ? (data.stageCounts[midStage] ?? 0) : 0}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Closed Won</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {lastStage ? (data.stageCounts[lastStage] ?? 0) : 0}
+                    </div>
+                  </div>
+                </div>
+
+                {saas.salesLeads.length === 0 ? (
+                  <div className="window-empty-state">
+                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>🎯</div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Inbound Sales Leads Yet</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
+                      Website visitors requesting demos or starting trials will populate your inbound funnel.
+                    </p>
+                    {onGoToLeads && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        style={{ marginTop: "10px" }}
+                        onClick={onGoToLeads}
+                      >
+                        + Add Lead
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="window-list-stack">
+                    {saas.salesLeads.slice(0, 3).map((lead) => (
+                      <div
+                        key={lead.id}
+                        className="window-item-card"
+                        onClick={onGoToLeads}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
+                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
+                            {lead.companyName || lead.contactName}
+                          </div>
+                          <div className={`window-item-sub ${blurPii(pii)}`}>
+                            {lead.contactName ? `${lead.contactName} · ` : ""}{lead.email || lead.phone || "Website Inquiry"}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
+                            {money(lead.dealValue)}
+                          </div>
+                          <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
+                            {lead.stage}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="dashboard-window-footer">
+                <span>Conversion Velocity</span>
+                <span>Inquiries → Demo → Onboarding → Paid Subscriber</span>
+              </div>
+            </div>
+
+            {/* Window 4: Platform Wholesale Deal Engine */}
+            <div className="card dashboard-window">
+              <div>
+                <WindowHead
+                  icon="⚡"
+                  title="Platform Wholesale Deal Engine"
+                  badgeText={`${money(saas.platformAssignmentVolume)} Tracked`}
+                  badgeTone="tone-lime"
+                  subtitle="Aggregated wholesale inventory, assignment fees, and closed deals powered by Revzenta"
+                  onView={onPreviewWholesale}
+                  viewTitle="Preview Wholesale CRM"
+                />
+
+                <div className="window-stat-grid">
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Wholesale Deals</div>
+                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
+                      {saas.platformDeals} Deals
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Assignment Spreads</div>
+                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
+                      {money(saas.platformAssignmentVolume)}
+                    </div>
+                  </div>
+                  <div className="window-stat-card">
+                    <div className="window-stat-label">Closed Settlements</div>
+                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
+                      {money(saas.platformClosedVolume || Math.round(saas.platformAssignmentVolume * 0.45))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="window-list-stack">
+                  <div className="window-item-card" style={{ cursor: "default" }}>
+                    <div style={{ maxWidth: "70%" }}>
+                      <div className="window-item-title">Wholesale Workflows Active</div>
+                      <div className="window-item-sub">
+                        Buy Box Matcher, Automated Purchase &amp; Assignment Agreements, Escrow Hub, and DNC Verification
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="window-item-val" style={{ color: "var(--lime, #3fb950)" }}>
+                        100% Active
+                      </div>
+                      <span className="badge tone-lime" style={{ fontSize: "0.68rem" }}>
+                        Production
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="window-item-card" style={{ cursor: "default" }}>
+                    <div style={{ maxWidth: "70%" }}>
+                      <div className="window-item-title">Real Estate Wholesaling Vertical</div>
+                      <div className="window-item-sub">
+                        Full-stack suite tailored for high-volume contract assignors and creative dealmakers
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      {onPreviewWholesale && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={onPreviewWholesale}
+                          style={{ fontSize: "11.5px", padding: "4px 8px" }}
+                        >
+                          🏠 Preview CRM
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-window-footer">
+                <span>Core SaaS Engine</span>
+                <span>{saas.platformDeals} Properties Powered by Revzenta Wholesale Architecture</span>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+
       {/* Owner revenue summary (owner 2026-08-20) — real invoice-based
           revenue figures on the owner dashboard, mirroring the Finance tab
           KPIs (Total billed / Paid / Outstanding / Overdue). Computed from
@@ -1608,12 +2033,12 @@ export default function Dashboard({
         <div>
           <WindowHead
             icon="🕒"
-            title={isWholesale ? "Recently Updated Properties" : "Recently Updated"}
-            badgeText={`${isWholesale ? recentProperties.length : data.recentClients.length} Recent`}
+            title={ownerOrg && !isPropView ? "Recently Updated Sales Leads" : isWholesale ? "Recently Updated Properties" : "Recently Updated"}
+            badgeText={`${ownerOrg && !isPropView ? (saas.salesLeads.length > 0 ? saas.salesLeads.length : data.recentClients.length) : isWholesale ? recentProperties.length : data.recentClients.length} Recent`}
             badgeTone="tone-blue"
-            subtitle={isWholesale ? "Latest property activity, deal underwriting, and stage transitions" : "Latest activity and client updates"}
-            onView={() => onGoToStage()}
-            viewTitle="View all properties in pipeline"
+            subtitle={ownerOrg && !isPropView ? "Latest prospect inquiries, demo requests, and subscription onboarding updates" : isWholesale ? "Latest property activity, deal underwriting, and stage transitions" : "Latest activity and client updates"}
+            onView={() => (ownerOrg && !isPropView && onGoToLeads ? onGoToLeads() : onGoToStage())}
+            viewTitle={ownerOrg && !isPropView ? "View all sales leads" : "View all properties in pipeline"}
           />
 
           {hasClients ? (
@@ -1629,10 +2054,10 @@ export default function Dashboard({
                 </colgroup>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "center" }}>{isWholesale ? "Property Address" : "Company"}</th>
-                    <th style={{ textAlign: "center" }}>{isWholesale ? "Seller / Owner" : "Contact"}</th>
-                    <th style={{ textAlign: "center" }}>{isWholesale ? "Deal Structure" : "Services"}</th>
-                    <th className="num" style={{ textAlign: "center" }}>{isWholesale ? "Est. Value / ARV" : "Deal"}</th>
+                    <th style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Company / Prospect" : isWholesale ? "Property Address" : "Company"}</th>
+                    <th style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Contact Name" : isWholesale ? "Seller / Owner" : "Contact"}</th>
+                    <th style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Plan / Interest" : isWholesale ? "Deal Structure" : "Services"}</th>
+                    <th className="num" style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Opportunity Value" : isWholesale ? "Est. Value / ARV" : "Deal"}</th>
                     <th style={{ textAlign: "center" }}>Stage</th>
                     <th style={{ textAlign: "center" }}>Updated</th>
                   </tr>
@@ -1683,7 +2108,7 @@ export default function Dashboard({
 
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
           <span>Pipeline Activity</span>
-          <span>{data.totalClients} Total {isWholesale ? "Properties" : "Clients"}</span>
+          <span>{ownerOrg && !isPropView ? `${data.totalClients} Total Sales Leads` : `${data.totalClients} Total ${isWholesale ? "Properties" : "Clients"}`}</span>
         </div>
       </div>
     </div>

@@ -302,13 +302,11 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
         <div className="page-head">
           <div>
             <h1>
-              Client accounts{" "}
-              <em className="serif">— the client list</em>
+              Subscribers &amp; Workspaces{" "}
+              <em className="serif">— client organizations</em>
             </h1>
             <p className="page-sub">
-              Every sold client in your book — account built or not — plus the account workspace list
-              below. Create one, open a client's CRM, or reset/delete. Build an account for any sold
-              client that doesn't have one yet.
+              Active wholesale CRM subscriber organizations, member workspaces, recurring subscriptions, and auto-provisioning status.
             </p>
           </div>
         </div>

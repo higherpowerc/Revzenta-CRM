@@ -1328,22 +1328,28 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
      Tenant orgs (role=member) keep the single pipeline — every stage except
      terminal — with "clients" wording for their records. Same page, same
      data — only the visible wording and the scoped stage slice differ. */
-  const heading = isWholesale ? "Opportunities" : scope === "middle" ? "Onboarding" : ownerOrg ? "Leads" : (<>
+  const heading = isWholesale
+    ? "Opportunities"
+    : scope === "middle"
+    ? "Client Onboarding"
+    : ownerOrg
+    ? "Sales Leads"
+    : (<>
     Client <em className="serif">book</em>
   </>);
   const addCta = isWholesale ? "+ New opportunity" : ownerOrg ? "+ New lead" : "+ New client";
   const emptyTitle = isWholesale ? "No opportunities yet"
     : scope === "middle" ? "No onboarding clients yet"
-    : ownerOrg && scope === "first" ? "No leads yet"
-    : ownerOrg ? "No leads yet" : "No clients yet";
+    : ownerOrg && scope === "first" ? "No sales leads yet"
+    : ownerOrg ? "No sales leads yet" : "No clients yet";
   const emptySub = isWholesale
     ? "Add your first property opportunity to start tracking your wholesale deals."
     : scope === "middle"
-    ? "Intake leads between your first and final pipeline stages live here — move one into your final stage and it becomes a client."
+    ? "Qualified wholesale CRM prospects currently in onboarding live here — send agreements, track signatures, and collect payments."
     : ownerOrg && scope === "first"
-    ? "Add your first lead to start tracking the pipeline."
+    ? "Inbound website inquiries, trial signups, and demo requests for your Wholesale CRM will appear here."
     : ownerOrg
-    ? "Add your first lead to start tracking the pipeline."
+    ? "Inbound sales leads will appear here."
     : "Add your first client to start tracking the pipeline.";
   const emptyCta = isWholesale
     ? "New Opportunity"
@@ -1413,7 +1419,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               🏠 Deal Calculator
             </button>
           )}
-          {canEdit && scope !== "middle" && !ownerLeadsTab && (
+          {canEdit && scope !== "middle" && (
             <button className="btn btn-primary" onClick={() => setModal({ mode: "create" })}>
               {addCta}
             </button>

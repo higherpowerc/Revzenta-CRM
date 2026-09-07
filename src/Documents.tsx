@@ -78,12 +78,10 @@ export default function Documents({ verticalLabel }: { verticalLabel?: "agreemen
       <div className="page-head">
         <div>
           <h1>
-            {verticalLabel === "agreements" ? <>Agreements</> : <>Documents</>}
+            Signed Agreements <em className="serif">&amp; Envelopes</em>
           </h1>
           <p className="page-sub">
-            {verticalLabel === "agreements"
-              ? "Your agreements — status, signer, audit trail and the PDF copy."
-              : "Every agreement envelope across all client accounts — status, signer, audit trail and the PDF copy."}
+            DocuSign &amp; E-sign audit trail across all wholesale subscribers — executed master service agreements and PDF downloads.
           </p>
         </div>
       </div>

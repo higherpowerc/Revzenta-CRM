@@ -1000,6 +1000,23 @@ export default function App() {
             onGoToBuyers={() => setView("buyers")}
             onGoToTransactions={() => setView("documents")}
             onGoToOffers={() => setView("offers")}
+            onGoToSubscribers={() => setView("clients")}
+            onGoToFinance={() => setView("finance")}
+            onGoToLeads={() => {
+              setLeadsStage(null);
+              setOnboardingStage(null);
+              setLeadsFilter("active");
+              setView("leads");
+            }}
+            onGoToOnboarding={() => {
+              setOnboardingStage(null);
+              setView("onboarding");
+            }}
+            onLaunchSubscriber={handleImpersonate}
+            onPreviewWholesale={() => {
+              setPreviewVertical("wholesalebiz");
+              setView("dashboard");
+            }}
             stages={stages}
             ownerOrg={isOwnerCockpit}
             isWholesale={isWholesale}

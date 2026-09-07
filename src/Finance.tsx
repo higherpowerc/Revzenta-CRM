@@ -443,10 +443,18 @@ export default function Finance({ canEdit = true, ownerOrg = false }: { canEdit?
       <div className="page-head">
         <div>
           <h1>
-            <em className="serif">Finance</em> ledger
+            {ownerOrg ? (
+              <>Revenue &amp; Stripe <em className="serif">ledger</em></>
+            ) : (
+              <><em className="serif">Finance</em> ledger</>
+            )}
           </h1>
           <p className="page-sub">
-            {totalCount} invoice{totalCount === 1 ? "" : "s"} · {money(totals.outstanding)} outstanding
+            {ownerOrg ? (
+              <>Recurring wholesale SaaS subscriptions, Stripe payment links, invoices, and collected revenue</>
+            ) : (
+              <>{totalCount} invoice{totalCount === 1 ? "" : "s"} · {money(totals.outstanding)} outstanding</>
+            )}
           </p>
         </div>
       </div>

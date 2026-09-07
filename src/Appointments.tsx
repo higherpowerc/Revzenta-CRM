@@ -128,13 +128,26 @@ export default function Appointments({ ownerOrg }: { ownerOrg: boolean }) {
       <div className="page-head">
         <div>
           <h1>
-            Appointments{" "}
-            <em className="serif" style={{ color: "var(--accent, #d6ff3f)" } as CSSProperties}>
-              {ownerOrg ? "owner" : "you"}
-            </em>
+            {ownerOrg ? (
+              <>
+                Demo Calls &amp; Onboarding{" "}
+                <em className="serif" style={{ color: "var(--accent, #d6ff3f)" } as CSSProperties}>
+                  schedule
+                </em>
+              </>
+            ) : (
+              <>
+                Appointments{" "}
+                <em className="serif" style={{ color: "var(--accent, #d6ff3f)" } as CSSProperties}>
+                  you
+                </em>
+              </>
+            )}
           </h1>
           <p className="page-sub">
-            {appointments ? `${appointments.length} appointment${appointments.length === 1 ? "" : "s"}` : "Loading…"}
+            {ownerOrg
+              ? (appointments ? `${appointments.length} scheduled demo call${appointments.length === 1 ? "" : "s"} & client sessions` : "Loading…")
+              : (appointments ? `${appointments.length} appointment${appointments.length === 1 ? "" : "s"}` : "Loading…")}
           </p>
         </div>
       </div>

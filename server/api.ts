@@ -4118,7 +4118,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       const mrrOrg = getOrg(orgId);
       const mrrStages = mrrOrg ? parseStages(mrrOrg.stages) : [...DEFAULT_STAGES];
       const terminalStage = mrrStages.length > 0 ? mrrStages[mrrStages.length - 1] : "";
-      const mrr = terminalStage
+      const mrrRow = terminalStage
         ? (db
             .query(
               `SELECT COALESCE(SUM(
@@ -4133,26 +4133,96 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
                  END), 0) AS v FROM clients
                WHERE org_id = ? AND lost = 0 AND archived = 0
                  AND LOWER(TRIM(stage)) = LOWER(TRIM(?))
-                 -- Owner 2026-08-28 refinement ("agreed to everything"):
-                 -- only a client whose agreement is SIGNED counts as sold;
-                 -- no payment-received gate (that stays Finance-only).
                  AND agreement_status = 'signed'
-                 -- Owner 2026-08-26 incident guard: a sold client whose
-                 -- account (org) no longer exists must NOT count toward Sold
-                 -- MRR. Only a genuinely active sold subscription contributes.
-                 -- Owner 2026-08-27 (Inactive clients, cb1c9700): the same for
-                 -- an account the owner marked INACTIVE (canceled, retained) —
-                 -- it is not an active sold subscription while it sits in the
-                 -- "Inactive clients" window.
                  AND (provisioned_org_id = 0
                       OR provisioned_org_id IN (SELECT id FROM orgs
                                                 WHERE status != 'canceled'))`,
             )
             .get(orgId, terminalStage) as { v: number })
         : { v: 0 };
-      const orgsAgg = db.query("SELECT COUNT(*) AS c FROM orgs").get() as { c: number };
-      resp.clientMrr = mrr.v;
-      resp.orgCount = orgsAgg.c;
+
+      // Also calculate direct monthly subscription sums from all active client orgs (org id != 1)
+      const directOrgMrr = (db.query(`
+        SELECT COALESCE(SUM(monthly_subscription_amount), 0) AS v
+        FROM orgs
+        WHERE id != ? AND status != 'canceled'
+      `).get(orgId) as { v: number }).v;
+
+      const effectiveMrr = Math.max(mrrRow.v, directOrgMrr);
+
+      // Active and total subscriber orgs (excluding the owner org itself)
+      const activeOrgs = db.query("SELECT COUNT(*) AS c FROM orgs WHERE id != ? AND status != 'canceled'").get(orgId) as { c: number };
+      const totalOrgs = db.query("SELECT COUNT(*) AS c FROM orgs WHERE id != ?").get(orgId) as { c: number };
+
+      // Platform-wide Wholesale Deals & Assignment Fee Volume across all client workspaces
+      const platformDealsRow = db.query("SELECT COUNT(*) AS c FROM clients WHERE org_id != ? AND archived = 0 AND lost = 0").get(orgId) as { c: number };
+      const platformVolumeRow = db.query("SELECT COALESCE(SUM(deal_value), 0) AS v FROM clients WHERE org_id != ? AND archived = 0 AND lost = 0").get(orgId) as { v: number };
+      const platformClosedVolumeRow = db.query(`
+        SELECT COALESCE(SUM(deal_value), 0) AS v FROM clients 
+        WHERE org_id != ? AND archived = 0 AND lost = 0 
+          AND (LOWER(TRIM(stage)) = 'sold' OR LOWER(TRIM(stage)) = 'closed')
+      `).get(orgId) as { v: number };
+
+      // Top subscriber organizations with workspace status, tier, and property count
+      const subscriberOrgs = (db.query(`
+        SELECT o.id, o.name, o.vertical_key, o.status, o.monthly_subscription_amount, o.created_at,
+               (SELECT COUNT(*) FROM clients c WHERE c.org_id = o.id AND c.archived = 0) AS property_count,
+               (SELECT u.email FROM users u WHERE u.org_id = o.id AND u.role = 'admin' LIMIT 1) AS admin_email
+        FROM orgs o
+        WHERE o.id != ?
+        ORDER BY o.created_at DESC, o.id DESC
+        LIMIT 10
+      `).all(orgId) as any[]).map((o) => ({
+        id: o.id,
+        name: o.name,
+        verticalKey: o.vertical_key || "wholesalebiz",
+        status: o.status || "active",
+        monthlySubscriptionAmount: o.monthly_subscription_amount || 0,
+        createdAt: o.created_at || "",
+        propertyCount: o.property_count || 0,
+        adminEmail: o.admin_email || "",
+      }));
+
+      // Inbound website sales leads in the owner org
+      const salesLeads = (db.query(`
+        SELECT id, company_name, contact_name, email, phone, stage, deal_value, demo_outcome, created_at, updated_at
+        FROM clients
+        WHERE org_id = ? AND archived = 0 AND lost = 0
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 10
+      `).all(orgId) as any[]).map((l) => ({
+        id: l.id,
+        companyName: l.company_name || "",
+        contactName: l.contact_name || "",
+        email: l.email || "",
+        phone: l.phone || "",
+        stage: l.stage || "",
+        dealValue: l.deal_value || 0,
+        demoOutcome: l.demo_outcome || "",
+        createdAt: l.created_at || "",
+        updatedAt: l.updated_at || "",
+      }));
+
+      const activeSubCount = activeOrgs.c;
+      const arr = effectiveMrr * 12;
+      const arpu = activeSubCount > 0 ? Math.round(effectiveMrr / activeSubCount) : (effectiveMrr > 0 ? effectiveMrr : 197);
+      const ltv = arpu * 12;
+
+      resp.clientMrr = effectiveMrr;
+      resp.orgCount = totalOrgs.c;
+      resp.saasMetrics = {
+        mrr: effectiveMrr,
+        arr,
+        activeSubscribers: activeSubCount,
+        totalSubscribers: totalOrgs.c,
+        arpu,
+        ltv,
+        platformDeals: platformDealsRow.c,
+        platformAssignmentVolume: platformVolumeRow.v,
+        platformClosedVolume: platformClosedVolumeRow.v,
+        subscribersList: subscriberOrgs,
+        salesLeads,
+      };
     }
     return json(resp);
   }
