@@ -239,27 +239,27 @@ export default function Settings({
      Passwords are write-only: the admin types a temp password at create/
      reset; the API hashes it and never returns it, so the admin passes it
      to the member themselves. */
-  const MEMBER_TAB_LABELS: { tab: TenantTab; label: string }[] = isWholesaleEffective
+  const MEMBER_TAB_LABELS: { tab: TenantTab; label: string; icon: string }[] = isWholesaleEffective
     ? [
-        { tab: "dashboard", label: "Dashboard" },
-        { tab: "clients", label: "Opportunities" },
-        { tab: "offers", label: "Offers Repository" },
-        { tab: "documents", label: "Transaction Hub" },
-        { tab: "buybox", label: "Buy Box" },
-        { tab: "investors", label: "Investors" },
-        { tab: "connections", label: "Connections" },
-        { tab: "tasks", label: "Tasks" },
-        { tab: "support", label: "Support" },
-        { tab: "settings", label: "Settings" },
+        { tab: "dashboard", label: "Dashboard", icon: "📊" },
+        { tab: "clients", label: "Opportunities", icon: "🏘️" },
+        { tab: "offers", label: "Offers Repository", icon: "📑" },
+        { tab: "documents", label: "Transaction Hub", icon: "🤝" },
+        { tab: "buybox", label: "Buy Box", icon: "🎯" },
+        { tab: "investors", label: "Investors", icon: "💼" },
+        { tab: "connections", label: "Connections", icon: "🔌" },
+        { tab: "tasks", label: "Tasks", icon: "📋" },
+        { tab: "support", label: "Support", icon: "🎫" },
+        { tab: "settings", label: "Settings", icon: "⚙️" },
       ]
     : [
-        { tab: "dashboard", label: "Dashboard" },
-        { tab: "clients", label: "Leads & Clients" },
-        { tab: "appointments", label: "Appointments" },
-        { tab: "tasks", label: "Tasks" },
-        { tab: "finance", label: "Finance" },
-        { tab: "support", label: "Support" },
-        { tab: "settings", label: "Settings" },
+        { tab: "dashboard", label: "Dashboard", icon: "📊" },
+        { tab: "clients", label: "Leads & Clients", icon: "👥" },
+        { tab: "appointments", label: "Appointments", icon: "📅" },
+        { tab: "tasks", label: "Tasks", icon: "📋" },
+        { tab: "finance", label: "Finance", icon: "💰" },
+        { tab: "support", label: "Support", icon: "🎫" },
+        { tab: "settings", label: "Settings", icon: "⚙️" },
       ];
   type PermChoice = "view" | "edit" | "none";
   const PERM_OPTIONS: { value: PermChoice; label: string }[] = [
@@ -1873,13 +1873,55 @@ export default function Settings({
                 </div>
               </div>
               {newRole === "member" && (
-                <div className="field">
-                  <span className="field-label">Tab access</span>
+                <div className="field tab-access-field">
+                  <div className="tab-access-header">
+                    <span className="field-label">Tab access</span>
+                    <div className="tab-access-quick-actions">
+                      <span className="quick-label">Set all:</span>
+                      <button
+                        type="button"
+                        className="btn-quick-perm"
+                        onClick={() => {
+                          const all: Record<TenantTab, PermChoice> = {} as any;
+                          for (const t of TENANT_TABS) all[t] = "view";
+                          setNewChoices(all);
+                        }}
+                      >
+                        View only
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-quick-perm"
+                        onClick={() => {
+                          const all: Record<TenantTab, PermChoice> = {} as any;
+                          for (const t of TENANT_TABS) all[t] = "edit";
+                          setNewChoices(all);
+                        }}
+                      >
+                        Can edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-quick-perm"
+                        onClick={() => {
+                          const all: Record<TenantTab, PermChoice> = {} as any;
+                          for (const t of TENANT_TABS) all[t] = "none";
+                          setNewChoices(all);
+                        }}
+                      >
+                        No access
+                      </button>
+                    </div>
+                  </div>
                   <div className="perm-grid">
-                    {MEMBER_TAB_LABELS.map(({ tab, label }) => (
-                      <label className="perm-picker" key={tab}>
-                        <span className="perm-picker-label">{label}</span>
+                    {MEMBER_TAB_LABELS.map(({ tab, label, icon }) => (
+                      <div className={`perm-picker perm-picker-${newChoices[tab]}`} key={tab}>
+                        <div className="perm-picker-info">
+                          <span className="perm-picker-icon">{icon}</span>
+                          <span className="perm-picker-label" title={label}>{label}</span>
+                        </div>
                         <select
+                          className="perm-select"
                           value={newChoices[tab]}
                           onChange={(e) =>
                             setNewChoices((c) => ({ ...c, [tab]: e.target.value as PermChoice }))
@@ -1892,7 +1934,7 @@ export default function Settings({
                             </option>
                           ))}
                         </select>
-                      </label>
+                      </div>
                     ))}
                   </div>
                   <span className="field-hint">
@@ -2040,13 +2082,55 @@ export default function Settings({
                             </span>
                           </div>
                           {editRole === "member" && (
-                            <div className="field">
-                              <span className="field-label">Tab access</span>
+                            <div className="field tab-access-field">
+                              <div className="tab-access-header">
+                                <span className="field-label">Tab access</span>
+                                <div className="tab-access-quick-actions">
+                                  <span className="quick-label">Set all:</span>
+                                  <button
+                                    type="button"
+                                    className="btn-quick-perm"
+                                    onClick={() => {
+                                      const all: Record<TenantTab, PermChoice> = {} as any;
+                                      for (const t of TENANT_TABS) all[t] = "view";
+                                      setEditChoices(all);
+                                    }}
+                                  >
+                                    View only
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-quick-perm"
+                                    onClick={() => {
+                                      const all: Record<TenantTab, PermChoice> = {} as any;
+                                      for (const t of TENANT_TABS) all[t] = "edit";
+                                      setEditChoices(all);
+                                    }}
+                                  >
+                                    Can edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-quick-perm"
+                                    onClick={() => {
+                                      const all: Record<TenantTab, PermChoice> = {} as any;
+                                      for (const t of TENANT_TABS) all[t] = "none";
+                                      setEditChoices(all);
+                                    }}
+                                  >
+                                    No access
+                                  </button>
+                                </div>
+                              </div>
                               <div className="perm-grid">
-                                {MEMBER_TAB_LABELS.map(({ tab, label }) => (
-                                  <label className="perm-picker" key={tab}>
-                                    <span className="perm-picker-label">{label}</span>
+                                {MEMBER_TAB_LABELS.map(({ tab, label, icon }) => (
+                                  <div className={`perm-picker perm-picker-${editChoices[tab]}`} key={tab}>
+                                    <div className="perm-picker-info">
+                                      <span className="perm-picker-icon">{icon}</span>
+                                      <span className="perm-picker-label" title={label}>{label}</span>
+                                    </div>
                                     <select
+                                      className="perm-select"
                                       value={editChoices[tab]}
                                       onChange={(e) =>
                                         setEditChoices((c) => ({
@@ -2062,7 +2146,7 @@ export default function Settings({
                                         </option>
                                       ))}
                                     </select>
-                                  </label>
+                                  </div>
                                 ))}
                               </div>
                             </div>
