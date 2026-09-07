@@ -197,7 +197,7 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
           billingZip: client.billingZip ?? "",
           billingSame: client.billingSame ?? true,
           preferredContactMethod: client.preferredContactMethod ?? "",
-          businessType: client.businessType ?? "",
+          businessType: client.businessType && client.businessType !== "B2B" && client.businessType !== "B2C" ? client.businessType : "Wholesale Real Estate",
           taxIdEin: client.taxIdEin ?? "",
           apContact: client.apContact ?? "",
           poRequired: client.poRequired ?? false,
@@ -1276,19 +1276,15 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
             <div className="seg seg-type" role="radiogroup" aria-label="Workspace type">
               {[
                 { value: "Wholesale Real Estate", label: "Wholesale Real Estate" },
-                { value: "B2B", label: "B2B" },
-                { value: "B2C", label: "B2C" },
               ].map((t) => {
-                const isChecked =
-                  form.businessType === t.value ||
-                  (!form.businessType && t.value === "Wholesale Real Estate");
+                const isChecked = true;
                 return (
                   <button
                     key={t.value}
                     type="button"
                     role="radio"
                     aria-checked={isChecked}
-                    className={isChecked ? "seg-btn active" : "seg-btn"}
+                    className="seg-btn active"
                     onClick={() => set("businessType", t.value)}
                   >
                     {t.label}

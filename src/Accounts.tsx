@@ -838,7 +838,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                   /* The linked owner-org client record (provisionedOrgId join)
                      — feeds the Phone column. */
                   const linked = clientByOrg[o.id];
-                  const bType = (o.verticalKey ? verticalLabel(o.verticalKey) : "") || o.industry || linked?.industry || "B2B";
+                  const bType = (o.verticalKey ? verticalLabel(o.verticalKey) : "") || o.industry || linked?.industry || "Wholesale Real Estate";
                   const isRevealed = subHidden ? !!revealedSubRows[o.id] : !revealedSubRows[o.id];
                   const isSubPrivate = !isRevealed;
                   const amt = o.monthlySubscriptionAmount ?? 0;
@@ -1064,7 +1064,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
             <tbody>
               {inactiveOrgs.map((o) => {
                 const linked = clientByOrg[o.id];
-                const bType = (o.verticalKey ? verticalLabel(o.verticalKey) : "") || o.industry || linked?.industry || "B2B";
+                const bType = (o.verticalKey ? verticalLabel(o.verticalKey) : "") || o.industry || linked?.industry || "Wholesale Real Estate";
                 const isRevealed = subHidden ? !!revealedSubRows[o.id] : !revealedSubRows[o.id];
                 const isSubPrivate = !isRevealed;
                 const amt = o.monthlySubscriptionAmount ?? 0;

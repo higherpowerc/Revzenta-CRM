@@ -874,8 +874,10 @@ export default function App() {
                       setView("dashboard");
                       setMobileMenuOpen(false);
                     }}
+                    title="Real estate wholesale pipeline metrics, revenue, and active opportunities"
                   >
-                    Dashboard
+                    <span className="tab-icon">📊</span>
+                    <span>Dashboard</span>
                   </button>
                 )}
 
@@ -892,7 +894,8 @@ export default function App() {
                     }}
                     title="Wholesale property pipeline and acquisition opportunities"
                   >
-                    Opportunities
+                    <span className="tab-icon">🏘️</span>
+                    <span>Opportunities</span>
                   </button>
                 )}
 
@@ -906,7 +909,8 @@ export default function App() {
                     }}
                     title="Wholesale purchase proposals & dispatched offers repository"
                   >
-                    Offers Repository
+                    <span className="tab-icon">📑</span>
+                    <span>Offers Repository</span>
                   </button>
                 )}
 
@@ -920,7 +924,8 @@ export default function App() {
                     }}
                     title="Title, escrow, and contract transaction hub"
                   >
-                    Transaction Hub
+                    <span className="tab-icon">🤝</span>
+                    <span>Transaction Hub</span>
                   </button>
                 )}
 
@@ -934,7 +939,8 @@ export default function App() {
                     }}
                     title="Investor buy box criteria matching engine"
                   >
-                    Buy Box
+                    <span className="tab-icon">🎯</span>
+                    <span>Buy Box</span>
                   </button>
                 )}
 
@@ -948,7 +954,8 @@ export default function App() {
                     }}
                     title="Vetted cash buyers and creative finance network"
                   >
-                    Investors
+                    <span className="tab-icon">💼</span>
+                    <span>Investors</span>
                   </button>
                 )}
 
@@ -962,7 +969,8 @@ export default function App() {
                     }}
                     title="Inbound webhook channels & data connections"
                   >
-                    Connections
+                    <span className="tab-icon">🔌</span>
+                    <span>Connections</span>
                   </button>
                 )}
 
@@ -974,8 +982,10 @@ export default function App() {
                       setView("tasks");
                       setMobileMenuOpen(false);
                     }}
+                    title="Daily acquisition tasks, seller follow-ups, and closing items"
                   >
-                    Tasks
+                    <span className="tab-icon">📋</span>
+                    <span>Tasks</span>
                   </button>
                 )}
 
@@ -987,8 +997,10 @@ export default function App() {
                       setView("tickets");
                       setMobileMenuOpen(false);
                     }}
+                    title="Submit tickets and get help from Revzenta platform support"
                   >
-                    Support
+                    <span className="tab-icon">🎫</span>
+                    <span>Support</span>
                   </button>
                 )}
 
@@ -1000,8 +1012,10 @@ export default function App() {
                       setView("settings");
                       setMobileMenuOpen(false);
                     }}
+                    title="Workspace profile, pipeline stages, custom fields, and team members"
                   >
-                    Settings
+                    <span className="tab-icon">⚙️</span>
+                    <span>Settings</span>
                   </button>
                 )}
 
@@ -1015,7 +1029,8 @@ export default function App() {
                     }}
                     title="TCPA DNC compliance, non-agency disclosures, and legal safeguards"
                   >
-                    Compliance &amp; DNC
+                    <span className="tab-icon">🛡️</span>
+                    <span>Compliance &amp; DNC</span>
                   </button>
                 )}
               </>
@@ -1029,7 +1044,8 @@ export default function App() {
                     setMobileMenuOpen(false);
                   }}
                 >
-                  Dashboard
+                  <span className="tab-icon">📊</span>
+                  <span>Dashboard</span>
                 </button>
                 {canSeeTab("clients") && (
                   <button
@@ -1042,7 +1058,8 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Leads
+                    <span className="tab-icon">🎯</span>
+                    <span>Leads</span>
                   </button>
                 )}
                 {canSeeTab("clients") && (
@@ -1053,7 +1070,8 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Clients
+                    <span className="tab-icon">👥</span>
+                    <span>Clients</span>
                   </button>
                 )}
                 <button
@@ -1063,7 +1081,8 @@ export default function App() {
                     setMobileMenuOpen(false);
                   }}
                 >
-                  Appointments
+                  <span className="tab-icon">📅</span>
+                  <span>Appointments</span>
                 </button>
                 {canSeeTab("tasks") && (
                   <button
@@ -1073,7 +1092,8 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Tasks
+                    <span className="tab-icon">📋</span>
+                    <span>Tasks</span>
                   </button>
                 )}
                 {canSeeTab("support") && (
@@ -1084,7 +1104,8 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Support
+                    <span className="tab-icon">🎫</span>
+                    <span>Support</span>
                   </button>
                 )}
                 {canSeeTab("finance") && (
@@ -1095,7 +1116,8 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Finance
+                    <span className="tab-icon">💰</span>
+                    <span>Finance</span>
                   </button>
                 )}
                 {canSeeTab("settings") && (
@@ -1106,7 +1128,8 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Settings
+                    <span className="tab-icon">⚙️</span>
+                    <span>Settings</span>
                   </button>
                 )}
 
