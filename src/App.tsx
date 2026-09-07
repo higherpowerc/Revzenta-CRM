@@ -78,7 +78,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState<boolean>(() => window.location.hash.startsWith("#/login"));
   const isWebsiteOrLegalHash = (h: string) => {
     const l = h.toLowerCase();
-    return l.startsWith("#/website") || l.includes("privacy") || l.includes("terms") || l.includes("security");
+    return l.startsWith("#/website") || l.includes("privacy") || l.includes("terms") || l.includes("security") || l.includes("agreement");
   };
 
   const [viewingWebsite, setViewingWebsite] = useState<boolean>(() => isWebsiteOrLegalHash(window.location.hash));
@@ -1148,7 +1148,18 @@ export default function App() {
       </main>
       <footer className="foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
         <div>Revzenta CRM {orgName && orgName !== "Revzenta" ? `· Workspace: ${orgName}` : ""} · product build · v0.1</div>
-        <div style={{ display: "flex", gap: "16px", fontSize: "12px" }}>
+        <div style={{ display: "flex", gap: "16px", fontSize: "12px", flexWrap: "wrap" }}>
+          <a
+            href="#/agreement"
+            onClick={(e) => {
+              e.preventDefault();
+              setViewingWebsite(true);
+              window.location.hash = "#/agreement";
+            }}
+            style={{ color: "var(--muted)", textDecoration: "none", cursor: "pointer" }}
+          >
+            Customer Agreement
+          </a>
           <a
             href="#/privacy"
             onClick={(e) => {

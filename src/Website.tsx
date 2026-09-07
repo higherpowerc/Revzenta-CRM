@@ -3,6 +3,7 @@ import ThemeToggle from "./ThemeToggle";
 import PrivacyPolicy from "./PrivacyPolicy";
 import TermsOfService from "./TermsOfService";
 import SecurityPage from "./SecurityPage";
+import CustomerAgreement from "./CustomerAgreement";
 
 interface WebsiteProps {
   onSignIn: () => void;
@@ -11,11 +12,12 @@ interface WebsiteProps {
 
 export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
   // Active Legal Page state
-  const [activeLegalPage, setActiveLegalPage] = useState<"privacy" | "terms" | "security" | null>(() => {
+  const [activeLegalPage, setActiveLegalPage] = useState<"privacy" | "terms" | "security" | "agreement" | null>(() => {
     const h = window.location.hash.toLowerCase();
     if (h.includes("privacy")) return "privacy";
     if (h.includes("terms")) return "terms";
     if (h.includes("security")) return "security";
+    if (h.includes("agreement")) return "agreement";
     return null;
   });
 
@@ -25,6 +27,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
       if (h.includes("privacy")) setActiveLegalPage("privacy");
       else if (h.includes("terms")) setActiveLegalPage("terms");
       else if (h.includes("security")) setActiveLegalPage("security");
+      else if (h.includes("agreement")) setActiveLegalPage("agreement");
       else setActiveLegalPage(null);
     };
     window.addEventListener("hashchange", handleHash);
@@ -121,6 +124,35 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
         onNavigateTerms={() => {
           setActiveLegalPage("terms");
           window.location.hash = "#terms";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+    );
+  }
+
+  if (activeLegalPage === "agreement") {
+    return (
+      <CustomerAgreement
+        onBack={() => {
+          setActiveLegalPage(null);
+          window.location.hash = "";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onNavigatePrivacy={() => {
+          setActiveLegalPage("privacy");
+          window.location.hash = "#privacy";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onNavigateTerms={() => {
+          setActiveLegalPage("terms");
+          window.location.hash = "#terms";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onNavigateSecurity={() => {
+          setActiveLegalPage("security");
+          window.location.hash = "#security";
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
       />
@@ -806,6 +838,19 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                     Security &amp; Compliance
                   </a>
                 </li>
+                <li>
+                  <a
+                    href="#agreement"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveLegalPage("agreement");
+                      window.location.hash = "#agreement";
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    Customer Agreement
+                  </a>
+                </li>
                 <li><a href="#faq">Legal MLS FAQ</a></li>
               </ul>
             </div>
@@ -822,7 +867,19 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
 
           <div className="rw-footer-bottom">
             <div>© {new Date().getFullYear()} Revzenta LLC. All rights reserved.</div>
-            <div style={{ display: "flex", gap: "20px" }}>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+              <a
+                href="#agreement"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveLegalPage("agreement");
+                  window.location.hash = "#agreement";
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
+              >
+                Customer Agreement
+              </a>
               <a
                 href="#privacy"
                 onClick={(e) => {
