@@ -169,7 +169,18 @@ export default function CustomerAgreement({
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            3. PROPRIETARY DATA OWNERSHIP &amp; ZERO-MONETIZATION PLEDGE
+            3. REFUND POLICY &amp; NO-PRORATION TERMS
+          </h3>
+          <p style={{ color: "var(--rw-text-dim)" }}>
+            (a) <strong>Non-Refundable Subscription Fees:</strong> Because Revzenta CRM provisions cloud workspace infrastructure, proprietary deal underwriting engines, automated legal contract generators (PSA, LOI, Assignment), and enriched property records immediately upon activation, all subscription fees (monthly and annual) are strictly non-refundable once billed.<br />
+            (b) <strong>No Prorated Refunds:</strong> Upon cancellation, Subscriber retains workspace access through the conclusion of the current paid billing cycle. Provider does not issue prorated refunds, partial credits, or cash reimbursements for unused days, mid-billing cycle cancellations, or unutilized account features.<br />
+            (c) <strong>Billing Inquiries &amp; Discrepancies:</strong> Any billing discrepancy, suspected duplicate charge, or calculation inquiry must be submitted in writing to <code>billing@revzenta.com</code> within thirty (30) calendar days of the charge date. Charges not disputed within thirty (30) days are deemed conclusively accepted and finalized.<br />
+            (d) <strong>Chargebacks:</strong> Initiating an unauthorized merchant dispute or chargeback without first contacting Revzenta support constitutes a material breach of this Agreement, subjecting Subscriber&apos;s workspace to immediate termination.<br />
+            (e) <strong>Statutory Exceptions:</strong> In jurisdictions where consumer protection or statutory laws mandate a non-waivable right of withdrawal or cooling-off period, refunds will be provided strictly in accordance with applicable statutory law.
+          </p>
+
+          <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
+            4. PROPRIETARY DATA OWNERSHIP &amp; ZERO-MONETIZATION PLEDGE
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             (a) <strong>Exclusive Ownership:</strong> Subscriber retains 100% exclusive proprietary ownership of all uploaded property leads, seller phone numbers, deal notes, buyer rosters, and transaction files.<br />
@@ -178,7 +189,7 @@ export default function CustomerAgreement({
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            4. REAL ESTATE STATUTORY NON-AGENCY DISCLAIMER
+            5. REAL ESTATE STATUTORY NON-AGENCY DISCLAIMER
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             (a) <strong>Software Provider Status:</strong> Subscriber explicitly acknowledges that Revzenta LLC is an enterprise technology provider and is <strong>NOT a licensed real estate broker, brokerage, agent, appraisal firm, or escrow agency</strong>.<br />
@@ -186,42 +197,49 @@ export default function CustomerAgreement({
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            5. FAIR CREDIT REPORTING ACT (FCRA 15 U.S.C. § 1681a) NOTICE
+            6. FAIR CREDIT REPORTING ACT (FCRA 15 U.S.C. § 1681a) NOTICE
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             Revzenta CRM and its third-party public records feeds (including RentCast MLS and county tax assessor data) are NOT Consumer Reporting Agencies (&quot;CRAs&quot;). Subscriber covenants that it shall NOT use any data, estimates, or records obtained through the Service for any purpose governed by the FCRA, including evaluating consumer credit, personal loans, employment screening, or tenant leasing.
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            6. TELEPHONY, DNC &amp; OUTREACH COMPLIANCE WARRANTY
+            7. TELEPHONY, DNC &amp; OUTREACH COMPLIANCE WARRANTY
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             Subscriber warrants that all cold calling, SMS text campaigns, and telemarketing outreach conducted by Subscriber comply strictly with the Telephone Consumer Protection Act (47 U.S.C. § 227), TSR regulations, and the National Do Not Call Registry. Subscriber agrees to immediately honor opt-out requests, utilize Revzenta&apos;s CCPA Purge / Suppression Registry, and indemnify Revzenta against any TCPA or regulatory claims resulting from Subscriber&apos;s outreach.
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            7. ACCEPTABLE USE &amp; RESTRICTIONS
+            8. ACCEPTABLE USE &amp; RESTRICTIONS
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             Subscriber shall not reverse-engineer, decompile, or disassemble the Service; conduct unauthorized automated scraping against Provider infrastructure; transmit unlawful material; or share account credentials outside authorized staff.
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            8. TERM, CANCELLATION &amp; 30-DAY DATA RETENTION
+            9. TERM, CANCELLATION &amp; 30-DAY DATA RETENTION
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             This Agreement continues on a month-to-month basis until canceled. Subscriber may cancel at any time directly through account settings. Upon cancellation, Subscriber data is retained for thirty (30) days for export, after which it is permanently purged via automated database cascade protocols.
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            9. LIMITATION OF LIABILITY &amp; ARBITRATION
+            10. LIMITATION OF LIABILITY
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
-            The Service is provided &quot;AS IS.&quot; In no event shall Revzenta&apos;s aggregate liability exceed the total subscription fees paid by Subscriber in the twelve (12) months preceding the claim. Disputes shall be resolved by binding arbitration in Delaware under American Arbitration Association (AAA) rules.
+            The Service is provided &quot;AS IS.&quot; In no event shall Revzenta&apos;s aggregate liability exceed the total subscription fees paid by Subscriber in the twelve (12) months preceding the claim.
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            10. ELECTRONIC SIGNATURE &amp; EXECUTION
+            11. GOVERNING LAW &amp; BINDING ARBITRATION
+          </h3>
+          <p style={{ color: "var(--rw-text-dim)" }}>
+            This Agreement shall be governed by the laws of the State of Delaware. Any dispute arising hereunder shall be resolved through binding arbitration administered by the American Arbitration Association (AAA).
+          </p>
+
+          <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
+            12. ELECTRONIC SIGNATURE &amp; EXECUTION
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             Execution of this Agreement via electronic signature or digital sign-up checkout constitutes a legally binding execution under the federal E-SIGN Act (15 U.S.C. § 7001 et seq.) and the Uniform Electronic Transactions Act (UETA).

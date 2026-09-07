@@ -151,20 +151,23 @@ export default function TermsOfService({ onBack, onSignIn, onLaunchApp, onNaviga
           </ul>
 
           <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--rw-text)", marginTop: "32px", marginBottom: "12px" }}>
-            4. SaaS Subscriptions, Billing &amp; Cancellation
+            4. SaaS Subscriptions, Billing &amp; Refund Policy
           </h2>
           <ul style={{ paddingLeft: "24px", marginBottom: "16px" }}>
             <li>
               <strong>Subscription Billing:</strong> Subscriptions are billed in advance on a recurring monthly or annual basis via Stripe. Your subscription will automatically renew until canceled in accordance with these Terms.
             </li>
             <li>
-              <strong>Self-Serve Cancellation:</strong> You may cancel your subscription at any time directly through <code>Settings &gt; Subscription &amp; Billing</code>. Cancellation stops future billings immediately.
+              <strong>Self-Serve Cancellation:</strong> You may cancel your subscription at any time directly through <code>Settings &gt; Subscription &amp; Billing</code>. Cancellation stops future billings immediately, and you will retain access through the end of the current paid billing cycle.
             </li>
             <li>
-              <strong>Refunds:</strong> Subscription payments are non-refundable except where explicitly required by law or specified in an enterprise order form.
+              <strong>Refund Policy &amp; No Proration:</strong> All subscription fees are non-refundable once billed due to the immediate digital provisioning of proprietary deal underwriting tools, contract generation templates, and enriched real estate data feeds. Revzenta does not issue prorated refunds, account credits, or cash reimbursements for unused time or partial months.
             </li>
             <li>
-              <strong>Data Retention Window:</strong> Upon cancellation or expiration, your workspace enters a 30-day retention status allowing you to export your data. After 30 days, workspace records are purged from production servers.
+              <strong>Billing Dispute Window:</strong> Any suspected billing errors or duplicate charges must be submitted in writing to <code>billing@revzenta.com</code> within thirty (30) calendar days of the charge date to be eligible for review.
+            </li>
+            <li>
+              <strong>Data Retention Window:</strong> Upon cancellation or expiration, your workspace enters a 30-day retention status allowing you to export your data. After 30 days, workspace records are permanently purged from production servers.
             </li>
           </ul>
 
