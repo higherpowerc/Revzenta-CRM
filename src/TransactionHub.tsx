@@ -524,6 +524,24 @@ export default function TransactionHub({ crmBusinessName }: Props) {
     }
   };
 
+  // Quick Action: Permanently Delete Transaction
+  const handleDeleteTx = async (tx: Transaction) => {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete the wholesale transaction for:\n\n${tx.propertyAddress}\n\nThis will remove it from the Transaction Hub and escrow tracking.`
+      )
+    )
+      return;
+    try {
+      await api.deleteTransaction(tx.id);
+      setTransactions((prev) => prev.filter((i) => i.id !== tx.id));
+      if (editingTx?.id === tx.id) setEditingTx(null);
+      notify("success", `Transaction for ${tx.propertyAddress} deleted.`);
+    } catch (e: any) {
+      notify("error", e?.message || "Failed to delete transaction.");
+    }
+  };
+
   return (
     <div style={{ padding: "20px 24px", maxWidth: "1400px", margin: "0 auto" }}>
       {/* Header */}
@@ -1263,6 +1281,65 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                               >
                                 Title
                               </a>
+                              {tx.status === "cancelled" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleReactivateTx(tx)}
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    border: "1px solid rgba(16, 185, 129, 0.4)",
+                                    backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                    color: "#10b981",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                  }}
+                                  title="Reactivate this deal as Draft"
+                                >
+                                  ↺ Reactivate
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCancellingTx(tx);
+                                    setCancelTxReason("Inspection / repair costs too high");
+                                    setCancelTxNotes("");
+                                    setCancelPropertyLead(true);
+                                  }}
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                                    backgroundColor: "rgba(239, 68, 68, 0.1)",
+                                    color: "#f87171",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                  }}
+                                  title="Cancel this deal (fell through)"
+                                >
+                                  🚫 Cancel
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTx(tx)}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #ef4444",
+                                  backgroundColor: "rgba(239, 68, 68, 0.15)",
+                                  color: "#ef4444",
+                                  fontSize: "12px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                                title="Permanently delete this transaction"
+                              >
+                                🗑️ Delete
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1479,6 +1556,68 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                             >
                               Title
                             </a>
+                            {tx.status === "cancelled" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleReactivateTx(tx)}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid rgba(16, 185, 129, 0.4)",
+                                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                  color: "#10b981",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                                title="Reactivate this deal as Draft"
+                              >
+                                ↺ Reactivate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCancellingTx(tx);
+                                  setCancelTxReason("Inspection / repair costs too high");
+                                  setCancelTxNotes("");
+                                  setCancelPropertyLead(true);
+                                }}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid rgba(239, 68, 68, 0.4)",
+                                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                                  color: "#f87171",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                                title="Cancel this deal (deal fell through)"
+                              >
+                                🚫 Cancel
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTx(tx)}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                border: "1px solid #ef4444",
+                                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                                color: "#ef4444",
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "2px",
+                              }}
+                              title="Permanently delete this transaction"
+                            >
+                              🗑️ Delete
+                            </button>
                           </div>
                         </div>
                       ))
@@ -1848,27 +1987,24 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                       </button>
                     )}
                     <button
-                      onClick={async () => {
-                        if (!confirm(`Are you sure you want to delete transaction for ${tx.propertyAddress}?`)) return;
-                        try {
-                          await api.deleteTransaction(tx.id);
-                          setTransactions((prev) => prev.filter((i) => i.id !== tx.id));
-                          notify("success", "Transaction deleted.");
-                        } catch (e: any) {
-                          notify("error", e?.message || "Failed to delete.");
-                        }
-                      }}
+                      type="button"
+                      onClick={() => handleDeleteTx(tx)}
                       style={{
-                        padding: "6px 10px",
+                        padding: "6px 12px",
                         borderRadius: "6px",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        backgroundColor: "transparent",
+                        border: "1px solid #ef4444",
+                        backgroundColor: "rgba(239, 68, 68, 0.15)",
                         color: "#ef4444",
                         fontSize: "12px",
+                        fontWeight: 600,
                         cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
                       }}
+                      title="Permanently delete this transaction"
                     >
-                      Delete
+                      🗑️ Delete Deal
                     </button>
                   </div>
                 </div>
@@ -2117,6 +2253,23 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                             🚫 Cancel
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTx(tx)}
+                          style={{
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            backgroundColor: "rgba(239, 68, 68, 0.15)",
+                            border: "1px solid #ef4444",
+                            color: "#ef4444",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                          title="Permanently delete this transaction"
+                        >
+                          🗑️ Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -2494,6 +2647,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             setEditingTx(null);
             notify("success", `Updated transaction for ${updated.propertyAddress}`);
           }}
+          onDelete={() => handleDeleteTx(editingTx)}
         />
       )}
 
@@ -3271,9 +3425,10 @@ interface EditModalProps {
   tx: Transaction;
   onClose: () => void;
   onSaved: (tx: Transaction) => void;
+  onDelete?: () => void;
 }
 
-function EditTransactionModal({ tx, onClose, onSaved }: EditModalProps) {
+function EditTransactionModal({ tx, onClose, onSaved, onDelete }: EditModalProps) {
   const [contractType, setContractType] = useState<"psa" | "assignment">(tx.contractType as any || "psa");
   const [propertyAddress, setPropertyAddress] = useState(tx.propertyAddress || "");
   const [sellerName, setSellerName] = useState(tx.sellerName || "");
@@ -3571,22 +3726,46 @@ function EditTransactionModal({ tx, onClose, onSaved }: EditModalProps) {
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              style={{ padding: "10px 16px", borderRadius: "6px", border: "1px solid var(--border)", backgroundColor: "transparent", color: "var(--fg)", fontSize: "13px", cursor: "pointer" }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              style={{ padding: "10px 20px", borderRadius: "6px", border: "none", backgroundColor: "var(--accent, #3b82f6)", color: "#ffffff", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
-            >
-              {saving ? "Saving Changes..." : "Save Changes"}
-            </button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginTop: "10px" }}>
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: "6px",
+                  border: "1px solid #ef4444",
+                  backgroundColor: "rgba(239, 68, 68, 0.15)",
+                  color: "#ef4444",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                title="Permanently delete this transaction"
+              >
+                🗑️ Delete Deal
+              </button>
+            ) : <div />}
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                style={{ padding: "10px 16px", borderRadius: "6px", border: "1px solid var(--border)", backgroundColor: "transparent", color: "var(--fg)", fontSize: "13px", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{ padding: "10px 20px", borderRadius: "6px", border: "none", backgroundColor: "var(--accent, #3b82f6)", color: "#ffffff", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              >
+                {saving ? "Saving Changes..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
