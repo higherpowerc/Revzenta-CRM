@@ -8,6 +8,11 @@ export interface OfferPdfInput {
   propertyAddress: string;
   sellerName: string;
   sellerEmail: string;
+  sellerPhone?: string;
+  agentName?: string;
+  agentEmail?: string;
+  agentPhone?: string;
+  recipientType?: "owner" | "agent" | "both";
   businessName?: string;
   fontFamily?: string;
   offerType?: "cash" | "subto" | "creative" | "all";
@@ -151,12 +156,15 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
 
   let y = height - 120;
 
-  // Property & Recipient Info Box (includes Proposed Buyer)
+  const hasAgent = Boolean(input.agentName || input.agentEmail || input.agentPhone);
+  const infoBoxHeight = hasAgent ? 94 : 75;
+
+  // Property & Recipient Info Box (includes Owner, Agent, and Proposed Buyer)
   page.drawRectangle({
     x: margin,
-    y: y - 72,
+    y: y - (infoBoxHeight - 3),
     width: contentWidth,
-    height: 75,
+    height: infoBoxHeight,
     color: rgb(0.97, 0.98, 0.99),
     borderColor: rgb(0.89, 0.91, 0.94),
     borderWidth: 1,
@@ -172,11 +180,12 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
   page.drawText(input.propertyAddress || "Subject Property", {
     x: margin + 140,
     y: y - 18,
-    size: 10.5,
+    size: 10,
     font: bold,
     color: rgb(0.06, 0.09, 0.16),
   });
 
+  const ownerContact = [input.sellerName || "Property Owner", input.sellerPhone, input.sellerEmail].filter(Boolean).join(" · ");
   page.drawText("PROPERTY OWNER:", {
     x: margin + 14,
     y: y - 36,
@@ -184,39 +193,86 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
     font: bold,
     color: rgb(0.39, 0.45, 0.55),
   });
-  page.drawText(input.sellerName || input.sellerEmail || "Property Owner", {
+  page.drawText(ownerContact, {
     x: margin + 140,
     y: y - 36,
-    size: 10.5,
+    size: 9.5,
     font: bold,
     color: rgb(0.06, 0.09, 0.16),
   });
 
+  let buyerLineY = y - 54;
+  if (hasAgent) {
+    const agentContact = [input.agentName || "Listing Agent", input.agentPhone, input.agentEmail].filter(Boolean).join(" · ");
+    page.drawText("LISTING AGENT:", {
+      x: margin + 14,
+      y: y - 54,
+      size: 9.5,
+      font: bold,
+      color: rgb(0.01, 0.41, 0.63),
+    });
+    page.drawText(agentContact, {
+      x: margin + 140,
+      y: y - 54,
+      size: 9.5,
+      font: bold,
+      color: rgb(0.06, 0.09, 0.16),
+    });
+    buyerLineY = y - 72;
+  }
+
   page.drawText("PROPOSED BUYER:", {
     x: margin + 14,
-    y: y - 54,
+    y: buyerLineY,
     size: 9.5,
     font: bold,
     color: rgb(0.39, 0.45, 0.55),
   });
   page.drawText(buyerEntity, {
     x: margin + 140,
-    y: y - 54,
-    size: 10,
+    y: buyerLineY,
+    size: 9.5,
     font: bold,
     color: rgb(0.06, 0.09, 0.16),
   });
 
-  y -= 95;
+  y -= (infoBoxHeight + 20);
 
   // Greeting & Salutation
-  page.drawText(`Dear ${input.sellerName || "Property Owner"},`, {
-    x: margin,
-    y,
-    size: 11,
-    font: bold,
-    color: rgb(0.06, 0.09, 0.16),
-  });
+  const recipientType = input.recipientType || (input.agentName ? "agent" : "owner");
+  if (recipientType === "agent" && input.agentName) {
+    page.drawText(`Dear ${input.agentName} (Listing Agent for ${input.sellerName || "Property Owner"}),`, {
+      x: margin,
+      y,
+      size: 11,
+      font: bold,
+      color: rgb(0.06, 0.09, 0.16),
+    });
+    y -= 14;
+    page.drawText(`Please present this formal Letter of Intent (LOI) to your seller. Broker commissions are recognized & protected.`, {
+      x: margin,
+      y,
+      size: 9,
+      font: font,
+      color: rgb(0.39, 0.45, 0.55),
+    });
+  } else if (recipientType === "both" && input.agentName) {
+    page.drawText(`Dear ${input.sellerName || "Property Owner"} and ${input.agentName} (Listing Agent),`, {
+      x: margin,
+      y,
+      size: 11,
+      font: bold,
+      color: rgb(0.06, 0.09, 0.16),
+    });
+  } else {
+    page.drawText(`Dear ${input.sellerName || "Property Owner"},`, {
+      x: margin,
+      y,
+      size: 11,
+      font: bold,
+      color: rgb(0.06, 0.09, 0.16),
+    });
+  }
   y -= 18;
 
   let selectedList: string[] = [];
@@ -492,10 +548,18 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
   });
   y -= 14;
 
-  page.drawText("CONFIDENTIAL & ASSIGNABLE: This Letter of Intent outlines preliminary transaction terms (Buyer and/or assigns) subject to standard bilateral contract and title review.", {
+  page.drawText("CONFIDENTIAL & ASSIGNABLE: This Letter of Intent outlines preliminary terms (Buyer and/or assigns) subject to formal contract and title review.", {
     x: margin,
     y,
-    size: 7.2,
+    size: 7,
+    font,
+    color: rgb(0.58, 0.64, 0.72),
+  });
+  y -= 9;
+  page.drawText("NON-AGENCY DISCLOSURE: Proposed Buyer acts solely as an independent principal investor for profit and not as Seller's licensed real estate broker or fiduciary.", {
+    x: margin,
+    y,
+    size: 7,
     font,
     color: rgb(0.58, 0.64, 0.72),
   });

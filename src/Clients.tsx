@@ -17,6 +17,7 @@ import StageEditor from "./StageEditor";
 import DealCalculatorModal from "./DealCalculatorModal";
 import { evaluateMatch, type BuyBoxMatch } from "./buyBoxUtils";
 import CsvImportModal from "./CsvImportModal";
+import ZillowImportModal from "./ZillowImportModal";
 
 /** Owner request 2026-08-14 — "lost" and "dnc" are STATUS views: they render
  *  the Lost section / DNC list instead of the pipeline table. The pipeline
@@ -214,6 +215,115 @@ export function isOfferSentForClient(c: Client): boolean {
     return true;
   }
   return false;
+}
+
+/** Opportunities wholesale table data extraction helpers */
+export function getClientFieldValue(c: Client, searchTerms: string[]): string {
+  if (!c.customFields || !Array.isArray(c.customFields)) return "";
+  for (const term of searchTerms) {
+    const t = term.toLowerCase();
+    const found = c.customFields.find((cf) => {
+      const n = (cf.name || "").toLowerCase();
+      return n === t || n.includes(t);
+    });
+    if (found && found.value != null && String(found.value).trim()) {
+      return String(found.value).trim();
+    }
+  }
+  return "";
+}
+
+export function parseOwnerNames(c: Client): { firstName: string; lastName: string } {
+  const customFirst = getClientFieldValue(c, ["owner 1 first name", "owner first name", "first name", "owner firstname"]);
+  const customLast = getClientFieldValue(c, ["owner 1 last name", "owner last name", "last name", "owner lastname"]);
+  if (customFirst || customLast) {
+    return {
+      firstName: customFirst || "—",
+      lastName: customLast || "—",
+    };
+  }
+
+  const contact = (c.contactName || "").trim();
+  const addr = (c.address || c.companyName || "").trim().toLowerCase();
+  if (!contact || contact === "Unknown Owner" || contact.toLowerCase() === addr) {
+    return { firstName: "—", lastName: "—" };
+  }
+
+  const parts = contact.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: "—" };
+  } else if (parts.length > 1) {
+    return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+  }
+  return { firstName: "—", lastName: "—" };
+}
+
+export function getEstimatedValue(c: Client): string {
+  const raw = getClientFieldValue(c, ["estimated value", "est value", "avm", "arv", "market value"]);
+  if (raw) {
+    const num = Number(raw.replace(/[^0-9.]/g, ""));
+    if (!isNaN(num) && num > 0) return `$${Math.round(num).toLocaleString()}`;
+    return raw;
+  }
+  if (c.dealValue && c.dealValue > 0) {
+    return `$${Math.round(Number(c.dealValue)).toLocaleString()}`;
+  }
+  return "—";
+}
+
+export function getEstimatedEquity(c: Client): string {
+  const raw = getClientFieldValue(c, ["estimated equity", "est equity", "equity"]);
+  if (raw) {
+    const num = Number(raw.replace(/[^0-9.-]/g, ""));
+    if (!isNaN(num) && num > 0) return `$${Math.round(num).toLocaleString()}`;
+    return raw;
+  }
+  return "—";
+}
+
+export function getOpenMortgageBalance(c: Client): string {
+  const raw = getClientFieldValue(c, ["open mortgage balance", "total open mortgage balance", "mortgage balance", "mortgage", "open mortgage", "debt"]);
+  if (raw) {
+    const num = Number(raw.replace(/[^0-9.-]/g, ""));
+    if (!isNaN(num) && num > 0) return `$${Math.round(num).toLocaleString()}`;
+    return raw;
+  }
+  return "—";
+}
+
+export function getBedrooms(c: Client): string {
+  const raw = getClientFieldValue(c, ["bedrooms", "beds", "bed", "total bedrooms", "br"]);
+  return raw || "—";
+}
+
+export function getBathrooms(c: Client): string {
+  const raw = getClientFieldValue(c, ["bathrooms", "baths", "bath", "total bathrooms", "ba"]);
+  return raw || "—";
+}
+
+export function getSquareFootage(c: Client): string {
+  const raw = getClientFieldValue(c, ["square footage", "square feet", "sqft", "building size", "est sqft", "living area", "gla"]);
+  if (raw) {
+    const num = Number(raw.replace(/[^0-9.]/g, ""));
+    if (!isNaN(num) && num > 0) return `${Math.round(num).toLocaleString()} sqft`;
+    return raw;
+  }
+  return "—";
+}
+
+export function getYearBuilt(c: Client): string {
+  const raw = getClientFieldValue(c, ["year built", "year", "yr built", "built"]);
+  return raw || "—";
+}
+
+export function getPropertyClass(c: Client): string {
+  const custom = getClientFieldValue(c, ["property class", "property type", "building type"]);
+  if (custom) return custom;
+  if (c.clientType === "single_family") return "Single Family";
+  if (c.clientType === "multi_family") return "Multi-Family";
+  if (c.clientType === "commercial") return "Commercial";
+  if (c.clientType === "residential") return "Residential";
+  return c.clientType ? String(c.clientType).replace("_", " ") : "Single Family";
 }
 
 /** Local YYYY-MM-DD — for the DNC quick row-action's "marked" date (owner
@@ -558,6 +668,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   const [modal, setModal] = useState<{ mode: "create" } | { mode: "edit"; client: Client } | null>(null);
   const [calcProperty, setCalcProperty] = useState<Client | null | "new">(null);
   const [csvModal, setCsvModal] = useState(false);
+  const [zillowModal, setZillowModal] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
   const [busy, setBusy] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<string>("");
@@ -1272,6 +1383,24 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               title={isWholesale ? "Upload CSV to import wholesale properties or investors" : "Upload CSV to import records"}
             >
               📥 Upload CSV
+            </button>
+          )}
+          {isWholesale && canEdit && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setZillowModal(true)}
+              title="Import property specs and valuation by pasting a property listing URL"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                borderColor: "rgba(56, 189, 248, 0.4)",
+                color: "#38bdf8",
+              }}
+            >
+              <span>🔗</span>
+              <span>Property URL Link</span>
             </button>
           )}
           {isWholesale && canEdit && (
@@ -2041,17 +2170,18 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 </>
               ) : isWholesale ? (
                 <>
-                  {/* Wholesale 11 cols: Address/15% | Type/7% | Owner/10% | Agent/9% | Structure/9% | Assignment Value/10% | Stage/9% | Buy Box Match/8% | Offers Sent/6% | Create Offer/9% | Actions/8% */}
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "9%" }} />
+                  {/* Opportunities 12 cols: Address | Owner First Name | Owner Last Name | Est. Value | Est. Equity | Open Mortgage | Beds | Baths | Sqft | Year Built | Property Class | Actions */}
+                  <col style={{ width: "16%" }} />
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "10%" }} />
                   <col style={{ width: "8%" }} />
                 </>
               ) : (
@@ -2069,36 +2199,224 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               )}
             </colgroup>
             <thead>
-              <tr>
-                <th>{ownerOrg ? "Business name" : "Address"}</th>
-                <th>Type</th>
-                <th>{isWholesale ? "Owner" : "Contact"}</th>
-                {/* Agent column — tenant/wholesale pipeline only (owner views
-                    don't use this field). */}
-                {!ownerOrg && <th>Agent</th>}
-                {/* Owner cockpit B — the owner's Onboarding tab replaces the
-                    Structure column with the DocuSign Agreement column; client
-                    accounts keep "Structure (Deal Offer)". */}
-                <th>{ownerOnboardingTab ? "Agreement" : ownerOrg ? "Services" : "Structure (Deal Offer)"}</th>
-                {/* Deal $ column — shown for owner views only (tenant table
-                    uses the Structure column to surface offer type instead). */}
-                {ownerOrg && <th className="num">Deal</th>}
-                {isWholesale && <th className="num" style={{ textAlign: "center" }}>Assignment Value</th>}
-                {!ownerLeadsTab && <th>Stage</th>}
-                {isWholesale && <th>Buy Box Match</th>}
-                {!ownerOrg && <th>Offers Sent</th>}
-                {isWholesale && <th style={{ textAlign: "center" }}>Create Offer</th>}
-                {/* Next action — shown for owner views only. */}
-                {ownerOrg && <th>Next action</th>}
-                {/* Owner direction 2026-08-18 — the Payment column: owner
-                    views only (tenants never see the key in the payload), sits
-                    between Next action and Actions. */}
-                {ownerOrg && <th>Payment</th>}
-                <th className="actions-th">Actions</th>
-              </tr>
+              {isWholesale ? (
+                <tr>
+                  <th style={{ textAlign: "left" }}>Address</th>
+                  <th style={{ textAlign: "center" }}>Owner First Name</th>
+                  <th style={{ textAlign: "center" }}>Owner Last Name</th>
+                  <th className="num" style={{ textAlign: "center" }}>Estimated Value</th>
+                  <th className="num" style={{ textAlign: "center" }}>Estimated Equity</th>
+                  <th className="num" style={{ textAlign: "center" }}>Open Mortgage Balance</th>
+                  <th style={{ textAlign: "center" }}>Bedrooms</th>
+                  <th style={{ textAlign: "center" }}>Bathrooms</th>
+                  <th style={{ textAlign: "center" }}>Square Footage</th>
+                  <th style={{ textAlign: "center" }}>Year Built</th>
+                  <th style={{ textAlign: "center" }}>Property Class</th>
+                  <th className="actions-th" style={{ textAlign: "center" }}>Actions</th>
+                </tr>
+              ) : (
+                <tr>
+                  <th>{ownerOrg ? "Business name" : "Address"}</th>
+                  <th>Type</th>
+                  <th>Contact</th>
+                  {!ownerOrg && <th>Agent</th>}
+                  <th>{ownerOnboardingTab ? "Agreement" : ownerOrg ? "Services" : "Structure (Deal Offer)"}</th>
+                  {ownerOrg && <th className="num">Deal</th>}
+                  {!ownerLeadsTab && <th>Stage</th>}
+                  {!ownerOrg && <th>Offers Sent</th>}
+                  {ownerOrg && <th>Next action</th>}
+                  {ownerOrg && <th>Payment</th>}
+                  <th className="actions-th">Actions</th>
+                </tr>
+              )}
             </thead>
             <tbody>
               {visible.map((c) => {
+                if (isWholesale) {
+                  const { firstName, lastName } = parseOwnerNames(c);
+                  const estValue = getEstimatedValue(c);
+                  const estEquity = getEstimatedEquity(c);
+                  const mortgageBal = getOpenMortgageBalance(c);
+                  const beds = getBedrooms(c);
+                  const baths = getBathrooms(c);
+                  const sqft = getSquareFootage(c);
+                  const yearBuilt = getYearBuilt(c);
+                  const propClass = getPropertyClass(c);
+
+                  return (
+                    <tr key={c.id} className={c.archived ? "row-archived" : ""}>
+                      {/* 1. Address */}
+                      <td className="cell-strong" data-label="Address" style={{ textAlign: "left" }}>
+                        <div className="cell-company" style={{ justifyContent: "flex-start", textAlign: "left" }}>
+                          <span
+                            className={`cell-name${blurPii(pii)}`}
+                            style={{ cursor: "pointer", fontWeight: 700 }}
+                            title={c.address || primaryName(false, c)}
+                            onClick={() => setModal({ mode: "edit", client: c })}
+                          >
+                            {c.address || primaryName(false, c)}
+                          </span>
+                          {c.lost && <span className="chip chip-lost">Lost</span>}
+                          {c.dnc && <span className="chip chip-dnc">DNC</span>}
+                          {c.archived && <span className="chip chip-archived">archived</span>}
+                        </div>
+                        {(c.city || c.state || c.zip) && (
+                          <div className={`cell-sub addr-line${blurPii(pii)}`} style={{ textAlign: "left" }}>
+                            {[c.city, c.state, c.zip].filter(Boolean).join(", ")}
+                          </div>
+                        )}
+                        <div style={{ marginTop: "4px", display: "flex", gap: "6px", alignItems: "center" }}>
+                          <span
+                            className="chip"
+                            style={{
+                              fontSize: "10.5px",
+                              fontWeight: 700,
+                              background: "rgba(214, 255, 63, 0.12)",
+                              color: "var(--lime, #d6ff3f)",
+                              border: "1px solid rgba(214, 255, 63, 0.3)",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {c.stage}
+                          </span>
+                          {c.leadSource && (
+                            <span
+                              className="chip chip-lead-source"
+                              style={{
+                                fontSize: "10.5px",
+                                fontWeight: 600,
+                                background: "rgba(14, 165, 233, 0.12)",
+                                color: "#0284c7",
+                                border: "1px solid rgba(14, 165, 233, 0.25)",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                              }}
+                              title={`Lead Source: ${c.leadSource}`}
+                            >
+                              📡 {c.leadSource}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 2. Owner First Name */}
+                      <td data-label="Owner First Name" style={{ textAlign: "center" }}>
+                        <span className={`cell-contact${blurPii(pii)}`} style={{ fontWeight: 600 }}>
+                          {firstName}
+                        </span>
+                      </td>
+
+                      {/* 3. Owner Last Name */}
+                      <td data-label="Owner Last Name" style={{ textAlign: "center" }}>
+                        <span className={`cell-contact${blurPii(pii)}`} style={{ fontWeight: 600 }}>
+                          {lastName}
+                        </span>
+                      </td>
+
+                      {/* 4. Estimated Value */}
+                      <td className="num cell-strong" data-label="Estimated Value" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 700, color: estValue !== "—" ? "var(--lime, #d6ff3f)" : undefined }}>
+                          {estValue}
+                        </span>
+                      </td>
+
+                      {/* 5. Estimated Equity */}
+                      <td className="num" data-label="Estimated Equity" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 600, color: estEquity !== "—" ? "#10b981" : undefined }}>
+                          {estEquity}
+                        </span>
+                      </td>
+
+                      {/* 6. Open Mortgage Balance */}
+                      <td className="num" data-label="Open Mortgage Balance" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 500, color: mortgageBal !== "—" ? "#f59e0b" : undefined }}>
+                          {mortgageBal}
+                        </span>
+                      </td>
+
+                      {/* 7. Bedrooms */}
+                      <td data-label="Bedrooms" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 600 }}>{beds}</span>
+                      </td>
+
+                      {/* 8. Bathrooms */}
+                      <td data-label="Bathrooms" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 600 }}>{baths}</span>
+                      </td>
+
+                      {/* 9. Square Footage */}
+                      <td data-label="Square Footage" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 500 }}>{sqft}</span>
+                      </td>
+
+                      {/* 10. Year Built */}
+                      <td data-label="Year Built" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 500 }}>{yearBuilt}</span>
+                      </td>
+
+                      {/* 11. Property Class */}
+                      <td data-label="Property Class" style={{ textAlign: "center" }}>
+                        <span
+                          className="chip"
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                            background: "rgba(148, 163, 184, 0.12)",
+                            border: "1px solid rgba(148, 163, 184, 0.25)",
+                            color: "var(--ink, #f8fafc)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {propClass}
+                        </span>
+                      </td>
+
+                      {/* 12. Actions (Edit & More Menu — Create Offer and Cancelation Notice removed) */}
+                      <td data-label="Actions" style={{ textAlign: "center" }}>
+                        <div className="row-actions" style={{ justifyContent: "center", alignItems: "center" }}>
+                          {canEdit && (
+                            <button
+                              className="icon-btn"
+                              title="Edit"
+                              aria-label={`Edit ${c.address || c.companyName}`}
+                              onClick={() => setModal({ mode: "edit", client: c })}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              className={`icon-btn${c.dnc ? " danger" : ""}`}
+                              title={c.dnc ? "Clear Do-Not-Call status" : "Flag lead as Do-Not-Call (TCPA compliance)"}
+                              aria-label={c.dnc ? "Clear DNC" : "Flag DNC"}
+                              onClick={() => handleFlag(c, "dnc")}
+                              style={{
+                                color: c.dnc ? "#f87171" : undefined,
+                                fontWeight: c.dnc ? 700 : undefined,
+                              }}
+                            >
+                              {c.dnc ? "Clear DNC" : "DNC"}
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              className="icon-btn danger"
+                              title="Delete"
+                              aria-label={`Delete ${c.address || c.companyName}`}
+                              onClick={() => setDeleting(c)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
                 const fullAddress = [c.address, c.city, c.state, c.zip].filter(Boolean).join(", ");
                 return (
                   <tr key={c.id} className={c.archived ? "row-archived" : ""}>
@@ -2374,35 +2692,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                         })()}
                       </td>
                     )}
-                    {isWholesale && (
-                      <td data-label="Create Offer" style={{ textAlign: "center" }}>
-                        <button
-                          type="button"
-                          className="btn-table-create-offer"
-                          onClick={() => setCalcProperty(c)}
-                          title={`Open Deal Calculator to underwrite & create offer for ${c.address || c.companyName}`}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "5px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            padding: "4px 10px",
-                            borderRadius: "6px",
-                            background: "rgba(214, 255, 63, 0.12)",
-                            border: "1px solid var(--lime, #d6ff3f)",
-                            color: "var(--lime, #d6ff3f)",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          <span>📐</span>
-                          <span>Create Offer</span>
-                        </button>
-                      </td>
-                    )}
+
                     {/* Owner cockpit A — Next-action column: owner views only.
                         Tenant pipeline table drops this column (user direction
                         2026-09-04 — table reads: Address/Type/Contact/Structure/Stage/Actions). */}
@@ -2556,35 +2846,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                             Payment link
                           </button>
                         )}
-                        {isWholesale && canEdit && !c.lost && (() => {
-                          const offerSent = isOfferSentForClient(c);
-                          return (
-                            <button
-                              type="button"
-                              className={`icon-btn danger${!offerSent ? " disabled" : ""}`}
-                              title={
-                                offerSent
-                                  ? "Cancelation Notice"
-                                  : "Cancelation notice is only active after an offer has been sent"
-                              }
-                              aria-label={`Cancelation notice for ${c.companyName}`}
-                              disabled={!offerSent || busy}
-                              style={
-                                !offerSent
-                                  ? { opacity: 0.35, cursor: "not-allowed" }
-                                  : undefined
-                              }
-                              onClick={() => {
-                                if (!offerSent) return;
-                                setCancellingClient(c);
-                                setCancelLeadReason("Inspection / repair costs too high");
-                                setCancelLeadNotes("");
-                              }}
-                            >
-                              🚫 Cancelation Notice
-                            </button>
-                          );
-                        })()}
+
                         {isWholesale && canEdit && c.lost && (
                           <button
                             type="button"
@@ -2831,6 +3093,23 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           onSuccess={() => {
             setCsvModal(false);
             load();
+          }}
+        />
+      )}
+      {zillowModal && (
+        <ZillowImportModal
+          stages={orgStages}
+          onClose={() => setZillowModal(false)}
+          onSaved={(newClient) => {
+            setZillowModal(false);
+            setClients((prev) => (prev ? [newClient, ...prev] : [newClient]));
+            load();
+          }}
+          onSaveAndUnderwrite={(newClient) => {
+            setZillowModal(false);
+            setClients((prev) => (prev ? [newClient, ...prev] : [newClient]));
+            load();
+            setCalcProperty(newClient);
           }}
         />
       )}

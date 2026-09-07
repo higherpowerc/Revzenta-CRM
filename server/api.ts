@@ -47,6 +47,10 @@ import {
   type TicketStatus,
   type TicketPriority,
   type TabPermissions,
+  getRentcastUsage,
+  getSuppressionList,
+  addSuppression,
+  isPhoneSuppressed,
 } from "./db";
 import {
   VERTICALS,
@@ -72,7 +76,7 @@ import {
 import { sendEmail, sendIntakeEmail, sendWelcomeEmail, sendPasswordResetEmail, sendAgreementEmail, sendPaymentLinkEmail, sendInvoiceEmail, sendDemoCallEmail, sendAppointmentReminderEmail, sendTicketOwnerAlertEmail, sendTicketReplyEmail, appUrlFrom, RESEND_KEY_MISSING_ERROR, type SendEmailResult } from "./email";
 import Stripe from "stripe";
 import { generateInvoicePdf } from "./invoices";
-import { generateOfferPdf, storeOfferPdf, newOfferPdfId } from "./offerPdf";
+import { generateOfferPdf, storeOfferPdf, newOfferPdfId, readOfferPdf } from "./offerPdf";
 import { generateContractPdf, storeContractPdf, newContractPdfId, readContractPdf } from "./contractPdf";
 import { getTransactionByToken } from "./transactionPages";
 import { stripeClient } from "./stripe";
@@ -1073,6 +1077,13 @@ export const WHOLESALE_CUSTOM_FIELDS = new Set([
   "subto cash to seller",
   "subto monthly payment",
   "closing days",
+  "auto enriched",
+  "cf_auto_enriched",
+  "rent estimate",
+  "market rent",
+  "property class",
+  "estimated equity",
+  "open mortgage balance",
 ]);
 
 function validateClient(
@@ -2177,9 +2188,12 @@ function deleteOrgCascade(id: number): void {
     db.query("DELETE FROM agreement_envelopes WHERE org_id = ?").run(id);
     // Package-selector onboarding checklist (owner 2026-08-27).
     db.query("DELETE FROM onboarding_items WHERE org_id = ?").run(id);
-    // Wholesale Real Estate vertical (owner 2026-09-04) — the account's
-    // end-buyer list dies with the account (buyer rows FK orgs with no
-    // cascade, mirroring the appointments guard above).
+    // Wholesale Real Estate vertical & webhooks — clear foreign key references
+    // before dropping client rows and the org row itself.
+    db.query("UPDATE inbound_webhooks SET client_id = NULL WHERE client_id IN (SELECT id FROM clients WHERE org_id = ? OR provisioned_org_id = ?)").run(id, id);
+    db.query("DELETE FROM inbound_webhooks WHERE org_id = ?").run(id);
+    db.query("DELETE FROM offers WHERE org_id = ?").run(id);
+    db.query("DELETE FROM transactions WHERE org_id = ?").run(id);
     db.query("DELETE FROM buyers WHERE org_id = ?").run(id);
     db.query("DELETE FROM clients WHERE org_id = ?").run(id);
     // Owner direction 2026-08-26 — deleting an account deletes its linked
@@ -2688,7 +2702,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     return json({ ok: true, titleStatus });
   }
 
-  /* ── Wholesale Inbound Lead Webhook (PropStream, BatchLeads, Zapier, Make, Form Submissions) ── */
+  /* ── Wholesale Inbound Lead Webhook (BatchLeads, Zapier, Make, Form Submissions, Webhook Relays) ── */
   if (pathname === "/api/leads/webhook" && method === "POST") {
     let secret = url.searchParams.get("key") ?? req.headers.get("x-webhook-secret") ?? "";
     if (!secret) {
@@ -2758,7 +2772,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       const initialStage = orgStages[0] ?? "Leads";
 
       const customFields: Record<string, unknown> = {
-        "Assignment Value": estValue,
+        "Assignment Value": 5000,
+        "Assignment Fee": "$5,000",
         bedrooms: beds,
         bathrooms: baths,
         squareFootage: sqft,
@@ -4671,6 +4686,21 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     );
     if (!v.ok) return err(v.error, 400);
     const c = v.value;
+    // Wholesale assignment fee default $5,000 for new leads
+    if (c.clientType !== "buyer") {
+      const hasFee = c.customFields.some((f) => {
+        const n = f.name.toLowerCase();
+        return (
+          n.includes("assignment fee") ||
+          n.includes("assignment value") ||
+          n.includes("projected assignment")
+        ) && Number(String(f.value).replace(/[^0-9.]/g, "")) > 0;
+      });
+      if (!hasFee) {
+        c.customFields.push({ name: "Assignment Value", value: "5000" });
+        c.customFields.push({ name: "Assignment Fee", value: "$5,000" });
+      }
+    }
     const intake = intakeColumns(c);
     const info = db
       .query(
@@ -4732,6 +4762,20 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     let insertedCount = 0;
     db.transaction(() => {
       for (const c of validatedList) {
+        if (c.clientType !== "buyer") {
+          const hasFee = c.customFields.some((f) => {
+            const n = f.name.toLowerCase();
+            return (
+              n.includes("assignment fee") ||
+              n.includes("assignment value") ||
+              n.includes("projected assignment")
+            ) && Number(String(f.value).replace(/[^0-9.]/g, "")) > 0;
+          });
+          if (!hasFee) {
+            c.customFields.push({ name: "Assignment Value", value: "5000" });
+            c.customFields.push({ name: "Assignment Fee", value: "$5,000" });
+          }
+        }
         const intake = intakeColumns(c);
         insertStmt.run(
           orgId,
@@ -5079,6 +5123,12 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const purchasePrice = typeof body.purchasePrice === "number" ? body.purchasePrice : 0;
     const assignmentFee = typeof body.assignmentFee === "number" ? body.assignmentFee : 0;
 
+    const sellerPhone = typeof body.sellerPhone === "string" ? body.sellerPhone.trim() : (client.phone || "");
+    const agentName = typeof body.agentName === "string" ? body.agentName.trim() : (client.agent_name || "");
+    const agentEmail = typeof body.agentEmail === "string" ? body.agentEmail.trim() : (client.agent_email || "");
+    const agentPhone = typeof body.agentPhone === "string" ? body.agentPhone.trim() : (client.agent_phone || "");
+    const recipientType = typeof body.recipientType === "string" ? body.recipientType.trim() : (agentName ? "agent" : "owner");
+
     // Generate formal Offer Letter PDF
     const pdfId = newOfferPdfId();
     let pdfUrl = `/offer-pdf/${pdfId}`;
@@ -5088,6 +5138,11 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         propertyAddress,
         sellerName,
         sellerEmail: to,
+        sellerPhone,
+        agentName,
+        agentEmail,
+        agentPhone,
+        recipientType: recipientType as any,
         businessName,
         fontFamily: typeof body.fontFamily === "string" ? body.fontFamily : "Georgia",
         offerType: (body.offerType as any) || "all",
@@ -5419,17 +5474,166 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     return json({ ok: true });
   }
 
+  /* Wholesale Offers Repository — manually send / resend offer email with attached PDF */
+  const offerSendMatch = pathname.match(/^\/api\/offers\/(\d+)\/send$/);
+  if (offerSendMatch && method === "POST") {
+    const offerId = Number(offerSendMatch[1]);
+    const offer = db.query("SELECT * FROM offers WHERE id = ? AND org_id = ?").get(offerId, orgId) as any;
+    if (!offer) return err("Offer record not found.", 404);
+
+    const body = (await readBody(req)) || {};
+    const to = typeof body.to === "string" && body.to.trim() ? body.to.trim() : (offer.seller_email || "").trim();
+    if (!to) return err("Recipient email address is required.", 400);
+
+    const propertyAddress = offer.property_address || "Subject Property";
+    const subject =
+      typeof body.subject === "string" && body.subject.trim()
+        ? body.subject.trim()
+        : `Purchase Offer / Letter of Intent - ${propertyAddress}`;
+
+    const text =
+      typeof body.message === "string" && body.message.trim()
+        ? body.message.trim()
+        : offer.notes || `Please find attached our formal Letter of Intent to purchase ${propertyAddress}.`;
+
+    const orgInfo = getOrgBusinessInfo(orgId);
+    const businessName = offer.business_name || orgInfo.businessName || "Revzenta Capital";
+    const userEmail = getUserById(auth.userId)?.email;
+    const replyTo = orgInfo.replyTo || userEmail;
+
+    // Load or generate PDF
+    let pdfBytes = readOfferPdf(offer.pdf_id);
+    if (!pdfBytes) {
+      try {
+        pdfBytes = await generateOfferPdf({
+          propertyAddress: offer.property_address,
+          sellerName: offer.seller_name,
+          sellerEmail: to,
+          sellerPhone: offer.seller_phone,
+          agentName: offer.agent_name,
+          agentEmail: offer.agent_email,
+          agentPhone: offer.agent_phone,
+          recipientType: offer.recipient_type || "owner",
+          businessName,
+          offerType: (offer.offer_type as any) || "all",
+          cashOfferAmount: offer.cash_offer_amount,
+          subtoPurchasePrice: offer.subto_purchase_price,
+          creativePurchasePrice: offer.creative_purchase_price,
+          closingDays: offer.closing_days || 14,
+        });
+        storeOfferPdf(pdfBytes, offer.pdf_id);
+      } catch (err) {
+        console.warn("[offer-send] Failed to regenerate PDF:", err);
+      }
+    }
+
+    const pdfBase64 = pdfBytes ? Buffer.from(pdfBytes).toString("base64") : undefined;
+    const customHtml = typeof body.html === "string" && body.html.trim() ? body.html.trim() : null;
+
+    const sendResult = await sendEmail({
+      to,
+      subject,
+      text,
+      fromName: businessName,
+      replyTo,
+      html:
+        customHtml ||
+        `<div style="font-family: Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #111; max-width: 620px; margin: 0 auto; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          ${text
+            .split("\n\n")
+            .map((p: string) => `<p style="margin: 0 0 14px 0;">${p.replace(/\n/g, "<br/>")}</p>`)
+            .join("")}
+        </div>`,
+      attachments: pdfBase64
+        ? [
+            {
+              filename: `Purchase_Offer_${propertyAddress.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
+              content: pdfBase64,
+              content_type: "application/pdf",
+            },
+          ]
+        : undefined,
+    });
+
+    const emailStatus = emailStatusOf(sendResult);
+    db.query("UPDATE offers SET email_status = ?, status = 'Sent', updated_at = datetime('now') WHERE id = ?").run(
+      emailStatus,
+      offerId
+    );
+
+    // If client is linked, update client notes & custom fields
+    if (offer.client_id) {
+      try {
+        const client = db.query("SELECT * FROM clients WHERE id = ?").get(offer.client_id) as any;
+        if (client) {
+          let customFields: any[] = [];
+          try {
+            customFields = JSON.parse(client.custom_fields || "[]");
+          } catch {}
+          const idx = customFields.findIndex((f) => f.name.toLowerCase() === "offer sent");
+          const today = new Date().toISOString().split("T")[0];
+          if (idx >= 0) customFields[idx].value = today;
+          else customFields.push({ name: "Offer Sent", value: today });
+
+          const noteEntry = `[Offer Manually Sent to ${to} on ${today} | Ref #${offer.pdf_id?.slice(0, 8)}]`;
+          const newNotes = client.notes ? `${client.notes}\n${noteEntry}` : noteEntry;
+
+          db.query("UPDATE clients SET custom_fields = ?, notes = ?, updated_at = datetime('now') WHERE id = ?").run(
+            JSON.stringify(customFields),
+            newNotes,
+            client.id
+          );
+        }
+      } catch (clientErr) {
+        console.warn("[offer-send] Warning updating client:", clientErr);
+      }
+    }
+
+    const updated = db.query("SELECT * FROM offers WHERE id = ?").get(offerId) as any;
+    return json({
+      ok: true,
+      offer: {
+        id: updated.id,
+        orgId: updated.org_id,
+        clientId: updated.client_id,
+        pdfId: updated.pdf_id,
+        pdfUrl: `/offer-pdf/${updated.pdf_id}`,
+        propertyAddress: updated.property_address,
+        sellerName: updated.seller_name,
+        sellerEmail: updated.seller_email,
+        businessName: updated.business_name,
+        offerType: updated.offer_type,
+        cashOfferAmount: updated.cash_offer_amount,
+        subtoPurchasePrice: updated.subto_purchase_price,
+        creativePurchasePrice: updated.creative_purchase_price,
+        closingDays: updated.closing_days,
+        emailStatus: updated.email_status,
+        status: updated.status,
+        notes: updated.notes,
+        createdAt: updated.created_at,
+        updatedAt: updated.updated_at,
+      },
+      emailStatus,
+      emailError: sendResult.ok ? undefined : sendResult.error,
+    });
+  }
+
   /* Wholesale Offers Repository — create an offer */
   if (pathname === "/api/offers" && method === "POST") {
     const body = await readBody(req);
     if (!body) return err("Invalid JSON body.", 400);
 
-    const clientId = body.clientId ? Number(body.clientId) : null;
+    let clientId = body.clientId ? Number(body.clientId) : null;
     const propertyAddress = typeof body.propertyAddress === "string" && body.propertyAddress.trim()
       ? body.propertyAddress.trim()
       : "Subject Property";
     const sellerName = typeof body.sellerName === "string" ? body.sellerName.trim() : "";
     const sellerEmail = typeof body.sellerEmail === "string" ? body.sellerEmail.trim() : "";
+    const sellerPhone = typeof body.sellerPhone === "string" ? body.sellerPhone.trim() : "";
+    const agentName = typeof body.agentName === "string" ? body.agentName.trim() : "";
+    const agentEmail = typeof body.agentEmail === "string" ? body.agentEmail.trim() : "";
+    const agentPhone = typeof body.agentPhone === "string" ? body.agentPhone.trim() : "";
+    const recipientType = typeof body.recipientType === "string" ? body.recipientType.trim() : (agentName ? "agent" : "owner");
     const offerType = typeof body.offerType === "string" ? body.offerType.trim() : "cash";
     const cashOfferAmount = Number(body.cashOfferAmount) || 0;
     const creativePurchasePrice = Number(body.creativePurchasePrice) || 0;
@@ -5438,9 +5642,65 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const notes = typeof body.notes === "string" ? body.notes : "";
     const closingDays = Number(body.closingDays) || 14;
 
+    // If no clientId was provided, find existing property lead or auto-create one
+    if (!clientId && propertyAddress) {
+      const existing = db.query(
+        "SELECT id FROM clients WHERE org_id = ? AND (LOWER(TRIM(company_name)) = LOWER(TRIM(?)) OR LOWER(TRIM(address)) = LOWER(TRIM(?))) LIMIT 1"
+      ).get(orgId, propertyAddress, propertyAddress) as { id: number } | null;
+
+      if (existing) {
+        clientId = existing.id;
+      } else {
+        const createRes = db.query(`
+          INSERT INTO clients (
+            org_id, company_name, contact_name, email, phone, agent_name, agent_email, agent_phone,
+            address, stage, deal_value, client_type, lead_source, created_at, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, 'Leads', ?, 'single_family', 'Deal Underwriter', datetime('now'), datetime('now')
+          )
+        `).run(
+          orgId,
+          propertyAddress,
+          sellerName || "Property Owner",
+          sellerEmail,
+          sellerPhone,
+          agentName,
+          agentEmail,
+          agentPhone,
+          propertyAddress,
+          Math.max(cashOfferAmount, subtoPurchasePrice, creativePurchasePrice, 0)
+        );
+        clientId = Number(createRes.lastInsertRowid);
+      }
+    }
+
     const org = db.query("SELECT name FROM orgs WHERE id = ?").get(orgId) as { name: string } | null;
     const businessName = (org?.name || "Revzenta Capital").trim();
     const pdfId = crypto.randomUUID().replace(/-/g, "");
+
+    // Generate and persist formal Offer Letter PDF / LOI
+    try {
+      const pdfBytes = await generateOfferPdf({
+        propertyAddress,
+        sellerName,
+        sellerEmail,
+        sellerPhone,
+        agentName,
+        agentEmail,
+        agentPhone,
+        recipientType: recipientType as any,
+        businessName,
+        offerType: (offerType === "Cash" ? "cash" : offerType === "Seller Financing" ? "creative" : offerType === "Subject-To" ? "subto" : offerType) as any,
+        cashOfferAmount,
+        subtoPurchasePrice,
+        creativePurchasePrice,
+        closingDays,
+      });
+      storeOfferPdf(pdfBytes, pdfId);
+    } catch (pdfErr) {
+      console.warn("[offers-post] Warning generating LOI PDF:", pdfErr);
+    }
 
     const insertResult = db.query(`
       INSERT INTO offers (
@@ -5475,7 +5735,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
 
     const newOfferId = Number(insertResult.lastInsertRowid);
 
-    // If linked to a client, stamp Offer Sent custom fields so it is marked offer sent
+    // If linked to a client, stamp Offer Sent custom fields and update agent/owner contacts if provided
     if (clientId) {
       try {
         const client = db.query("SELECT * FROM clients WHERE id = ? AND org_id = ?").get(clientId, orgId) as ClientRow | null;
@@ -5494,10 +5754,29 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
           setField("Offer Sent", new Date().toISOString().split("T")[0]);
           if (cashOfferAmount > 0) setField("Cash Offer", `$${cashOfferAmount.toLocaleString()}`);
           setField("Offer Structure", offerType);
-          db.query("UPDATE clients SET custom_fields = ?, updated_at = datetime('now') WHERE id = ?").run(
-            JSON.stringify(customFields),
-            clientId
-          );
+
+          const sets: string[] = ["custom_fields = ?", "updated_at = datetime('now')"];
+          const params: any[] = [JSON.stringify(customFields)];
+
+          if (agentName && !client.agent_name) {
+            sets.push("agent_name = ?");
+            params.push(agentName);
+          }
+          if (agentEmail && !client.agent_email) {
+            sets.push("agent_email = ?");
+            params.push(agentEmail);
+          }
+          if (agentPhone && !client.agent_phone) {
+            sets.push("agent_phone = ?");
+            params.push(agentPhone);
+          }
+          if (sellerPhone && !client.phone) {
+            sets.push("phone = ?");
+            params.push(sellerPhone);
+          }
+
+          params.push(clientId);
+          db.query(`UPDATE clients SET ${sets.join(", ")} WHERE id = ?`).run(...params);
         }
       } catch (clientErr) {
         console.warn("[offers-post] error updating client customFields:", clientErr);
@@ -5508,7 +5787,30 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     await syncOffersToTransactions(orgId);
 
     const created = db.query("SELECT * FROM offers WHERE id = ?").get(newOfferId) as any;
-    return json({ ok: true, offer: created });
+    return json({
+      ok: true,
+      offer: {
+        id: created.id,
+        orgId: created.org_id,
+        clientId: created.client_id,
+        pdfId: created.pdf_id,
+        pdfUrl: `/offer-pdf/${created.pdf_id}`,
+        propertyAddress: created.property_address,
+        sellerName: created.seller_name,
+        sellerEmail: created.seller_email,
+        businessName: created.business_name,
+        offerType: created.offer_type,
+        cashOfferAmount: created.cash_offer_amount,
+        subtoPurchasePrice: created.subto_purchase_price,
+        creativePurchasePrice: created.creative_purchase_price,
+        closingDays: created.closing_days,
+        emailStatus: created.email_status,
+        status: created.status || "Sent",
+        notes: created.notes || "",
+        createdAt: created.created_at,
+        updatedAt: created.updated_at,
+      },
+    });
   }
 
   /* ── Wholesale Document & Transaction Hub ──────────────────────────────
@@ -6827,6 +7129,8 @@ ${businessName}
       // only (tenant clients never carry provisioned_org_id; the guard keeps
       // row-level isolation airtight), and deleteOrgCascade refuses the owner's
       // own org. Foreign orgs are never touched.
+      // Clear inbound_webhooks reference to satisfy FK constraint before deleting
+      db.query("UPDATE inbound_webhooks SET client_id = NULL WHERE client_id = ?").run(id);
       if (row.provisioned_org_id !== 0 && isOwnerSession(auth)) {
         deleteOrgCascade(row.provisioned_org_id);
       }
@@ -7685,20 +7989,95 @@ ${businessName}
     }
   }
 
-  if (pathname === "/api/properties/lookup" && method === "GET") {
+  if (pathname === "/api/settings/rentcast-usage" && method === "GET") {
+    return json({ ok: true, usage: getRentcastUsage(orgId) });
+  }
+
+  if (pathname === "/api/settings/rentcast-guard" && method === "POST") {
+    const deniedAdmin = requireOrgAdmin(auth);
+    if (deniedAdmin) return deniedAdmin;
+
+    const body = await readBody(req);
+    if (!body) return err("Invalid JSON body.", 400);
+
+    const monthlyLimit = typeof body.monthlyLimit === "number" ? Math.max(1, body.monthlyLimit) : 50;
+    const hardStopEnabled = body.hardStopEnabled === false ? 0 : 1;
+    const offset = typeof body.offset === "number" ? Math.max(0, Math.round(body.offset)) : 0;
+
+    db.query(
+      "UPDATE orgs SET rentcast_monthly_limit = ?, rentcast_hard_stop_enabled = ?, rentcast_usage_offset = ? WHERE id = ?"
+    ).run(monthlyLimit, hardStopEnabled, offset, orgId);
+
+    return json({ ok: true, usage: getRentcastUsage(orgId) });
+  }
+
+  if ((pathname === "/api/properties/lookup" || pathname === "/api/property/lookup") && method === "GET") {
     const address = (url.searchParams.get("address") ?? "").trim();
     if (!address) return err("Address parameter is required.", 400);
 
     const orgRow = db.query("SELECT rentcast_api_key FROM orgs WHERE id = ?").get(orgId) as { rentcast_api_key?: string } | null;
-    const apiKey = orgRow?.rentcast_api_key || "";
+    const apiKey = orgRow?.rentcast_api_key || process.env.RENTCAST_API_KEY || "";
+
+    const includeRent = url.searchParams.get("rent") === "1" || url.searchParams.get("rent") === "true";
+    const forceRefresh = url.searchParams.get("refresh") === "1" || url.searchParams.get("refresh") === "true";
 
     try {
-      const result = await lookupPropertyData(address, apiKey);
-      return json({ ok: true, property: result });
+      const result = await lookupPropertyData(address, apiKey, { includeDedicatedRent: includeRent, forceRefresh, orgId });
+      return json({ ok: true, property: result, usage: getRentcastUsage(orgId) });
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e);
+      if (m.includes("RENTCAST_HARD_STOP")) {
+        return json(
+          {
+            ok: false,
+            error: m,
+            code: "RENTCAST_HARD_STOP",
+            usage: getRentcastUsage(orgId),
+          },
+          429
+        );
+      }
       return err(`Property lookup failed: ${m}`, 500);
     }
+  }
+
+  if (pathname === "/api/compliance/suppression-list" && method === "GET") {
+    return json({ ok: true, records: getSuppressionList(orgId) });
+  }
+
+  if (pathname === "/api/compliance/ccpa-purge" && method === "POST") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return err("Invalid JSON body.", 400);
+    }
+    const clientId = Number(body.clientId);
+    const reason = String(body.reason || "Consumer CCPA Right-to-be-Forgotten deletion request").trim();
+    if (!clientId) return err("Client ID is required for CCPA purge.", 400);
+
+    const client = db.query("SELECT * FROM clients WHERE id = ? AND org_id = ?").get(clientId, orgId) as ClientRow | null;
+    if (!client) return err("Client not found.", 404);
+
+    // 1. Add to permanent suppression registry so future outreach & imports are blocked
+    if (client.phone || client.address) {
+      addSuppression(orgId, client.phone || "", client.address || "", client.contact_name || client.company_name || "", "ccpa_delete", reason);
+    }
+
+    // 2. Delete associated tasks and offers
+    try {
+      db.query("DELETE FROM tasks WHERE client_id = ? AND org_id = ?").run(clientId, orgId);
+      db.query("DELETE FROM wholesale_offers WHERE client_id = ? AND org_id = ?").run(clientId, orgId);
+    } catch (e) {}
+
+    // 3. Purge the client record
+    db.query("DELETE FROM clients WHERE id = ? AND org_id = ?").run(clientId, orgId);
+
+    return json({
+      ok: true,
+      message: `Consumer record for "${client.contact_name || client.address || "Contact"}" permanently purged under CCPA/CPRA. Phone number has been added to the Permanent Suppression Registry.`,
+      purgedClient: { id: client.id, name: client.contact_name || client.company_name, phone: client.phone },
+    });
   }
 
   return err("Not found.", 404);

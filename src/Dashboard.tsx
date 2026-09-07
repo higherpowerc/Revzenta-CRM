@@ -874,7 +874,7 @@ export default function Dashboard({
           on the owner's page. TENANT dashboards keep their KPI row (own money
           card, Projected pipeline, Active clients, In final stage) and their
           standalone "Stage breakdown" card exactly as before. */}
-      {ownerOrg ? (
+      {ownerOrg && !isPropView ? (
         <div className="kpi-row">
           <div className="card kpi">
             <span className="kpi-label kpi-label-row">
@@ -974,7 +974,7 @@ export default function Dashboard({
             </button>
           </div>
         </div>
-      ) : (
+      ) : isPropView ? null : (
         <div className="kpi-row">
           {/* Workspace money KPI: members see their own business's money per
               their revenue model. Both respect the privacy eye. */}
@@ -1019,208 +1019,22 @@ export default function Dashboard({
             <span className="kpi-value">{activeClients}</span>
             <span className="kpi-note">{isPropView ? "Non-archived properties across all stages" : "Non-archived, non-lost entries across all stages"}</span>
           </div>
-          <div className="card kpi">
-            <span className="kpi-label">{isPropView ? "Sold Properties" : "In final stage"}</span>
-            <span className="kpi-value">{lastStage ? data.stageCounts[lastStage] ?? 0 : 0}</span>
-            <span className="kpi-note">{lastStageNote}</span>
-          </div>
+          {!isPropView && (
+            <div className="card kpi">
+              <span className="kpi-label">In final stage</span>
+              <span className="kpi-value">{lastStage ? data.stageCounts[lastStage] ?? 0 : 0}</span>
+              <span className="kpi-note">{lastStageNote}</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Wholesale Operations Pulse Strip */}
-      {isWholesale && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "10px",
-            marginTop: "14px",
-            marginBottom: "16px",
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              padding: "10px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-            }}
-          >
-            <div style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              background: "rgba(214, 255, 63, 0.12)",
-              color: "var(--primary, #d6ff3f)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "16px",
-              flexShrink: 0,
-            }}>
-              ⚡
-            </div>
-            <div>
-              <div style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>
-                Lead Ingestion
-              </div>
-              <div style={{ fontSize: "14px", fontWeight: 700 }}>
-                {webhookLeadsCount > 0 ? `${webhookLeadsCount} Webhook Leads` : "Webhooks Active"}
-              </div>
-            </div>
-          </div>
 
-          <div
-            className="card"
-            style={{
-              padding: "10px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              cursor: onGoToBuyers ? "pointer" : "default",
-            }}
-            onClick={onGoToBuyers}
-          >
-            <div style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              background: "rgba(56, 189, 248, 0.12)",
-              color: "#38bdf8",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "16px",
-              flexShrink: 0,
-            }}>
-              👥
-            </div>
-            <div>
-              <div style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>
-                Cash Buyer Network
-              </div>
-              <div style={{ fontSize: "14px", fontWeight: 700 }}>
-                {totalBuyersCount} Vetted Buyers
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="card"
-            style={{
-              padding: "10px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              cursor: onGoToTransactions ? "pointer" : "default",
-            }}
-            onClick={onGoToTransactions}
-          >
-            <div style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              background: "rgba(16, 185, 129, 0.12)",
-              color: "#10b981",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "16px",
-              flexShrink: 0,
-            }}>
-              💼
-            </div>
-            <div>
-              <div style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>
-                Title & Escrow
-              </div>
-              <div style={{ fontSize: "14px", fontWeight: 700 }}>
-                {activeTransactions.length > 0 ? `${activeTransactions.length} Deals in Escrow (${money(totalEscrowFees)})` : "0 in Escrow"}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isWholesale ? (
         <>
-          {/* Row 1: Sold (Assignment Fees) + Projected Assignment Fees */}
-          <div className="dashboard-windows-row">
-            {/* Window 1: Sold (Assignment Fees) */}
-            <div className="card dashboard-window">
-              <div>
-                <WindowHead
-                  icon="💰"
-                  title="Sold (Assignment Fees)"
-                  badgeText={`${soldProperties.length} Closed Deals`}
-                  badgeTone="tone-lime"
-                  subtitle="Realized assignment revenue from closed wholesale transactions"
-                  onView={() => onGoToStage("Sold")}
-                  viewTitle="View sold properties in pipeline"
-                />
-
-                <div className="window-stat-grid">
-                  <div className="window-stat-card">
-                    <div className="window-stat-label">Total Realized</div>
-                    <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
-                      {money(totalSoldFees)}
-                    </div>
-                  </div>
-                  <div className="window-stat-card">
-                    <div className="window-stat-label">Closed Deals</div>
-                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
-                      {soldProperties.length}
-                    </div>
-                  </div>
-                  <div className="window-stat-card">
-                    <div className="window-stat-label">Avg Assignment</div>
-                    <div className="window-stat-value" style={{ color: "var(--lime, #3fb950)" }}>
-                      {money(avgSoldFee)}
-                    </div>
-                  </div>
-                </div>
-
-                {soldProperties.length === 0 ? (
-                  <div className="window-empty-state">
-                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>💰</div>
-                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Closed Deals Yet</p>
-                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
-                      Move contracted properties to &quot;Sold&quot; or &quot;Closed&quot; stage when funded to track realized fees.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="window-list-stack">
-                    {soldProperties.slice(0, 2).map((p) => (
-                      <div key={p.id} className="window-item-card" onClick={() => onGoToStage("Sold")} style={{ cursor: "pointer" }}>
-                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
-                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
-                            {p.address || p.companyName}
-                          </div>
-                          <div className="window-item-sub">
-                            {p.city ? `${p.city}, ${p.state}` : "Wholesale Contract"} · Deal Value {money(Number(p.dealValue) || 0)}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                          <div className="window-item-val" style={{ color: "var(--primary, #d6ff3f)" }}>
-                            +{money(getAssignmentValue(p))}
-                          </div>
-                          <span className="badge tone-lime" style={{ fontSize: "0.68rem" }}>
-                            Closed
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="dashboard-window-footer">
-                <span>Realized Revenue</span>
-                <span>{soldProperties.length} Deals Completed · {money(totalSoldVolume)} Volume</span>
-              </div>
-            </div>
-
+          {/* Row 1: Projected Assignment Fees */}
+          <div className="dashboard-windows-row" style={{ gridTemplateColumns: "1fr" }}>
             {/* Window 2: Projected Assignment Fees */}
             <div className="card dashboard-window">
               <div>

@@ -17,6 +17,7 @@ import Offers from "./Offers";
 import BuyBoxMatcher from "./BuyBoxMatcher";
 import TransactionHub from "./TransactionHub";
 import Connections from "./Connections";
+import Compliance from "./Compliance";
 import Website from "./Website";
 import { api } from "./api";
 import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User } from "./types";
@@ -38,7 +39,7 @@ import ThemeToggle from "./ThemeToggle";
  * (prospects), Onboarding = the MIDDLE stages (intake leads), Clients = the
  * terminal stage (sold). Client accounts (role=member) are unchanged: their
  * Leads tab keeps showing every stage except their terminal one. */
-type View = "dashboard" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections";
+type View = "dashboard" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections" | "compliance";
 
 
 /** 3k — the emailed reset link is `<appUrl>/#/reset?token=...`; pull the
@@ -291,6 +292,8 @@ export default function App() {
         return isWholesale && (canSeeTab("investors") || canSeeTab("tasks"));
       case "connections":
         return isWholesale && canSeeTab("connections");
+      case "compliance":
+        return isWholesale ? (canSeeTab("settings") || canSeeTab("clients")) : isOwnerCockpit;
     }
   };
   const effectiveView: View = viewAllowed(view) ? view : "dashboard";
@@ -669,6 +672,13 @@ export default function App() {
                 >
                   Settings
                 </button>
+                <button
+                  className={effectiveViewFinal === "compliance" ? "tab active" : "tab"}
+                  onClick={() => setView("compliance")}
+                  title="TCPA DNC compliance, non-agency disclosures, and regulatory safeguards"
+                >
+                  Compliance &amp; DNC
+                </button>
               </>
             ) : isWholesale ? (
               /* Wholesale Vertical CRM Menu in exact user requested order:
@@ -782,6 +792,17 @@ export default function App() {
                     onClick={() => setView("settings")}
                   >
                     Settings
+                  </button>
+                )}
+
+                {/* 11. Compliance & DNC (Under Settings) */}
+                {(canSeeTab("settings") || canSeeTab("clients")) && (
+                  <button
+                    className={effectiveViewFinal === "compliance" ? "tab active" : "tab"}
+                    onClick={() => setView("compliance")}
+                    title="TCPA DNC compliance, non-agency disclosures, and legal safeguards"
+                  >
+                    Compliance &amp; DNC
                   </button>
                 )}
               </>
@@ -1103,6 +1124,11 @@ export default function App() {
           )
         ) : effectiveViewFinal === "connections" ? (
           <Connections canEdit={canEditTab("connections")} />
+        ) : effectiveViewFinal === "compliance" ? (
+          <Compliance
+            onNavigateToConnections={() => setView("connections")}
+            onNavigateToLeads={() => setView("leads")}
+          />
         ) : effectiveViewFinal === "tickets" ? (
           <Tickets ownerOrg={isOwnerCockpit} canEdit={canEditTab("support")} />
         ) : (
@@ -1116,7 +1142,7 @@ export default function App() {
         )}
       </main>
       <footer className="foot">
-        {(orgName || "Revzenta") + " CRM"} · product build · v0.1
+        Revzenta CRM {orgName && orgName !== "Revzenta" ? `· Workspace: ${orgName}` : ""} · product build · v0.1
       </footer>
       </div>
       </div>

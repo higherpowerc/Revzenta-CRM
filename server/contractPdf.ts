@@ -194,7 +194,13 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
       `Seller expressly acknowledges, understands, and agrees that Buyer holds an equitable interest in the Property and retains the unconditional right to assign, transfer, or convey this Agreement and all rights, duties, and benefits herein to any third-party individual, partnership, trust, or corporate entity without requiring Seller's prior written consent. Upon assignment, the original Buyer shall be relieved of liability upon the assignee's full assumption of obligations.`
     );
 
-    // 6. State Specific Disclosure
+    // 6. Principal Capacity & Non-Agency Disclosure
+    renderParagraph(
+      "6. PRINCIPAL CAPACITY & NON-AGENCY DISCLOSURE",
+      `Seller expressly acknowledges and agrees that Buyer is acting solely as an independent principal investor purchasing for its own account to realize an investment profit, and is NOT acting as a licensed real estate broker, sales agent, or fiduciary for Seller. Seller confirms that Seller has been advised to seek independent legal, financial, and tax counsel prior to executing this Agreement.`
+    );
+
+    // 7. State Specific Disclosure
     let stateDisclosure = "General Provisions: Both parties acknowledge this transaction is entered into freely and voluntarily as an arm's length transaction. Property is sold in 'As-Is, Where-Is' condition subject to Buyer's inspection rights.";
     if (state.includes("TX") || state.includes("Texas")) {
       stateDisclosure = "Texas Statutory Disclosure (Texas Property Code Section 5.086): Seller acknowledges that Buyer is acquiring an option or entering into a contract to purchase real property and may enter into an assignment of that equitable interest to an end buyer. Buyer discloses that Buyer does not hold legal title to the property until closing and is conveying equitable interest under this Agreement.";
@@ -218,10 +224,10 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
       stateDisclosure = "Arizona Wholesale Disclosure (A.R.S. § 32-2181): Buyer discloses that Buyer holds equitable interest in the Property through this contract and may assign this purchase agreement to a third party before the close of escrow.";
     }
 
-    renderParagraph("6. STATE DISCLOSURES & GOVERNING LAW", stateDisclosure);
+    renderParagraph("7. STATE DISCLOSURES & GOVERNING LAW", stateDisclosure);
 
     if (input.customTerms && input.customTerms.trim()) {
-      renderParagraph("7. SPECIAL PROVISIONS & CUSTOM CLAUSES", input.customTerms.trim());
+      renderParagraph("8. SPECIAL PROVISIONS & CUSTOM CLAUSES", input.customTerms.trim());
     }
 
   } else {
@@ -250,8 +256,13 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
       `Assignee hereby accepts this Assignment and expressly assumes all duties, obligations, liabilities, and closing requirements of Buyer under the Underlying Contract. Assignee confirms that Assignee has completed all due diligence and property inspections and is purchasing the Property in 100% 'AS-IS' condition with no further contingencies. Closing shall take place on or before ${input.closingDate || "the date specified in the Underlying Contract"}.`
     );
 
+    renderParagraph(
+      "5. NON-AGENCY & INDEPENDENT INVESTOR ACKNOWLEDGEMENT",
+      `Assignee acknowledges and confirms that Assignee is an independent, sophisticated real estate investor acquiring contractual rights solely for Assignee's own investment purposes, and that Assignor is not acting as Assignee's licensed real estate broker, legal representative, or fiduciary. Assignee has conducted all independent due diligence.`
+    );
+
     if (input.customTerms && input.customTerms.trim()) {
-      renderParagraph("5. SPECIAL STIPULATIONS", input.customTerms.trim());
+      renderParagraph("6. SPECIAL STIPULATIONS", input.customTerms.trim());
     }
   }
 

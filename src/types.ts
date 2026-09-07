@@ -749,6 +749,11 @@ export interface WholesaleOffer {
   propertyAddress: string;
   sellerName: string;
   sellerEmail: string;
+  sellerPhone?: string;
+  agentName?: string;
+  agentEmail?: string;
+  agentPhone?: string;
+  recipientType?: "owner" | "agent" | "both" | string;
   businessName: string;
   offerType: "cash" | "subto" | "creative" | "all" | string;
   selectedOffers: string[];
@@ -887,4 +892,27 @@ export interface PropertyEnrichmentResult {
   source: "rentcast" | "attom" | "unconfigured" | "not_found" | "public_records_estimate";
   message?: string;
 }
+
+export interface RentcastUsageInfo {
+  callsThisMonth: number;
+  monthlyLimit: number;
+  hardStopEnabled: boolean;
+  isBlocked: boolean;
+  cachedQueriesThisMonth: number;
+  offset: number;
+  remainingCalls: number;
+}
+
+export interface SuppressionRecord {
+  id: number;
+  orgId: number;
+  phone: string;
+  address: string;
+  ownerName: string;
+  purgeType: string;
+  purgedAt: string;
+  referenceNotes: string;
+}
+
+
 

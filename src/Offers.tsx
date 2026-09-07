@@ -27,17 +27,29 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
 
   // Preview offer modal
   const [viewingOffer, setViewingOffer] = useState<WholesaleOffer | null>(null);
+  const [viewingRecipientEmail, setViewingRecipientEmail] = useState<string>("");
+  const [sendingOfferId, setSendingOfferId] = useState<number | null>(null);
+  const [sendResultMsg, setSendResultMsg] = useState<{ id: number; text: string; isError?: boolean } | null>(null);
+
+  // Full client/property list to supply directly to Deal Underwriter
+  const [propertiesList, setPropertiesList] = useState<Client[]>([]);
 
   // Load offers from server
   const loadOffers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.offers();
+      const [res, clientsRes] = await Promise.all([
+        api.offers(),
+        api.clients().catch(() => ({ clients: [] as Client[] })),
+      ]);
       if (res.ok) {
         setOffers(res.offers);
         // Start collapsed by default — user selects which property window to expand
         setExpandedProperties({});
+      }
+      if (clientsRes && "clients" in clientsRes && Array.isArray(clientsRes.clients)) {
+        setPropertiesList(clientsRes.clients);
       }
     } catch (err: unknown) {
       const m = err instanceof Error ? err.message : String(err);
@@ -82,6 +94,41 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
       }
     } catch (err) {
       console.error("Failed to delete offer:", err);
+    }
+  };
+
+  // Open Preview Offer modal
+  const handleOpenPreviewOffer = (offer: WholesaleOffer) => {
+    setViewingOffer(offer);
+    setViewingRecipientEmail(offer.sellerEmail || "");
+  };
+
+  // Manually Send Offer with attached PDF
+  const handleManualSendOffer = async (offer: WholesaleOffer, overrideTo?: string) => {
+    const to = (overrideTo || viewingRecipientEmail || offer.sellerEmail || "").trim();
+    if (!to) {
+      alert("Please enter a recipient email address to send the offer.");
+      if (!viewingOffer) handleOpenPreviewOffer(offer);
+      return;
+    }
+    setSendingOfferId(offer.id);
+    setSendResultMsg(null);
+    try {
+      const res = await api.sendOffer(offer.id, { to });
+      if (res.ok) {
+        setOffers((prev) =>
+          prev.map((o) => (o.id === offer.id ? { ...o, status: "Sent", emailStatus: res.emailStatus } : o))
+        );
+        const msg = res.emailStatus === "sent"
+          ? `✓ Offer #${offer.id} sent successfully to ${to} with PDF attached!`
+          : `✓ Offer #${offer.id} updated (Email dispatch: ${res.emailStatus}).`;
+        setSendResultMsg({ id: offer.id, text: msg });
+        setTimeout(() => setSendResultMsg(null), 5000);
+      }
+    } catch (err: any) {
+      setSendResultMsg({ id: offer.id, text: `Failed to send offer: ${err?.message || String(err)}`, isError: true });
+    } finally {
+      setSendingOfferId(null);
     }
   };
 
@@ -254,9 +301,10 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
               borderRadius: "6px",
               border: "none",
               cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(37, 99, 235, 0.4)",
             }}
           >
-            ➕ Create New Offer
+            ⚡ Generate LOI from Deal Underwriter
           </button>
         </div>
       </div>
@@ -491,9 +539,10 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
               borderRadius: "6px",
               border: "none",
               cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(37, 99, 235, 0.4)",
             }}
           >
-            ➕ Create Your First Offer
+            ⚡ Generate LOI from Deal Underwriter
           </button>
         </div>
       ) : viewMode === "grouped" ? (
@@ -610,6 +659,11 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                       <button
                         type="button"
                         onClick={() => {
+                          const existingClient = propertiesList.find((p) => p.id === group.clientId);
+                          if (existingClient) {
+                            setCalcProperty(existingClient);
+                            return;
+                          }
                           const mockClient: Client = {
                             id: group.clientId,
                             companyName: group.propertyAddress,
@@ -640,7 +694,7 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                           cursor: "pointer",
                         }}
                       >
-                        ➕ New Offer
+                        ⚡ Underwrite & Generate LOI
                       </button>
 
                       <button
@@ -839,22 +893,49 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                                 📄 View / Download PDF LOI
                               </a>
 
-                              {/* View Details modal */}
+                              {/* Preview Offer button */}
                               <button
                                 type="button"
-                                onClick={() => setViewingOffer(offer)}
+                                onClick={() => handleOpenPreviewOffer(offer)}
                                 style={{
-                                  backgroundColor: "var(--panel-2)",
-                                  border: "1px solid var(--border)",
-                                  color: "var(--ink)",
+                                  backgroundColor: "rgba(56, 189, 248, 0.12)",
+                                  border: "1px solid #38bdf8",
+                                  color: "#38bdf8",
                                   padding: "6px 12px",
                                   borderRadius: "6px",
                                   fontSize: "12px",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
                                 }}
                               >
-                                ✉️ View Email Content
+                                👁️ Preview Offer
+                              </button>
+
+                              {/* Send Offer button */}
+                              <button
+                                type="button"
+                                onClick={() => handleManualSendOffer(offer)}
+                                disabled={sendingOfferId === offer.id}
+                                style={{
+                                  backgroundColor: "#2563eb",
+                                  border: "none",
+                                  color: "#ffffff",
+                                  padding: "6px 12px",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  fontWeight: 700,
+                                  cursor: sendingOfferId === offer.id ? "not-allowed" : "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                  boxShadow: "0 2px 6px rgba(37, 99, 235, 0.35)",
+                                  opacity: sendingOfferId === offer.id ? 0.7 : 1,
+                                }}
+                              >
+                                📤 {sendingOfferId === offer.id ? "Sending..." : "Send Offer"}
                               </button>
 
                               {/* Delete Offer */}
@@ -963,18 +1044,44 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                         </a>
                         <button
                           type="button"
-                          onClick={() => setViewingOffer(offer)}
+                          onClick={() => handleOpenPreviewOffer(offer)}
                           style={{
-                            backgroundColor: "var(--panel-2)",
-                            border: "1px solid var(--border)",
-                            color: "var(--ink)",
+                            backgroundColor: "rgba(56, 189, 248, 0.12)",
+                            border: "1px solid #38bdf8",
+                            color: "#38bdf8",
                             padding: "4px 8px",
                             borderRadius: "4px",
                             fontSize: "11px",
+                            fontWeight: 700,
                             cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3px",
                           }}
                         >
-                          View
+                          👁️ Preview Offer
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleManualSendOffer(offer)}
+                          disabled={sendingOfferId === offer.id}
+                          style={{
+                            backgroundColor: "#2563eb",
+                            border: "none",
+                            color: "#ffffff",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            cursor: sendingOfferId === offer.id ? "not-allowed" : "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3px",
+                            opacity: sendingOfferId === offer.id ? 0.7 : 1,
+                          }}
+                        >
+                          📤 {sendingOfferId === offer.id ? "Sending..." : "Send Offer"}
                         </button>
                       </div>
                     </td>
@@ -1026,8 +1133,9 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                 alignItems: "center",
               }}
             >
-              <h3 style={{ margin: 0, fontSize: "16px", color: "var(--ink)" }}>
-                Purchase Offer: {viewingOffer.propertyAddress}
+              <h3 style={{ margin: 0, fontSize: "16px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>👁️</span>
+                <span>Preview Offer: {viewingOffer.propertyAddress}</span>
               </h3>
               <button
                 type="button"
@@ -1039,10 +1147,44 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
             </div>
 
             <div style={{ padding: "20px", overflowY: "auto", flex: 1 }}>
-              <div style={{ marginBottom: "14px", fontSize: "12px", color: "var(--muted)" }}>
-                <div><strong>Recipient:</strong> {viewingOffer.sellerEmail}</div>
-                <div><strong>Date:</strong> {new Date(viewingOffer.createdAt).toLocaleString()}</div>
-                <div><strong>Buyer Entity:</strong> {viewingOffer.businessName || "Revzenta Capital"} and/or assigns</div>
+              <div style={{ marginBottom: "14px", fontSize: "12px", color: "var(--muted)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <strong style={{ width: "80px", color: "var(--ink)" }}>Recipient:</strong>
+                  <input
+                    type="email"
+                    value={viewingRecipientEmail}
+                    onChange={(e) => setViewingRecipientEmail(e.target.value)}
+                    placeholder="recipient@example.com"
+                    style={{
+                      flex: 1,
+                      height: "32px",
+                      padding: "0 10px",
+                      borderRadius: "5px",
+                      border: "1px solid var(--border)",
+                      background: "var(--card-bg, var(--panel))",
+                      color: "var(--ink)",
+                      fontSize: "12px",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                <div><strong style={{ color: "var(--ink)" }}>Created:</strong> {new Date(viewingOffer.createdAt).toLocaleString()}</div>
+                <div><strong style={{ color: "var(--ink)" }}>Buyer Entity:</strong> {viewingOffer.businessName || "Revzenta Capital"} and/or assigns</div>
+                {sendResultMsg?.id === viewingOffer.id && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      backgroundColor: sendResultMsg.isError ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                      color: sendResultMsg.isError ? "#ef4444" : "#10b981",
+                      fontWeight: 700,
+                      fontSize: "12px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {sendResultMsg.text}
+                  </div>
+                )}
               </div>
 
               <div
@@ -1070,6 +1212,8 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                flexWrap: "wrap",
+                gap: "10px",
               }}
             >
               <a
@@ -1079,22 +1223,51 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                 style={{
                   backgroundColor: "#0284c7",
                   color: "#ffffff",
-                  padding: "6px 14px",
+                  padding: "7px 14px",
                   borderRadius: "6px",
                   fontSize: "12px",
                   fontWeight: 700,
                   textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
                 }}
               >
                 📄 Open Official PDF LOI
               </a>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setViewingOffer(null)}
-              >
-                Close
-              </button>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setViewingOffer(null)}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleManualSendOffer(viewingOffer, viewingRecipientEmail)}
+                  disabled={sendingOfferId === viewingOffer.id}
+                  style={{
+                    backgroundColor: "#2563eb",
+                    color: "#ffffff",
+                    border: "none",
+                    padding: "7px 18px",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: sendingOfferId === viewingOffer.id ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    boxShadow: "0 2px 8px rgba(37, 99, 235, 0.4)",
+                    opacity: sendingOfferId === viewingOffer.id ? 0.7 : 1,
+                  }}
+                >
+                  <span>📤</span>
+                  <span>{sendingOfferId === viewingOffer.id ? "Sending Offer..." : "Send Offer"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1104,6 +1277,7 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
       {calcProperty !== null && (
         <DealCalculatorModal
           property={calcProperty === "new" ? null : calcProperty}
+          allProperties={propertiesList}
           crmBusinessName={crmBusinessName}
           onClose={() => setCalcProperty(null)}
           onUpdated={() => {

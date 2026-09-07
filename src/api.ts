@@ -1,4 +1,4 @@
-import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RevenueModel, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, User, WebhookLog, WebhookSettings, WholesaleOffer } from "./types";
+import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, User, WebhookLog, WebhookSettings, WholesaleOffer } from "./types";
 
 
 export class ApiError extends Error {
@@ -169,6 +169,16 @@ export const api = {
   deleteOffer: (id: number) =>
     request<{ ok: true }>(`/api/offers/${id}`, {
       method: "DELETE",
+    }),
+  sendOffer: (id: number, data?: { to?: string; subject?: string; message?: string; html?: string }) =>
+    request<{
+      ok: true;
+      offer: WholesaleOffer;
+      emailStatus: "sent" | "failed" | "skipped";
+      emailError?: string;
+    }>(`/api/offers/${id}/send`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
     }),
 
   tasks: (done?: "0" | "1") =>
@@ -626,6 +636,18 @@ export const api = {
       body: JSON.stringify({ apiKey }),
     }),
   lookupProperty: (address: string) =>
-    request<{ ok: true; property: PropertyEnrichmentResult }>(`/api/properties/lookup?address=${encodeURIComponent(address)}`),
+    request<{ ok: true; property: PropertyEnrichmentResult; usage?: RentcastUsageInfo }>(`/api/properties/lookup?address=${encodeURIComponent(address)}`),
+  getRentcastUsage: () => request<{ ok: true; usage: RentcastUsageInfo }>("/api/settings/rentcast-usage"),
+  saveRentcastGuard: (data: { monthlyLimit: number; hardStopEnabled: boolean; offset: number }) =>
+    request<{ ok: true; usage: RentcastUsageInfo }>("/api/settings/rentcast-guard", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getSuppressionList: () => request<{ ok: true; records: SuppressionRecord[] }>("/api/compliance/suppression-list"),
+  ccpaPurgeClient: (clientId: number, reason: string) =>
+    request<{ ok: true; message: string; purgedClient: { id: number; name: string; phone: string } }>("/api/compliance/ccpa-purge", {
+      method: "POST",
+      body: JSON.stringify({ clientId, reason }),
+    }),
 };
 

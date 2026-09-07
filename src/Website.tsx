@@ -93,7 +93,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <span>🛡️</span> 100% MLS & Public Records Compliant
             </div>
             <div className="rw-trust-item">
-              <span>⚡</span> PropStream, BatchLeads & Zapier Ingestion
+              <span>⚡</span> PropStream CSV &amp; Direct Webhook Ingestion
             </div>
             <div className="rw-trust-item">
               <span>✍️</span> State PSA & Assignment Contracts
@@ -335,7 +335,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <div className="rw-feature-icon">⚡</div>
               <h3>Automated Inbound Lead Ingestion</h3>
               <p>
-                Connect PropStream, BatchLeads, Zapier, Make, and webforms via your private webhook URL. Incoming properties are automatically normalized and queued into your pipeline.
+                Connect BatchLeads, Zapier, Make, and webforms via your private webhook URL, or import PropStream lists with 1-click column mapping. Incoming properties are automatically normalized and queued into your pipeline.
               </p>
             </div>
 
@@ -513,7 +513,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <ul className="rw-price-features">
                 <li><span>✓</span> Unlimited pipeline leads & contacts</li>
                 <li><span>✓</span> Inbound Webhook lead ingestion</li>
-                <li><span>✓</span> PropStream & BatchLeads webhook URL</li>
+                <li><span>✓</span> PropStream CSV &amp; BatchLeads ingestion</li>
                 <li><span>✓</span> Cash buyers directory & criteria tagging</li>
                 <li><span>✓</span> Daily task management & reminders</li>
                 <li><span>✓</span> Dark / Light mode adaptive UI</li>
@@ -589,8 +589,8 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 a: "Revzenta integrates with official property data providers (RentCast API and public county tax assessor records) using licensed real estate APIs. Unlike scrapers that violate MLS terms of service, Revzenta uses compliant developer feeds to provide beds, baths, sqft, year built, estimated market valuations (AVM), and recent comparable sales.",
               },
               {
-                q: "Can I connect PropStream, BatchLeads, and Zapier to Revzenta?",
-                a: "Yes! Revzenta gives you a dedicated Inbound Webhook URL in your Settings. Any service that supports webhooks (PropStream, BatchLeads, Zapier, Make, Lead Sherpa, or your own website intake forms) can post leads straight into Revzenta with instant auto-enrichment.",
+                q: "How do I connect PropStream, BatchLeads, and Zapier to Revzenta?",
+                a: "Revzenta gives you multiple direct ingestion options: For BatchLeads, Zapier, Make, and custom landing pages, simply paste your dedicated Revzenta Inbound Webhook URL. For PropStream (which uses CSV exports rather than outbound webhooks in standard dashboards), Revzenta includes a 1-click CSV Importer pre-mapped to PropStream list headers (Address, Owner, Estimated Value, Equity, Beds, Baths) and also supports automated Zapier webhook relays.",
               },
               {
                 q: "How does the Document & Transaction Hub handle contracts and e-signatures?",
@@ -673,7 +673,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <ul className="rw-footer-links">
                 <li><a href="#pricing">Pricing Plans</a></li>
                 <li><a href="#faq">Legal MLS FAQ</a></li>
-                <li><a href="#lead-engine">PropStream Setup</a></li>
+                <li><a href="#lead-engine">PropStream CSV Import</a></li>
                 <li><a href="#lead-engine">BatchLeads Webhook</a></li>
               </ul>
             </div>

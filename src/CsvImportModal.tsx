@@ -117,9 +117,9 @@ const PROPERTY_FIELDS: FieldDefinition[] = [
   },
   {
     key: "arv",
-    label: "ARV ($)",
-    synonyms: ["arv", "after repair value", "market value", "retail value"],
-    description: "After repair value estimate",
+    label: "ARV / Est. Value ($)",
+    synonyms: ["arv", "after repair value", "market value", "retail value", "estimated value", "est value", "estimated market value", "avm"],
+    description: "After repair value estimate or PropStream estimated value",
   },
   {
     key: "repairs",
@@ -136,7 +136,7 @@ const PROPERTY_FIELDS: FieldDefinition[] = [
   {
     key: "clientType",
     label: "Property Type",
-    synonyms: ["type", "property type", "client type", "building type"],
+    synonyms: ["type", "property type", "client type", "building type", "property class"],
     description: "Single Family, Multi-Family, Commercial, Land, etc.",
   },
   {
@@ -148,20 +148,56 @@ const PROPERTY_FIELDS: FieldDefinition[] = [
   {
     key: "ownerName",
     label: "Owner / Seller Name",
-    synonyms: ["owner", "owner name", "seller", "seller name", "contact", "contact name", "client name"],
-    description: "Contact name of the property owner",
+    synonyms: ["owner", "owner name", "seller", "seller name", "contact", "contact name", "client name", "owner 1 first name", "owner 1 name", "first name"],
+    description: "Contact name of property owner (or first name in PropStream)",
+  },
+  {
+    key: "ownerLastName",
+    label: "Owner Last Name",
+    synonyms: ["owner 1 last name", "owner last name", "last name"],
+    description: "Owner last name (combined automatically if present in PropStream export)",
   },
   {
     key: "phone",
     label: "Owner Phone",
-    synonyms: ["phone", "owner phone", "seller phone", "contact phone", "mobile", "cell"],
+    synonyms: ["phone", "owner phone", "seller phone", "contact phone", "mobile", "cell", "phone 1", "phone 1 number", "wireless phone", "cell phone"],
     description: "Phone number",
   },
   {
     key: "email",
     label: "Owner Email",
-    synonyms: ["email", "owner email", "seller email", "contact email"],
+    synonyms: ["email", "owner email", "seller email", "contact email", "email 1", "email address"],
     description: "Email address",
+  },
+  {
+    key: "bedrooms",
+    label: "Bedrooms",
+    synonyms: ["bedrooms", "beds", "bed", "total bedrooms", "br"],
+    description: "Number of bedrooms",
+  },
+  {
+    key: "bathrooms",
+    label: "Bathrooms",
+    synonyms: ["bathrooms", "baths", "bath", "total bathrooms", "ba"],
+    description: "Number of bathrooms",
+  },
+  {
+    key: "sqft",
+    label: "Square Footage",
+    synonyms: ["square footage", "square feet", "sqft", "building size", "est sqft", "living area", "gla"],
+    description: "Interior square footage",
+  },
+  {
+    key: "yearBuilt",
+    label: "Year Built",
+    synonyms: ["year built", "year", "yr built", "built"],
+    description: "Year property was constructed",
+  },
+  {
+    key: "equity",
+    label: "Est. Equity / Balance",
+    synonyms: ["estimated equity", "est equity", "equity", "open mortgage balance", "total open mortgage balance"],
+    description: "PropStream estimated equity or open mortgage balance",
   },
   {
     key: "agentName",
@@ -309,7 +345,7 @@ export default function CsvImportModal({ initialTarget = "properties", stages = 
     let content = "";
     let downloadName = "";
     if (target === "properties") {
-      downloadName = "elevate_properties_template.csv";
+      downloadName = "revzenta_properties_template.csv";
       content = [
         "Property Address,City,State,Zip,Asking Price,ARV,Estimated Repairs,Property Type,Structure,Owner Name,Phone,Email,Agent Name,Notes",
         '"742 Evergreen Terrace","Springfield","IL","62704","185000","260000","25000","Single Family","Cash","Homer Simpson","(555) 733-4900","homer@example.com","Lionel Hutz","Motivated seller, needs cosmetic updates"',
@@ -317,7 +353,7 @@ export default function CsvImportModal({ initialTarget = "properties", stages = 
         '"456 Oak Avenue","Dallas","TX","75201","220000","310000","30000","Single Family","Cash","Sarah Connor","(555) 123-4567","sarah@example.com","","Vacant property, roof replaced in 2022"',
       ].join("\n");
     } else {
-      downloadName = "elevate_investors_template.csv";
+      downloadName = "revzenta_investors_template.csv";
       content = [
         "Investor / Entity Name,Contact Person,Email,Phone,Investment Strategies,Proof of Funds,Max Budget,Target Markets,Buy Box Criteria",
         '"Apex Capital Holdings LLC","Michael Vance","michael@apexholdings.com","(555) 234-5678","Cash Buyer, Fix & Flip","Verified Cash","550000","Dallas, Fort Worth, 75001","Single family 3/2+, 70% ARV minus repairs, close in 10 days"',
@@ -371,21 +407,42 @@ export default function CsvImportModal({ initialTarget = "properties", stages = 
       else if (lowerType.includes("multi")) safeClientType = "multi_family";
       else if (lowerType.includes("commercial")) safeClientType = "commercial";
 
+      let owner = ownerName;
+      const ownerLn = getValue("ownerLastName");
+      if (owner && ownerLn && !owner.toLowerCase().includes(ownerLn.toLowerCase())) {
+        owner = `${owner} ${ownerLn}`.trim();
+      } else if (!owner && ownerLn) {
+        owner = ownerLn;
+      }
+
+      const bedrooms = getValue("bedrooms");
+      const bathrooms = getValue("bathrooms");
+      const sqft = getValue("sqft");
+      const yearBuilt = getValue("yearBuilt");
+      const equity = getValue("equity");
+
       const customFields: Array<{ name: string; value: string }> = [];
       if (arv) customFields.push({ name: "ARV", value: `$${cleanNumber(arv).toLocaleString()}` });
       if (repairs) customFields.push({ name: "Estimated Repairs", value: `$${cleanNumber(repairs).toLocaleString()}` });
-      if (assignmentValue) customFields.push({ name: "Assignment Value", value: `$${cleanNumber(assignmentValue).toLocaleString()}` });
+      const feeVal = assignmentValue ? cleanNumber(assignmentValue) : 5000;
+      customFields.push({ name: "Assignment Value", value: `$${feeVal.toLocaleString()}` });
+      customFields.push({ name: "Assignment Fee", value: `$${feeVal.toLocaleString()}` });
       if (structure) customFields.push({ name: "Structure", value: structure });
+      if (bedrooms) customFields.push({ name: "Beds", value: String(cleanNumber(bedrooms)) });
+      if (bathrooms) customFields.push({ name: "Baths", value: String(cleanNumber(bathrooms)) });
+      if (sqft) customFields.push({ name: "Sqft", value: `${cleanNumber(sqft).toLocaleString()} sqft` });
+      if (yearBuilt) customFields.push({ name: "Year Built", value: String(cleanNumber(yearBuilt)) });
+      if (equity) customFields.push({ name: "Estimated Equity", value: `$${cleanNumber(equity).toLocaleString()}` });
 
       return {
         companyName: address,
-        contactName: ownerName || address,
+        contactName: owner || address,
         email: email || "",
         phone: phone || "",
         industry: "Real Estate",
         services: [structure, rawType].filter(Boolean),
         customFields,
-        dealValue: dealVal || (assignmentValue ? cleanNumber(assignmentValue) : 0),
+        dealValue: dealVal || feeVal,
         stage: defaultStage || (stages[0] ?? "Lead In"),
         nextAction: "Review imported CSV details",
         notes: notes || `Imported wholesale property (${rawType})`,

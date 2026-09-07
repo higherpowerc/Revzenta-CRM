@@ -117,90 +117,92 @@ if (!existsSync(join(DIST_DIR, "index.html"))) {
   console.log("[crm] dist/index.html missing — run `bun run build` to build the frontend.");
 }
 
+function withSecurityHeaders(res: Response): Response {
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("X-Frame-Options", "SAMEORIGIN");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  return res;
+}
+
 const server = serve({
   port: PORT,
   hostname: "0.0.0.0",
-  fetch(req, srv) {
+  async fetch(req, srv) {
     const url = new URL(req.url);
+    let res: Response;
     if (url.pathname.startsWith("/api/")) {
-      return handleApi(req, url, srv);
-    }
-    /* Native e-signature — PUBLIC routes (the emailed link is the credential).
-       /sign/<token> renders the sign/decline page (recording delivery on
-       first open); /agreement-pdf/<pdfId> serves the generated PDF (the id is
-       an unguessable random, and the page links it for the signer). These
-       must be checked BEFORE the SPA fallback. */
-    if (req.method === "GET" && url.pathname.startsWith("/sign/")) {
+      res = await handleApi(req, url, srv);
+    } else if (req.method === "GET" && url.pathname.startsWith("/sign/")) {
       const token = decodeURIComponent(url.pathname.slice("/sign/".length));
-      return renderSignPage(token, clientIp(req, srv));
-    }
-        if (req.method === "GET" && url.pathname.startsWith("/offer-pdf/")) {
+      res = renderSignPage(token, clientIp(req, srv));
+    } else if (req.method === "GET" && url.pathname.startsWith("/offer-pdf/")) {
       const pdfId = url.pathname.slice("/offer-pdf/".length);
       const bytes = readOfferPdf(pdfId);
-      if (!bytes) return new Response("Not found", { status: 404 });
-      return new Response(bytes as unknown as BodyInit, {
-        status: 200,
-        headers: {
-          "Content-Type": MIME[".pdf"],
-          "Cache-Control": "private, max-age=3600",
-          "Content-Disposition": `inline; filename="purchase-offer-${pdfId}.pdf"`,
-        },
-      });
-    }
-    if (req.method === "GET" && url.pathname.startsWith("/agreement-pdf/")) {
+      if (!bytes) {
+        res = new Response("Not found", { status: 404 });
+      } else {
+        res = new Response(bytes as unknown as BodyInit, {
+          status: 200,
+          headers: {
+            "Content-Type": MIME[".pdf"],
+            "Cache-Control": "private, max-age=3600",
+            "Content-Disposition": `inline; filename="purchase-offer-${pdfId}.pdf"`,
+          },
+        });
+      }
+    } else if (req.method === "GET" && url.pathname.startsWith("/agreement-pdf/")) {
       const pdfId = url.pathname.slice("/agreement-pdf/".length);
       const bytes = readAgreementPdf(pdfId);
-      if (!bytes) return new Response("Not found", { status: 404 });
-      return new Response(bytes as unknown as BodyInit, {
-        status: 200,
-        headers: {
-          "Content-Type": MIME[".pdf"],
-          "Cache-Control": "private, max-age=3600",
-          "Content-Disposition": `inline; filename="agreement-${pdfId}.pdf"`,
-        },
-      });
-    }
-    /* Wholesale Document & Transaction Hub: Public e-signature page */
-    if (req.method === "GET" && url.pathname.startsWith("/sign-contract/")) {
+      if (!bytes) {
+        res = new Response("Not found", { status: 404 });
+      } else {
+        res = new Response(bytes as unknown as BodyInit, {
+          status: 200,
+          headers: {
+            "Content-Type": MIME[".pdf"],
+            "Cache-Control": "private, max-age=3600",
+            "Content-Disposition": `inline; filename="agreement-${pdfId}.pdf"`,
+          },
+        });
+      }
+    } else if (req.method === "GET" && url.pathname.startsWith("/sign-contract/")) {
       const token = decodeURIComponent(url.pathname.slice("/sign-contract/".length));
-      return renderContractSignPage(token, clientIp(req, srv));
-    }
-    /* Wholesale Document & Transaction Hub: Public contract PDF download */
-    if (req.method === "GET" && url.pathname.startsWith("/contract-pdf/")) {
+      res = renderContractSignPage(token, clientIp(req, srv));
+    } else if (req.method === "GET" && url.pathname.startsWith("/contract-pdf/")) {
       const pdfId = url.pathname.slice("/contract-pdf/".length);
       const bytes = readContractPdf(pdfId);
-      if (!bytes) return new Response("Not found", { status: 404 });
-      return new Response(bytes as unknown as BodyInit, {
-        status: 200,
-        headers: {
-          "Content-Type": MIME[".pdf"],
-          "Cache-Control": "private, max-age=3600",
-          "Content-Disposition": `inline; filename="contract-${pdfId}.pdf"`,
-        },
-      });
-    }
-    /* Wholesale Document & Transaction Hub: Public Title & Escrow portal */
-    if (req.method === "GET" && url.pathname.startsWith("/title-portal/")) {
+      if (!bytes) {
+        res = new Response("Not found", { status: 404 });
+      } else {
+        res = new Response(bytes as unknown as BodyInit, {
+          status: 200,
+          headers: {
+            "Content-Type": MIME[".pdf"],
+            "Cache-Control": "private, max-age=3600",
+            "Content-Disposition": `inline; filename="contract-${pdfId}.pdf"`,
+          },
+        });
+      }
+    } else if (req.method === "GET" && url.pathname.startsWith("/title-portal/")) {
       const token = decodeURIComponent(url.pathname.slice("/title-portal/".length));
-      return renderTitlePortalPage(token);
-    }
-    /* Appointments production (backlog 5a104eae) — PUBLIC Confirm / Reschedule
-       landing pages. The day-before reminder email links here
-       (`/appointment/<token>/confirm` and `/appointment/<token>/reschedule`);
-       the token is the credential, single-org, no session. The forms POST the
-       JSON action to the public API routes (/api/appointment/<token>/…). Like
-       /sign/<token>, these must be checked BEFORE the SPA fallback. */
-    if (req.method === "GET" && url.pathname.startsWith("/appointment/")) {
+      res = renderTitlePortalPage(token);
+    } else if (req.method === "GET" && url.pathname.startsWith("/appointment/")) {
       const rest = url.pathname.slice("/appointment/".length);
       const slash = rest.indexOf("/");
       if (slash > 0) {
         const token = decodeURIComponent(rest.slice(0, slash));
         const action = rest.slice(slash + 1);
-        if (action === "confirm") return renderConfirmPage(token);
-        if (action === "reschedule") return renderReschedulePage(token);
+        if (action === "confirm") res = renderConfirmPage(token);
+        else if (action === "reschedule") res = renderReschedulePage(token);
+        else res = serveStatic(url.pathname);
+      } else {
+        res = serveStatic(url.pathname);
       }
+    } else {
+      res = serveStatic(url.pathname);
     }
-    return serveStatic(url.pathname);
+    return withSecurityHeaders(res);
   },
 });
 

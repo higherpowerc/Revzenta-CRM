@@ -1898,11 +1898,11 @@ CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_a
 db.exec(`
 CREATE TABLE IF NOT EXISTS inbound_webhooks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  org_id INTEGER NOT NULL REFERENCES orgs(id),
+  org_id INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   source TEXT NOT NULL DEFAULT 'webhook',
   status TEXT NOT NULL DEFAULT 'success',
   payload TEXT NOT NULL DEFAULT '{}',
-  client_id INTEGER REFERENCES clients(id),
+  client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
   error_message TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -1910,6 +1910,35 @@ CREATE TABLE IF NOT EXISTS inbound_webhooks (
 CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_org_id ON inbound_webhooks(org_id);
 CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_created_at ON inbound_webhooks(created_at);
 `);
+
+// Upgrade foreign key actions on inbound_webhooks if existing table lacked ON DELETE SET NULL
+try {
+  const fks = db.query("PRAGMA foreign_key_list(inbound_webhooks)").all() as any[];
+  const clientFk = fks.find((f: any) => f.table === "clients");
+  if (clientFk && clientFk.on_delete !== "SET NULL") {
+    db.exec("PRAGMA foreign_keys = OFF;");
+    db.exec(`
+      CREATE TABLE inbound_webhooks_v2 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+        source TEXT NOT NULL DEFAULT 'webhook',
+        status TEXT NOT NULL DEFAULT 'success',
+        payload TEXT NOT NULL DEFAULT '{}',
+        client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        error_message TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO inbound_webhooks_v2 SELECT id, org_id, source, status, payload, client_id, error_message, created_at FROM inbound_webhooks;
+      DROP TABLE inbound_webhooks;
+      ALTER TABLE inbound_webhooks_v2 RENAME TO inbound_webhooks;
+      CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_org_id ON inbound_webhooks(org_id);
+      CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_created_at ON inbound_webhooks(created_at);
+    `);
+    db.exec("PRAGMA foreign_keys = ON;");
+  }
+} catch (e) {
+  console.error("[db] inbound_webhooks fk migration err:", e);
+}
 
 {
   const orgCols = db.query("PRAGMA table_info(orgs)").all() as { name: string }[];
@@ -1919,6 +1948,15 @@ CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_created_at ON inbound_webhooks(c
   if (!orgCols.some((c) => c.name === "rentcast_api_key")) {
     db.exec("ALTER TABLE orgs ADD COLUMN rentcast_api_key TEXT NOT NULL DEFAULT ''");
   }
+  if (!orgCols.some((c) => c.name === "rentcast_monthly_limit")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN rentcast_monthly_limit INTEGER NOT NULL DEFAULT 50");
+  }
+  if (!orgCols.some((c) => c.name === "rentcast_hard_stop_enabled")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN rentcast_hard_stop_enabled INTEGER NOT NULL DEFAULT 1");
+  }
+  if (!orgCols.some((c) => c.name === "rentcast_usage_offset")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN rentcast_usage_offset INTEGER NOT NULL DEFAULT 41");
+  }
 
   // Backfill missing webhook_secret with a random token for each org
   const orgsWithoutSecret = db.query("SELECT id FROM orgs WHERE webhook_secret = '' OR webhook_secret IS NULL").all() as { id: number }[];
@@ -1927,3 +1965,183 @@ CREATE INDEX IF NOT EXISTS idx_inbound_webhooks_created_at ON inbound_webhooks(c
     db.query("UPDATE orgs SET webhook_secret = ? WHERE id = ?").run(secret, o.id);
   }
 }
+
+/**
+ * Property Enrichment Cache Table
+ * Caches RentCast MLS specs, AVM, comps, and owner records by normalized address
+ * to guarantee 0 redundant API calls and protect monthly quotas.
+ */
+db.exec(`
+CREATE TABLE IF NOT EXISTS property_enrichment_cache (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  normalized_address TEXT UNIQUE NOT NULL,
+  data TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'rentcast',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL DEFAULT (datetime('now', '+60 days'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_prop_enrich_cache_addr ON property_enrichment_cache(normalized_address);
+
+CREATE TABLE IF NOT EXISTS rentcast_api_usage_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id INTEGER NOT NULL REFERENCES orgs(id),
+  endpoint TEXT NOT NULL,
+  address TEXT NOT NULL,
+  cached INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_rentcast_usage_org_date ON rentcast_api_usage_log(org_id, created_at);
+
+CREATE TABLE IF NOT EXISTS privacy_suppression_registry (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id INTEGER NOT NULL REFERENCES orgs(id),
+  phone TEXT NOT NULL,
+  address TEXT DEFAULT '',
+  owner_name TEXT DEFAULT '',
+  purge_type TEXT NOT NULL DEFAULT 'ccpa_delete',
+  purged_at TEXT NOT NULL DEFAULT (datetime('now')),
+  reference_notes TEXT DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_privacy_suppression_org_phone ON privacy_suppression_registry(org_id, phone);
+`);
+
+export interface RentcastUsageInfo {
+  callsThisMonth: number;
+  monthlyLimit: number;
+  hardStopEnabled: boolean;
+  isBlocked: boolean;
+  cachedQueriesThisMonth: number;
+  offset: number;
+  remainingCalls: number;
+}
+
+export function getRentcastUsage(orgId: number): RentcastUsageInfo {
+  const org = db
+    .query(
+      "SELECT rentcast_monthly_limit, rentcast_hard_stop_enabled, rentcast_usage_offset FROM orgs WHERE id = ?"
+    )
+    .get(orgId) as {
+    rentcast_monthly_limit?: number;
+    rentcast_hard_stop_enabled?: number;
+    rentcast_usage_offset?: number;
+  } | null;
+
+  const monthlyLimit = org?.rentcast_monthly_limit ?? 50;
+  const hardStopEnabled = (org?.rentcast_hard_stop_enabled ?? 1) === 1;
+  const offset = org?.rentcast_usage_offset ?? 41;
+
+  const row = db
+    .query(`
+      SELECT 
+        SUM(CASE WHEN cached = 0 THEN 1 ELSE 0 END) as live_calls,
+        SUM(CASE WHEN cached = 1 THEN 1 ELSE 0 END) as cached_calls
+      FROM rentcast_api_usage_log
+      WHERE org_id = ? AND created_at >= date('now', 'start of month')
+    `)
+    .get(orgId) as { live_calls: number | null; cached_calls: number | null } | null;
+
+  const loggedLiveCalls = row?.live_calls ?? 0;
+  const cachedCalls = row?.cached_calls ?? 0;
+
+  const totalLiveCalls = loggedLiveCalls + offset;
+  const remaining = Math.max(0, monthlyLimit - totalLiveCalls);
+  const isBlocked = hardStopEnabled && totalLiveCalls >= monthlyLimit;
+
+  return {
+    callsThisMonth: totalLiveCalls,
+    monthlyLimit,
+    hardStopEnabled,
+    isBlocked,
+    cachedQueriesThisMonth: cachedCalls,
+    offset,
+    remainingCalls: remaining,
+  };
+}
+
+export function logRentcastCall(
+  orgId: number,
+  endpoint: string,
+  address: string,
+  cached: boolean
+): void {
+  try {
+    db.query(`
+      INSERT INTO rentcast_api_usage_log (org_id, endpoint, address, cached, created_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `).run(orgId, endpoint, address, cached ? 1 : 0);
+  } catch (err) {
+    console.warn("[db] Failed to log RentCast usage:", err);
+  }
+}
+
+export interface SuppressionRecord {
+  id: number;
+  orgId: number;
+  phone: string;
+  address: string;
+  ownerName: string;
+  purgeType: string;
+  purgedAt: string;
+  referenceNotes: string;
+}
+
+export function getSuppressionList(orgId: number): SuppressionRecord[] {
+  try {
+    const rows = db.query(`
+      SELECT 
+        id, 
+        org_id as orgId, 
+        phone, 
+        address, 
+        owner_name as ownerName, 
+        purge_type as purgeType, 
+        purged_at as purgedAt, 
+        reference_notes as referenceNotes
+      FROM privacy_suppression_registry
+      WHERE org_id = ?
+      ORDER BY id DESC
+    `).all(orgId) as SuppressionRecord[];
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+export function isPhoneSuppressed(orgId: number, phone: string): boolean {
+  try {
+    const clean = phone.replace(/[^0-9]/g, "");
+    if (!clean || clean.length < 7) return false;
+    const match = db.query(`
+      SELECT id FROM privacy_suppression_registry
+      WHERE org_id = ? AND REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', ''), ')', '') LIKE ?
+      LIMIT 1
+    `).get(orgId, `%${clean}%`);
+    return Boolean(match);
+  } catch {
+    return false;
+  }
+}
+
+export function addSuppression(
+  orgId: number,
+  phone: string,
+  address: string,
+  ownerName: string,
+  purgeType = "ccpa_delete",
+  referenceNotes = ""
+): void {
+  try {
+    db.query(`
+      INSERT INTO privacy_suppression_registry (org_id, phone, address, owner_name, purge_type, purged_at, reference_notes)
+      VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+    `).run(orgId, phone, address, ownerName, purgeType, referenceNotes);
+  } catch (err) {
+    console.warn("[db] Failed to add privacy suppression record:", err);
+  }
+}
+
+
+

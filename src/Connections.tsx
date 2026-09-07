@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
-import type { WebhookSettings } from "./types";
+import type { RentcastUsageInfo, WebhookSettings } from "./types";
 
 export default function Connections({ canEdit = true }: { canEdit?: boolean }) {
   const [webhookSettings, setWebhookSettings] = useState<WebhookSettings | null>(null);
@@ -20,11 +20,31 @@ export default function Connections({ canEdit = true }: { canEdit?: boolean }) {
   const [testingRentcast, setTestingRentcast] = useState(false);
   const [rentcastTestResult, setRentcastTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // RentCast Quota & Hard Stop Guard state
+  const [rentcastUsage, setRentcastUsage] = useState<RentcastUsageInfo | null>(null);
+  const [monthlyLimitDraft, setMonthlyLimitDraft] = useState<number>(50);
+  const [hardStopEnabledDraft, setHardStopEnabledDraft] = useState<boolean>(true);
+  const [offsetDraft, setOffsetDraft] = useState<number>(41);
+  const [savingGuard, setSavingGuard] = useState<boolean>(false);
+  const [guardMsg, setGuardMsg] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     try {
       const wh = await api.webhookSettings();
       setWebhookSettings(wh);
       setRentcastKeyDraft(wh.rentcastApiKey || "");
+
+      try {
+        const usageRes = await api.getRentcastUsage();
+        if (usageRes.ok && usageRes.usage) {
+          setRentcastUsage(usageRes.usage);
+          setMonthlyLimitDraft(usageRes.usage.monthlyLimit);
+          setHardStopEnabledDraft(usageRes.usage.hardStopEnabled);
+          setOffsetDraft(usageRes.usage.offset);
+        }
+      } catch (err) {
+        console.warn("Failed to load RentCast usage:", err);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load connection settings.");
     } finally {
@@ -72,7 +92,7 @@ export default function Connections({ canEdit = true }: { canEdit?: boolean }) {
               <div>
                 <h2 className="admin-card-title" style={{ margin: 0 }}>Inbound Lead Webhook (POST)</h2>
                 <p className="admin-card-sub" style={{ margin: "4px 0 0" }}>
-                  Automatically stream leads from PropStream, BatchLeads, Zapier, Make, or custom web forms directly into your CRM.
+                  Direct real-time webhook endpoint for BatchLeads, Zapier, Make, and web forms. For PropStream, use <strong>Properties &gt; 📥 Import CSV</strong> or relay via Zapier.
                 </p>
               </div>
             </div>
@@ -313,6 +333,166 @@ export default function Connections({ canEdit = true }: { canEdit?: boolean }) {
                 (includes 50 free property &amp; comp lookups every month). Power up instant ARV estimates, property square footage, and tax comps on all deals.
               </span>
             </div>
+
+            {/* RentCast Quota & Hard Stop Guard Control Panel */}
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "18px 20px",
+                borderRadius: "10px",
+                background: "var(--panel-2, #1f2029)",
+                border: "1px solid var(--border, #30363d)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span>🛡️</span> RentCast Usage &amp; Hard Stop Guard
+                  </h4>
+                  <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                    Automatically monitor API consumption and block outbound calls before exceeding your plan limit.
+                  </p>
+                </div>
+                {rentcastUsage?.hardStopEnabled ? (
+                  <span className="chip" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.3)", fontSize: "11px", fontWeight: 700 }}>
+                    ● Hard Stop Guard Active
+                  </span>
+                ) : (
+                  <span className="chip" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", border: "1px solid rgba(245, 158, 11, 0.3)", fontSize: "11px", fontWeight: 700 }}>
+                    ○ Hard Stop Disabled
+                  </span>
+                )}
+              </div>
+
+              {/* Progress Gauge */}
+              {rentcastUsage && (
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12.5px", marginBottom: "6px" }}>
+                    <span>
+                      Monthly Usage: <strong style={{ color: rentcastUsage.callsThisMonth >= rentcastUsage.monthlyLimit ? "#ef4444" : rentcastUsage.callsThisMonth >= rentcastUsage.monthlyLimit * 0.8 ? "#f59e0b" : "var(--ink, #f8fafc)" }}>{rentcastUsage.callsThisMonth} / {rentcastUsage.monthlyLimit} calls</strong>
+                    </span>
+                    <span style={{ color: "var(--muted, #94a3b8)" }}>
+                      {rentcastUsage.remainingCalls} call{rentcastUsage.remainingCalls === 1 ? "" : "s"} remaining
+                    </span>
+                  </div>
+                  <div style={{ width: "100%", height: "8px", borderRadius: "4px", background: "var(--border, #30363d)", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.round((rentcastUsage.callsThisMonth / Math.max(1, rentcastUsage.monthlyLimit)) * 100))}%`,
+                        height: "100%",
+                        background:
+                          rentcastUsage.callsThisMonth >= rentcastUsage.monthlyLimit
+                            ? "#ef4444"
+                            : rentcastUsage.callsThisMonth >= rentcastUsage.monthlyLimit * 0.8
+                            ? "#f59e0b"
+                            : "#10b981",
+                        transition: "width 0.3s ease",
+                      }}
+                    />
+                  </div>
+                  {rentcastUsage.cachedQueriesThisMonth > 0 && (
+                    <div style={{ fontSize: "11.5px", color: "#34d399", marginTop: "6px" }}>
+                      ⚡ {rentcastUsage.cachedQueriesThisMonth} lookups served from local cache with <strong>0 API calls consumed</strong>.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Guard Settings Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", alignItems: "flex-end" }}>
+                <label className="field" style={{ margin: 0 }}>
+                  <span className="field-label" style={{ fontSize: "11px", fontWeight: 700 }}>
+                    Monthly Plan Limit
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={monthlyLimitDraft}
+                    onChange={(e) => setMonthlyLimitDraft(Math.max(1, Number(e.target.value) || 1))}
+                    style={{ height: "36px", fontSize: "13px" }}
+                    disabled={!canEdit}
+                  />
+                </label>
+
+                <label className="field" style={{ margin: 0 }}>
+                  <span className="field-label" style={{ fontSize: "11px", fontWeight: 700 }}>
+                    Current Usage / Baseline
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={offsetDraft}
+                    onChange={(e) => setOffsetDraft(Math.max(0, Number(e.target.value) || 0))}
+                    style={{ height: "36px", fontSize: "13px" }}
+                    disabled={!canEdit}
+                    title="Set to match your current RentCast dashboard counter"
+                  />
+                </label>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12.5px", fontWeight: 600, height: "36px" }}>
+                    <input
+                      type="checkbox"
+                      checked={hardStopEnabledDraft}
+                      onChange={(e) => setHardStopEnabledDraft(e.target.checked)}
+                      disabled={!canEdit}
+                      style={{ width: "16px", height: "16px", accentColor: "#10b981" }}
+                    />
+                    <span>Enable Hard Stop Guard</span>
+                  </label>
+                </div>
+
+                {canEdit && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ height: "36px", fontSize: "13px" }}
+                    disabled={savingGuard}
+                    onClick={async () => {
+                      setSavingGuard(true);
+                      setGuardMsg(null);
+                      try {
+                        const res = await api.saveRentcastGuard({
+                          monthlyLimit: monthlyLimitDraft,
+                          hardStopEnabled: hardStopEnabledDraft,
+                          offset: offsetDraft,
+                        });
+                        if (res.ok && res.usage) {
+                          setRentcastUsage(res.usage);
+                          setGuardMsg("Guard settings saved!");
+                          setTimeout(() => setGuardMsg(null), 3000);
+                        }
+                      } catch (err: any) {
+                        setGuardMsg(err?.message || "Failed to save guard settings.");
+                      } finally {
+                        setSavingGuard(false);
+                      }
+                    }}
+                  >
+                    {savingGuard ? "Saving..." : guardMsg || "Save Guard Settings"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Security Notice: Authorized URL Whitelist */}
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                background: "rgba(56, 189, 248, 0.08)",
+                border: "1px solid rgba(56, 189, 248, 0.25)",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+              }}
+            >
+              <span style={{ fontSize: "18px", lineHeight: 1 }}>🔒</span>
+              <div style={{ fontSize: "12px", color: "var(--ink, #f8fafc)", lineHeight: "1.45" }}>
+                <strong>Authorized Real Estate URL Whitelist Active:</strong> For security and data integrity, your CRM strictly permits listing links from <strong>Zillow, Redfin, Realtor.com, Trulia, and Homes.com</strong> (or clean physical addresses). Arbitrary web links, malicious URLs, and internal IP addresses are blocked at the firewall.
+              </div>
+            </div>
           </div>
         </div>
 
@@ -407,21 +587,31 @@ export default function Connections({ canEdit = true }: { canEdit?: boolean }) {
             }}
           >
             <div style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "14px", background: "var(--surface-sunken)" }}>
-              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>🎯 Zapier / Make.com</div>
+              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>📊 PropStream (CSV &amp; Zapier Sync)</div>
               <p style={{ fontSize: "12px", color: "var(--text-dim)", margin: 0, lineHeight: 1.5 }}>
-                Use a Webhook "POST" action pointing to your CRM Webhook URL. Map fields like <code>address</code>, <code>asking_price</code>, and <code>seller_name</code>.
+                <em>Note:</em> PropStream does not provide a direct outbound webhook builder in standard accounts.
+              </p>
+              <ul style={{ fontSize: "12px", color: "var(--text-dim)", margin: "8px 0 0 0", paddingLeft: "18px", lineHeight: 1.5 }}>
+                <li><strong>Recommended:</strong> Export your filtered / skip-traced list as <code>.csv</code> from PropStream, then open <strong>Properties &gt; 📥 Import CSV</strong> in Revzenta. All columns (Address, Owner, Est. Value, Beds, Baths) auto-map instantly.</li>
+                <li><strong>Automated:</strong> Relay PropStream list alerts through Zapier or Google Sheets to POST into your Revzenta Webhook URL.</li>
+              </ul>
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "14px", background: "var(--surface-sunken)" }}>
+              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>⚡ BatchLeads (Direct Webhooks)</div>
+              <p style={{ fontSize: "12px", color: "var(--text-dim)", margin: 0, lineHeight: 1.5 }}>
+                BatchLeads supports native outbound webhooks. Go to <strong>Integrations &gt; Webhooks</strong> inside BatchLeads, add a new webhook, and paste your Revzenta Webhook URL to stream new motivated leads automatically.
               </p>
             </div>
             <div style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "14px", background: "var(--surface-sunken)" }}>
-              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>📊 PropStream &amp; BatchLeads</div>
+              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>🎯 Zapier &amp; Make.com</div>
               <p style={{ fontSize: "12px", color: "var(--text-dim)", margin: 0, lineHeight: 1.5 }}>
-                Export your filtered skip-traced lists or trigger webhook exports on motivated seller triggers directly into your CRM.
+                Use a Webhook "POST" action pointing to your CRM Webhook URL. Map fields like <code>address</code>, <code>asking_price</code>, <code>seller_name</code>, and <code>phone</code>.
               </p>
             </div>
             <div style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "14px", background: "var(--surface-sunken)" }}>
               <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>🌐 Custom Website Forms</div>
               <p style={{ fontSize: "12px", color: "var(--text-dim)", margin: 0, lineHeight: 1.5 }}>
-                Point motivated seller landing page forms (Webflow, WordPress, Carrd) straight to this endpoint for instant lead creation.
+                Point motivated seller landing page forms (Carrot, Webflow, WordPress, Carrd) straight to this endpoint for instant lead creation.
               </p>
             </div>
           </div>

@@ -565,6 +565,12 @@ export function evaluateDealViability(
 export interface ProposalGeneratorInput {
   propertyAddress: string;
   sellerName: string;
+  sellerEmail?: string;
+  sellerPhone?: string;
+  agentName?: string;
+  agentEmail?: string;
+  agentPhone?: string;
+  recipientType?: 'owner' | 'agent' | 'both';
   acquisitionsCompany: string;
   selectedOptions: Array<'cash' | 'subto' | 'creative'>;
   closingDays: number;
@@ -583,6 +589,8 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
 } {
   const addr = input.propertyAddress.trim() || 'Subject Property';
   const seller = input.sellerName.trim() || 'Property Owner of Record';
+  const agent = input.agentName?.trim() || '';
+  const recipientType = input.recipientType || (agent ? 'agent' : 'owner');
   const company = input.acquisitionsCompany.trim() || 'Revzenta Capital';
   const vestingEntity = `${company} and/or assigns`;
   const today = new Date().toLocaleDateString('en-US', {
@@ -592,17 +600,45 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
   });
   const refId = `REV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const subjectLine = `OFFICIAL PURCHASE PROPOSAL: ${addr} (Ref: ${refId})`;
+  const recipientLabel = recipientType === 'agent' && agent
+    ? `ATTN: ${agent} (Listing Agent for ${seller})`
+    : recipientType === 'both' && agent
+    ? `ATTN: ${seller} (Owner) & ${agent} (Listing Agent)`
+    : `ATTN: ${seller} (Property Owner)`;
+
+  const subjectLine = `OFFICIAL PURCHASE PROPOSAL & LOI: ${addr} — ${recipientLabel} (Ref: ${refId})`;
 
   let text = `CONFIDENTIAL PURCHASE PROPOSAL & LETTER OF INTENT (LOI)\n`;
   text += `Date: ${today}\n`;
   text += `Reference: ${refId}\n`;
   text += `Subject Property: ${addr}\n`;
-  text += `Seller / Owner: ${seller}\n`;
+  text += `Property Owner: ${seller}`;
+  if (input.sellerPhone || input.sellerEmail) {
+    text += ` (${[input.sellerPhone, input.sellerEmail].filter(Boolean).join(' · ')})`;
+  }
+  text += `\n`;
+  if (agent || input.agentEmail || input.agentPhone) {
+    text += `Listing Agent: ${agent || 'Agent of Record'}`;
+    if (input.agentPhone || input.agentEmail) {
+      text += ` (${[input.agentPhone, input.agentEmail].filter(Boolean).join(' · ')})`;
+    }
+    text += `\n`;
+  }
   text += `Buyer Entity: ${vestingEntity}\n\n`;
-  text += `Dear ${seller},\n\n`;
-  text += `Our acquisitions team has concluded underwriting on ${addr}. `;
-  text += `Below are our formal purchase options tailored to meet your financial priorities:\n\n`;
+
+  if (recipientType === 'agent' && agent) {
+    text += `Dear ${agent},\n\n`;
+    text += `Please present this formal Letter of Intent (LOI) to your seller, ${seller}, for the property located at ${addr}.\n`;
+    text += `Our acquisitions team has concluded underwriting on the property and structured the formal purchase options outlined below.\n`;
+    text += `COMMISSION PROTECTION: All customary listing agent and cooperating brokerage commissions are fully protected and shall be satisfied through closing escrow with zero deductions from Seller's net walkaway.\n\n`;
+  } else if (recipientType === 'both' && agent) {
+    text += `Dear ${seller} and ${agent},\n\n`;
+    text += `We are pleased to submit this formal Letter of Intent (LOI) for the purchase of ${addr}. Following our acquisitions underwriting review, our team has structured the options detailed below.\n\n`;
+  } else {
+    text += `Dear ${seller},\n\n`;
+    text += `Our acquisitions team has concluded underwriting on ${addr}. `;
+    text += `Below are our formal purchase options tailored to meet your financial priorities:\n\n`;
+  }
 
   let optIdx = 1;
 
@@ -660,11 +696,30 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
       </div>
 
       <div style="padding: 24px 28px;">
-        <p style="margin-top: 0; font-size: 14px; color: #64748b;">Date: ${today}</p>
-        <p style="font-size: 15px; color: #334155;">Dear <strong>${seller}</strong>,</p>
-        <p style="font-size: 14px; color: #475569;">
-          We are pleased to present our formal purchase proposal for <strong>${addr}</strong>. Following our proprietary acquisitions underwriting review, we have structured the following options:
-        </p>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+          <span><strong>Property:</strong> ${addr}</span>
+          <span>${today}</span>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 12.5px; line-height: 1.5;">
+          <div style="color: #334155;"><strong>Owner:</strong> ${seller}${input.sellerPhone ? ` · ${input.sellerPhone}` : ''}${input.sellerEmail ? ` · ${input.sellerEmail}` : ''}</div>
+          ${agent || input.agentEmail || input.agentPhone ? `<div style="color: #0369a1; margin-top: 4px;"><strong>Listing Agent:</strong> ${agent || 'Agent of Record'}${input.agentPhone ? ` · ${input.agentPhone}` : ''}${input.agentEmail ? ` · ${input.agentEmail}` : ''}</div>` : ''}
+        </div>
+        ${recipientType === 'agent' && agent ? `
+          <p style="font-size: 15px; color: #334155; margin-bottom: 8px;">Dear <strong>${agent}</strong> (Listing Agent for ${seller}),</p>
+          <p style="font-size: 14px; color: #475569; margin-top: 0;">
+            Please present this formal Letter of Intent (LOI) to your seller, <strong>${seller}</strong>, for the property at <strong>${addr}</strong>. All broker commissions are fully protected and payable at closing.
+          </p>
+        ` : recipientType === 'both' && agent ? `
+          <p style="font-size: 15px; color: #334155; margin-bottom: 8px;">Dear <strong>${seller}</strong> and <strong>${agent}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; margin-top: 0;">
+            We are pleased to present our formal purchase proposal for <strong>${addr}</strong>. Following our proprietary underwriting review, we have structured the options below:
+          </p>
+        ` : `
+          <p style="font-size: 15px; color: #334155; margin-bottom: 8px;">Dear <strong>${seller}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; margin-top: 0;">
+            We are pleased to present our formal purchase proposal for <strong>${addr}</strong>. Following our proprietary underwriting review, we have structured the options below:
+          </p>
+        `}
 
         <div style="display: flex; flex-direction: column; gap: 16px; margin: 24px 0;">
           ${input.selectedOptions.includes('cash') ? `

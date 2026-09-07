@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
-import type { Client, CustomFieldDef, CustomField, ClientType, PropertyEnrichmentResult, Stage } from "./types";
+import type { Client, CustomFieldDef, CustomField, ClientType, Stage } from "./types";
 import { api } from "./api";
 import { PACKAGE_TIERS, TIER_LABELS, TIER_SERVICE_TAGS, type PackageTier } from "./types";
 import { CLIENT_TIMEZONES, timezoneLabel } from "./timezone";
@@ -236,134 +236,15 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
   /** The Business name / LLC tab is collapsed by default; auto-expands when
    *  editing a client that already has a DBA or EIN/SSN on file. */
   const [llcOpen, setLlcOpen] = useState(() => !!(client?.dbaName || client?.einSsn));
-  const [enriching, setEnriching] = useState(false);
-  const [enrichError, setEnrichError] = useState<string | null>(null);
-  const [enrichSuccess, setEnrichSuccess] = useState<string | null>(null);
-  const [enrichedData, setEnrichedData] = useState<PropertyEnrichmentResult | null>(null);
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  const [apiKeyDraft, setApiKeyDraft] = useState("");
-  const [savingApiKey, setSavingApiKey] = useState(false);
-  const [apiKeyMsg, setApiKeyMsg] = useState<string | null>(null);
   const [assignmentFee, setAssignmentFee] = useState<number>(() => {
     if (client) {
       const val = getAssignmentValue(client);
       if (val > 0) return val;
       if (client.dealValue && client.dealValue > 0) return client.dealValue;
     }
-    return 0;
+    return isWholesale ? 5000 : 0;
   });
 
-  const handleSaveApiKey = async () => {
-    if (!apiKeyDraft.trim()) return;
-    setSavingApiKey(true);
-    setApiKeyMsg(null);
-    try {
-      const res = await api.saveRentcastKey(apiKeyDraft.trim());
-      if (res.ok) {
-        setApiKeyMsg("Key saved! Testing connection...");
-        const testRes = await api.testRentcastKey(apiKeyDraft.trim());
-        if (testRes.ok) {
-          setApiKeyMsg("✓ RentCast connected successfully!");
-          setShowApiKeyInput(false);
-          // Automatically re-run enrich now that key is active
-          setTimeout(() => handleAutoEnrich(), 600);
-        } else {
-          setApiKeyMsg("Key saved, but test failed: " + (testRes.error || "Check key"));
-        }
-      }
-    } catch (e) {
-      setApiKeyMsg(e instanceof Error ? e.message : "Failed to save key");
-    } finally {
-      setSavingApiKey(false);
-    }
-  };
-
-  const handleAutoEnrich = async () => {
-    const fullQuery = `${form.address}, ${form.city} ${form.state} ${form.zip}`.replace(/^[\s,]+|[\s,]+$/g, "");
-    if (!fullQuery) {
-      setEnrichError("Please enter at least a property street address first.");
-      return;
-    }
-    setEnriching(true);
-    setEnrichError(null);
-    setEnrichSuccess(null);
-    try {
-      const res = await api.lookupProperty(fullQuery);
-      if (res.property) {
-        const p = res.property;
-        setEnrichedData(p);
-
-        if (p.source === "unconfigured") {
-          setEnrichError(
-            p.message || "RentCast API key is not configured. Add your free API key to pull verified MLS specs & comps."
-          );
-          setShowApiKeyInput(true);
-          // Only format address if city/state/zip were blank
-          setForm((prev) => ({
-            ...prev,
-            address: prev.address || p.addressLine1,
-            city: prev.city || p.city,
-            state: prev.state || p.state,
-            zip: prev.zip || p.zipCode,
-          }));
-          return;
-        }
-
-        if (p.source === "not_found") {
-          setEnrichError(
-            p.message || "No property records found in RentCast for this address. Verify address formatting or enter specs manually."
-          );
-          return;
-        }
-
-        // Live RentCast data verified! Populate ONLY non-null specs
-        setForm((prev) => {
-          const nextCustom = [...prev.customFields];
-          const setCustom = (name: string, val: string | number) => {
-            const idx = nextCustom.findIndex((c) => c.name === name);
-            if (idx >= 0) nextCustom[idx] = { name, value: String(val) };
-            else nextCustom.push({ name, value: String(val) });
-          };
-          if (p.bedrooms != null) setCustom("bedrooms", p.bedrooms);
-          if (p.bathrooms != null) setCustom("bathrooms", p.bathrooms);
-          if (p.squareFootage != null) setCustom("squareFootage", p.squareFootage);
-          if (p.yearBuilt != null) setCustom("yearBuilt", p.yearBuilt);
-          if (p.estimatedValue != null) setCustom("estimatedValue", p.estimatedValue);
-          if (p.estimatedRent != null) setCustom("rentEstimate", p.estimatedRent);
-
-          return {
-            ...prev,
-            address: p.addressLine1 || prev.address,
-            city: p.city || prev.city,
-            state: p.state || prev.state,
-            zip: p.zipCode || prev.zip,
-            dealValue: p.estimatedValue || prev.dealValue,
-            companyName: prev.companyName || p.ownerName || "",
-            customFields: nextCustom,
-          };
-        });
-
-        if (p.estimatedValue && (!assignmentFee || assignmentFee === 0)) {
-          setAssignmentFee(p.estimatedValue);
-        }
-
-        const specsSummary = [
-          p.bedrooms != null ? `${p.bedrooms} beds` : null,
-          p.bathrooms != null ? `${p.bathrooms} baths` : null,
-          p.squareFootage != null ? `${p.squareFootage.toLocaleString()} sqft` : null,
-          p.yearBuilt != null ? `Built ${p.yearBuilt}` : null,
-          p.estimatedValue != null ? `AVM: $${p.estimatedValue.toLocaleString()}` : null,
-        ].filter(Boolean).join(" • ");
-
-        setEnrichSuccess(`✓ Live data verified via RentCast API (${specsSummary || "Specs Updated"})`);
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to auto-enrich property.";
-      setEnrichError(msg);
-    } finally {
-      setEnriching(false);
-    }
-  };
 
   // Esc closes the modal (keyboard nicety).
   useEffect(() => {
@@ -952,11 +833,12 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
         leadSource: form.leadSource.trim(),
         services: [...form.services],
         stage: form.stage || (stages[0] ?? "Leads"),
-        dealValue: Number(assignmentFee) || Number(form.dealValue) || 0,
+        dealValue: Number(assignmentFee) || Number(form.dealValue) || (isWholesale ? 5000 : 0),
         monthlyAmount: 0,
         billingSame: true,
         customFields: (() => {
           const nextCustom = [...form.customFields];
+          const feeVal = Number(assignmentFee) > 0 ? Number(assignmentFee) : (isWholesale ? 5000 : 0);
           const feeIdx = nextCustom.findIndex(
             (c) =>
               c.name.toLowerCase().includes("assignment fee") ||
@@ -964,21 +846,27 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
               c.name.toLowerCase().includes("projected assignment")
           );
           if (feeIdx >= 0) {
-            nextCustom[feeIdx] = { name: "Assignment Value", value: String(assignmentFee) };
+            nextCustom[feeIdx] = { name: "Assignment Value", value: String(feeVal) };
           } else {
-            nextCustom.push({ name: "Assignment Value", value: String(assignmentFee) });
+            nextCustom.push({ name: "Assignment Value", value: String(feeVal) });
+          }
+          const feeSpreadIdx = nextCustom.findIndex((c) => c.name.toLowerCase() === "assignment fee");
+          if (feeSpreadIdx >= 0) {
+            nextCustom[feeSpreadIdx] = { name: "Assignment Fee", value: `$${feeVal.toLocaleString()}` };
+          } else {
+            nextCustom.push({ name: "Assignment Fee", value: `$${feeVal.toLocaleString()}` });
           }
           return nextCustom;
         })(),
-        lost: false,
-        lostReason: "",
-        dnc: false,
-        dncReason: "",
-        dncDate: "",
-        demoOutcome: "",
-        followUpNote: "",
-        tier: "",
-        timezone: "",
+        lost: form.lost,
+        lostReason: form.lostReason,
+        dnc: form.dnc,
+        dncReason: form.dncReason,
+        dncDate: form.dncDate,
+        demoOutcome: form.demoOutcome,
+        followUpNote: form.followUpNote,
+        tier: form.tier,
+        timezone: form.timezone,
       },
       client,
     );
@@ -1001,84 +889,7 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
               </div>
             )}
 
-            {/* Auto-Enrichment Toolbar */}
-            <div
-              style={{
-                background: "var(--surface-sunken, rgba(255,255,255,0.03))",
-                border: "1px solid var(--border)",
-                borderRadius: "10px",
-                padding: "14px 16px",
-                marginBottom: "16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                <div>
-                  <strong style={{ fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span>⚡</span> Property Lead Auto-Enrichment
-                  </strong>
-                  <span style={{ fontSize: "12px", color: "var(--text-dim)", display: "block" }}>
-                    Pull beds, baths, sqft, year built, AVM market value & comps automatically.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={handleAutoEnrich}
-                  disabled={enriching || !form.address.trim()}
-                  style={{ whiteSpace: "nowrap" }}
-                >
-                  {enriching ? "🔍 Enriching..." : "⚡ Auto-Enrich Data"}
-                </button>
-              </div>
 
-              {enrichError && (
-                <div className="alert alert-error" style={{ margin: 0, fontSize: "12px", padding: "6px 10px" }}>
-                  {enrichError}
-                </div>
-              )}
-              {enrichSuccess && (
-                <div className="alert alert-success" style={{ margin: 0, fontSize: "12px", padding: "6px 10px" }}>
-                  ✓ {enrichSuccess}
-                </div>
-              )}
-
-              {enrichedData && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-                    gap: "8px",
-                    background: "var(--surface)",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border)",
-                    fontSize: "12px",
-                  }}
-                >
-                  <div>
-                    <span style={{ color: "var(--text-dim)", display: "block" }}>AVM Value</span>
-                    <strong style={{ color: "var(--primary)" }}>{enrichedData.estimatedValue != null ? `$${enrichedData.estimatedValue.toLocaleString()}` : "N/A"}</strong>
-                  </div>
-                  {enrichedData.estimatedRent ? (
-                    <div>
-                      <span style={{ color: "var(--text-dim)", display: "block" }}>Market Rent</span>
-                      <strong>${enrichedData.estimatedRent.toLocaleString()}/mo</strong>
-                    </div>
-                  ) : null}
-                  <div>
-                    <span style={{ color: "var(--text-dim)", display: "block" }}>Specs</span>
-                    <strong>{enrichedData.bedrooms ?? "—"}b / {enrichedData.bathrooms ?? "—"}ba • {enrichedData.squareFootage ? `${enrichedData.squareFootage.toLocaleString()} sqft` : "—"}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: "var(--text-dim)", display: "block" }}>Year / Type</span>
-                    <strong>{enrichedData.yearBuilt || "N/A"} • {enrichedData.propertyType}</strong>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* 1. Property Address */}
             <fieldset className="field addr-group intake-block">
@@ -1338,7 +1149,7 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
                       value={assignmentFee === 0 ? "" : assignmentFee}
                       onChange={(e) => setAssignmentFee(Number(e.target.value) || 0)}
                       style={{ paddingLeft: "26px", fontSize: "15px", fontWeight: 600 }}
-                      placeholder="10000"
+                      placeholder="5000"
                       aria-label="Assignment Value"
                     />
                   </div>
@@ -1587,6 +1398,111 @@ export default function ClientModal({ client, stages, defaultStage, customFieldD
               </select>
             </div>
           )}
+
+          {/* 4. Lead Compliance & DNC (Do-Not-Call) Protection */}
+          <section
+            className="intake-section"
+            aria-label="Lead compliance and DNC status"
+            style={{
+              marginTop: "20px",
+              padding: "16px",
+              borderRadius: "8px",
+              border: form.dnc ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid var(--border, #30363d)",
+              background: form.dnc ? "rgba(239, 68, 68, 0.06)" : "var(--panel-2, #16161b)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: form.dnc ? "12px" : "0",
+              }}
+            >
+              <div>
+                <span style={{ fontSize: "13.5px", fontWeight: 700, color: form.dnc ? "#f87171" : "var(--text)" }}>
+                  🛑 Outreach Compliance & DNC (Do-Not-Call)
+                </span>
+                <p style={{ margin: "2px 0 0 0", fontSize: "11.5px", color: "var(--muted, #94a3b8)" }}>
+                  Flag homeowners who request Do-Not-Call to maintain TCPA & federal telemarketing compliance.
+                </p>
+              </div>
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  color: form.dnc ? "#f87171" : "var(--ink, #f8fafc)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.dnc}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    set("dnc", checked);
+                    if (checked && !form.dncDate) {
+                      set("dncDate", localToday());
+                    }
+                  }}
+                  style={{ width: "16px", height: "16px", accentColor: "#ef4444" }}
+                />
+                <span>{form.dnc ? "DNC Active" : "Mark as DNC"}</span>
+              </label>
+            </div>
+
+            {form.dnc && (
+              <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: "10px" }}>
+                  <label className="field" style={{ margin: 0 }}>
+                    <span className="field-label" style={{ fontSize: "11px", fontWeight: 700 }}>
+                      DNC Opt-Out Reason
+                    </span>
+                    <input
+                      type="text"
+                      value={form.dncReason}
+                      onChange={(e) => set("dncReason", e.target.value)}
+                      placeholder="e.g. Homeowner requested removal on phone call"
+                      maxLength={200}
+                      style={{ height: "34px", fontSize: "12.5px" }}
+                    />
+                  </label>
+                  <label className="field" style={{ margin: 0 }}>
+                    <span className="field-label" style={{ fontSize: "11px", fontWeight: 700 }}>
+                      Date Marked
+                    </span>
+                    <input
+                      type="date"
+                      value={form.dncDate || localToday()}
+                      onChange={(e) => set("dncDate", e.target.value)}
+                      style={{ height: "34px", fontSize: "12px" }}
+                    />
+                  </label>
+                </div>
+                <div
+                  style={{
+                    fontSize: "11.5px",
+                    color: "#fca5a5",
+                    background: "rgba(239, 68, 68, 0.12)",
+                    padding: "6px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>⚠️</span>
+                  <span>
+                    <strong>TCPA Outreach Restriction:</strong> This contact is flagged on your Do-Not-Call list. No phone calls or SMS messages should be initiated.
+                  </span>
+                </div>
+              </div>
+            )}
+          </section>
 
           <div className="modal-actions" style={{ marginTop: "24px" }}>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>

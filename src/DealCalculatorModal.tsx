@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import type { Client, WholesaleOffer } from "./types";
+import { useState, useMemo, useEffect, useRef } from "react";
+import type { Client, WholesaleOffer, PropertyEnrichmentResult } from "./types";
 import { api, type ClientInput } from "./api";
 import {
   calculateCashWholesale,
@@ -9,6 +9,7 @@ import {
   generateMultiOptionProposal,
   type MortgageLien,
 } from "./dealUnderwriting";
+import { extractAddressFromUrl } from "./urlAddressParser";
 
 interface Props {
   property?: Client | null;
@@ -190,6 +191,30 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
   const [propertiesList, setPropertiesList] = useState<Client[]>(allProperties || []);
   const [activeProperty, setActiveProperty] = useState<Client | null>(property || null);
+  const enrichedPropertyIds = useRef<Set<number>>(new Set());
+
+  const isAlreadyEnriched = (p?: Client | null): boolean => {
+    if (!p) return false;
+    if (enrichedPropertyIds.current.has(p.id)) return true;
+    if (p.customFields && Array.isArray(p.customFields)) {
+      const autoEnrichedField = p.customFields.find((c) => {
+        const n = c.name.toLowerCase();
+        return n === "auto enriched" || n === "auto_enriched" || n === "cf_auto_enriched";
+      });
+      if (autoEnrichedField && autoEnrichedField.value) return true;
+
+      const hasBeds = p.customFields.some((c) => c.name.toLowerCase().includes("bed") && c.value);
+      const hasBaths = p.customFields.some((c) => c.name.toLowerCase().includes("bath") && c.value);
+      const hasSqft = p.customFields.some((c) => (c.name.toLowerCase().includes("sqft") || c.name.toLowerCase().includes("square")) && c.value);
+      const hasYear = p.customFields.some((c) => c.name.toLowerCase().includes("year") && c.value);
+      const hasAvm = p.customFields.some((c) => (c.name.toLowerCase().includes("avm") || c.name.toLowerCase() === "estimated value") && c.value);
+
+      if (hasBeds || hasBaths || hasSqft || hasYear || hasAvm) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   useEffect(() => {
     if (!allProperties || allProperties.length === 0) {
@@ -227,6 +252,13 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const [propertyAddress, setPropertyAddress] = useState(() => extractAddress(property));
   const [sellerName, setSellerName] = useState(() => extractSeller(property));
   const [recipientEmail, setRecipientEmail] = useState(property?.email || "");
+  const [sellerPhone, setSellerPhone] = useState(property?.phone || "");
+  const [agentName, setAgentName] = useState(property?.agentName || "");
+  const [agentEmail, setAgentEmail] = useState(property?.agentEmail || "");
+  const [agentPhone, setAgentPhone] = useState(property?.agentPhone || "");
+  const [recipientType, setRecipientType] = useState<"owner" | "agent" | "both">(() => {
+    return (property?.agentName || property?.agentEmail) ? "agent" : "owner";
+  });
   const [acquisitionsCompany, setAcquisitionsCompany] = useState(crmBusinessName || "");
 
   useEffect(() => {
@@ -280,6 +312,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     setPropertyAddress(full);
     setSellerName(extractSeller(p));
     setRecipientEmail(p.email || "");
+    setSellerPhone(p.phone || "");
+    setAgentName(p.agentName || "");
+    setAgentEmail(p.agentEmail || "");
+    setAgentPhone(p.agentPhone || "");
+    if (p.agentName || p.agentEmail) {
+      setRecipientType("agent");
+    } else {
+      setRecipientType("owner");
+    }
 
     if (p.clientType === "commercial") setPropertyType("commercial");
     else if (p.clientType === "multi_family") setPropertyType("multi_family");
@@ -287,7 +328,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
     let arv = 275000;
     let repairs = 35000;
-    let fee = 10000;
+    let fee = 5000;
     let rule = 70;
     let purchasePrice = 260000;
     let downPayment = 15000;
@@ -326,12 +367,44 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     setCreativeRent(rent);
     setSubtoPrice(purchasePrice);
     setSubtoRent(rent);
+
+    const cfBeds = p.customFields?.find((c) => c.name.toLowerCase().includes("bed"))?.value;
+    const cfBaths = p.customFields?.find((c) => c.name.toLowerCase().includes("bath"))?.value;
+    const cfSqft = p.customFields?.find((c) => c.name.toLowerCase().includes("sqft") || c.name.toLowerCase().includes("square"))?.value;
+    const cfYear = p.customFields?.find((c) => c.name.toLowerCase().includes("year"))?.value;
+    const cfAvm = p.customFields?.find((c) => c.name.toLowerCase().includes("avm") || c.name.toLowerCase() === "estimated value")?.value;
+    const cfRent = p.customFields?.find((c) => c.name.toLowerCase().includes("rent estimate") || c.name.toLowerCase() === "market rent")?.value;
+    if (cfBeds || cfBaths || cfSqft || cfYear || cfAvm) {
+      setEnrichedData({
+        formattedAddress: full,
+        addressLine1: p.address || full,
+        city: p.city || "",
+        state: p.state || "",
+        zipCode: p.zip || "",
+        bedrooms: cfBeds ? Number(cfBeds) : undefined,
+        bathrooms: cfBaths ? Number(cfBaths) : undefined,
+        squareFootage: cfSqft ? Number(cfSqft) : undefined,
+        yearBuilt: cfYear ? Number(cfYear) : undefined,
+        estimatedValue: cfAvm ? Number(cfAvm) : undefined,
+        estimatedRent: cfRent ? Number(cfRent) : undefined,
+        propertyType: p.clientType || "single_family",
+        source: "rentcast",
+      });
+      setEnrichSuccess("✓ Verified MLS specs loaded from saved records");
+      setEnrichError(null);
+    }
   };
 
   useEffect(() => {
     if (property) {
       setActiveProperty(property);
       loadPropertyData(property);
+      if (!isAlreadyEnriched(property)) {
+        const addr = extractAddress(property);
+        if (addr && addr.length > 5) {
+          handleAutoEnrich(addr, property);
+        }
+      }
     }
   }, [property]);
 
@@ -340,6 +413,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       setActiveProperty(null);
       setPropertyAddress("");
       setSellerName("");
+      setRecipientEmail("");
+      setSellerPhone("");
+      setAgentName("");
+      setAgentEmail("");
+      setAgentPhone("");
+      setRecipientType("owner");
+      setEnrichedData(null);
+      setEnrichSuccess(null);
+      setEnrichError(null);
       return;
     }
     const found = propertiesList.find((p) => String(p.id) === idStr);
@@ -348,6 +430,12 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       loadPropertyData(found);
       setSaveSuccessMsg(`Loaded "${found.address || found.companyName}" from Properties Table!`);
       setTimeout(() => setSaveSuccessMsg(null), 4000);
+      if (!isAlreadyEnriched(found)) {
+        const addr = extractAddress(found);
+        if (addr && addr.length > 5) {
+          handleAutoEnrich(addr, found);
+        }
+      }
     }
   };
 
@@ -355,7 +443,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const initialFields = useMemo(() => {
     let arv = 275000;
     let repairs = 35000;
-    let fee = 10000;
+    let fee = 5000;
     let rule = 70;
     let purchasePrice = 260000;
     let listedPrice = 275000;
@@ -548,11 +636,187 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [savingToCrm, setSavingToCrm] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [generatingOffer, setGeneratingOffer] = useState<boolean>(false);
+  const [generatedOffer, setGeneratedOffer] = useState<WholesaleOffer | null>(null);
+  const [offerError, setOfferError] = useState<string | null>(null);
+
+  // Manual Send & Preview Offer state
+  const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
+  const [previewSubject, setPreviewSubject] = useState<string>("");
+  const [previewRecipientEmail, setPreviewRecipientEmail] = useState<string>("");
+  const [previewMessage, setPreviewMessage] = useState<string>("");
+  const [sendingOffer, setSendingOffer] = useState<boolean>(false);
+  const [sendSuccessMsg, setSendSuccessMsg] = useState<string | null>(null);
+  const [sendErrorMsg, setSendErrorMsg] = useState<string | null>(null);
+  const [previewTab, setPreviewTab] = useState<"formatted" | "plain">("formatted");
+
+  // ==========================================================================
+  // PROPERTY LEAD AUTO-ENRICHMENT (RentCast MLS Specs, AVM & Comps)
+  // ==========================================================================
+  const [enriching, setEnriching] = useState<boolean>(false);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const [enrichSuccess, setEnrichSuccess] = useState<string | null>(null);
+  const [enrichedData, setEnrichedData] = useState<PropertyEnrichmentResult | null>(null);
+  const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(false);
+  const [apiKeyDraft, setApiKeyDraft] = useState<string>("");
+  const [savingApiKey, setSavingApiKey] = useState<boolean>(false);
+  const [apiKeyMsg, setApiKeyMsg] = useState<string | null>(null);
+  const [showComps, setShowComps] = useState<boolean>(false);
+
+  const handleSaveApiKey = async () => {
+    if (!apiKeyDraft.trim()) return;
+    setSavingApiKey(true);
+    setApiKeyMsg(null);
+    try {
+      const res = await api.saveRentcastKey(apiKeyDraft.trim());
+      if (res.ok) {
+        setApiKeyMsg("Key saved! Testing connection...");
+        const testRes = await api.testRentcastKey(apiKeyDraft.trim());
+        if (testRes.ok) {
+          setApiKeyMsg("✓ RentCast connected successfully!");
+          setShowApiKeyInput(false);
+          setTimeout(() => handleAutoEnrich(), 600);
+        } else {
+          setApiKeyMsg("Key saved, but test failed: " + (testRes.error || "Check key"));
+        }
+      }
+    } catch (e) {
+      setApiKeyMsg(e instanceof Error ? e.message : "Failed to save key");
+    } finally {
+      setSavingApiKey(false);
+    }
+  };
+
+  const handleAutoEnrich = async (overrideQuery?: string, targetProp?: Client | null) => {
+    const propToUse = targetProp !== undefined ? targetProp : activeProperty;
+    const fullQuery = (
+      typeof overrideQuery === "string" && overrideQuery.trim()
+        ? overrideQuery
+        : propertyAddress || propToUse?.address || propToUse?.companyName || ""
+    ).trim();
+    if (!fullQuery) {
+      setEnrichError("Please select or enter a property address first.");
+      return;
+    }
+
+    const parsedQuery = extractAddressFromUrl(fullQuery);
+    const queryAddress = parsedQuery.address || fullQuery;
+    if (parsedQuery.isUrl && !overrideQuery) {
+      setPropertyAddress(queryAddress);
+    }
+
+    setEnriching(true);
+    setEnrichError(null);
+    setEnrichSuccess(null);
+    try {
+      const res = await api.lookupProperty(queryAddress);
+      if (res.property) {
+        const p = res.property;
+        setEnrichedData(p);
+
+        if (p.source === "unconfigured") {
+          setEnrichError(
+            p.message || "RentCast API key is not configured. Enter your API key below to pull verified MLS specs & comps."
+          );
+          setShowApiKeyInput(true);
+          return;
+        }
+
+        if (p.source === "not_found") {
+          setEnrichError(
+            p.message || `No property records found in RentCast for "${fullQuery}". Try adding City, State, and Zip code (e.g. "123 Main St, Austin, TX 78701") or enter specs manually.`
+          );
+          return;
+        }
+
+        // Live RentCast data verified! Auto-populate underwriting fields
+        if (p.estimatedValue && p.estimatedValue > 0) {
+          setCashArv(p.estimatedValue);
+        }
+        if (p.estimatedRent && p.estimatedRent > 0) {
+          setSubtoRent(p.estimatedRent);
+          setCreativeRent(p.estimatedRent);
+        }
+        if (p.ownerName && (!sellerName || sellerName === "Unknown Owner")) {
+          setSellerName(p.ownerName);
+        }
+        if (p.propertyType) {
+          const pt = p.propertyType.toLowerCase();
+          if (pt.includes("commercial")) setPropertyType("commercial");
+          else if (pt.includes("multi")) setPropertyType("multi_family");
+          else setPropertyType("single_family");
+        }
+
+        const specsSummary = [
+          p.bedrooms != null ? `${p.bedrooms} beds` : null,
+          p.bathrooms != null ? `${p.bathrooms} baths` : null,
+          p.squareFootage != null ? `${p.squareFootage.toLocaleString()} sqft` : null,
+          p.yearBuilt != null ? `Built ${p.yearBuilt}` : null,
+          p.estimatedValue != null ? `AVM: $${p.estimatedValue.toLocaleString()}` : null,
+        ].filter(Boolean).join(" • ");
+
+        setEnrichSuccess(`✓ Live MLS specs verified via RentCast API (${specsSummary || "Specs Updated"})`);
+
+        // Track and persist to property so closing and re-opening won't trigger re-pull
+        if (propToUse?.id) {
+          enrichedPropertyIds.current.add(propToUse.id);
+
+          try {
+            const existingFields = [...(propToUse.customFields || [])];
+            const setOrUpdateField = (name: string, value: string) => {
+              const idx = existingFields.findIndex((f) => f.name.toLowerCase() === name.toLowerCase());
+              if (idx >= 0) {
+                existingFields[idx] = { name: existingFields[idx].name, value };
+              } else {
+                existingFields.push({ name, value });
+              }
+            };
+
+            setOrUpdateField("Auto Enriched", new Date().toISOString());
+            if (p.bedrooms != null) setOrUpdateField("Bedrooms", String(p.bedrooms));
+            if (p.bathrooms != null) setOrUpdateField("Bathrooms", String(p.bathrooms));
+            if (p.squareFootage != null) setOrUpdateField("Square Footage", String(p.squareFootage));
+            if (p.yearBuilt != null) setOrUpdateField("Year Built", String(p.yearBuilt));
+            if (p.estimatedValue != null) setOrUpdateField("Estimated Value", String(p.estimatedValue));
+            if (p.estimatedRent != null) setOrUpdateField("Rent Estimate", String(p.estimatedRent));
+            if (p.propertyType) setOrUpdateField("Property Class", p.propertyType);
+
+            const updatePayload: Partial<ClientInput> = {
+              customFields: existingFields,
+            };
+            if (p.estimatedValue && (!propToUse.dealValue || propToUse.dealValue === 0)) {
+              updatePayload.dealValue = p.estimatedValue;
+            }
+
+            api.updateClient(propToUse.id, updatePayload).then((updateRes) => {
+              if (updateRes.client) {
+                setActiveProperty(updateRes.client);
+                onUpdated?.(updateRes.client);
+              }
+            }).catch(() => {});
+          } catch {
+            // non-fatal persistence error
+          }
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to auto-enrich property.";
+      setEnrichError(msg);
+    } finally {
+      setEnriching(false);
+    }
+  };
 
   const proposalData = useMemo(() => {
     return generateMultiOptionProposal({
       propertyAddress,
       sellerName,
+      sellerEmail: recipientEmail,
+      sellerPhone,
+      agentName,
+      agentEmail,
+      agentPhone,
+      recipientType,
       acquisitionsCompany,
       selectedOptions: selectedProposalOptions,
       closingDays,
@@ -592,6 +856,12 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   }, [
     propertyAddress,
     sellerName,
+    recipientEmail,
+    sellerPhone,
+    agentName,
+    agentEmail,
+    agentPhone,
+    recipientType,
     acquisitionsCompany,
     selectedProposalOptions,
     closingDays,
@@ -633,6 +903,118 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     } catch {
       setCopySuccess("Failed to copy automatically. Please select text manually.");
       setTimeout(() => setCopySuccess(null), 4000);
+    }
+  };
+
+  const handleGenerateFormalLoi = async (): Promise<WholesaleOffer | null> => {
+    if (!propertyAddress.trim()) {
+      setOfferError("Property address is required to generate an LOI.");
+      return null;
+    }
+    setGeneratingOffer(true);
+    setOfferError(null);
+    try {
+      const offerTypeLabel =
+        selectedProposalOptions.length > 1
+          ? "Multi-Option (Cash, SubTo, Creative)"
+          : selectedProposalOptions[0] === "cash"
+          ? "Cash"
+          : selectedProposalOptions[0] === "subto"
+          ? "Subject-To"
+          : "Seller Financing";
+
+      const targetEmail = (previewRecipientEmail || (recipientType === "agent" ? (agentEmail || recipientEmail) : recipientEmail)).trim();
+
+      const res = await api.createOffer({
+        clientId: activeProperty?.id,
+        propertyAddress: propertyAddress.trim(),
+        sellerName: sellerName.trim(),
+        sellerEmail: targetEmail || recipientEmail.trim(),
+        sellerPhone: sellerPhone.trim(),
+        agentName: agentName.trim(),
+        agentEmail: agentEmail.trim(),
+        agentPhone: agentPhone.trim(),
+        recipientType,
+        offerType: offerTypeLabel,
+        cashOfferAmount: selectedProposalOptions.includes("cash") ? cashMetrics.netWholesaleOffer : 0,
+        subtoPurchasePrice: selectedProposalOptions.includes("subto") ? subtoPrice : 0,
+        creativePurchasePrice: selectedProposalOptions.includes("creative") ? creativePrice : 0,
+        closingDays,
+        status: "Sent",
+        notes: previewMessage || proposalData.plainText,
+      });
+
+      if (res.ok && res.offer) {
+        setGeneratedOffer(res.offer);
+        setSaveSuccessMsg("Official LOI generated and stored in Offers Repository!");
+        if (activeProperty?.id) {
+          await handleSaveTermsToProperty();
+        }
+        return res.offer;
+      }
+      return null;
+    } catch (err: any) {
+      setOfferError(err?.message || "Failed to generate official LOI");
+      return null;
+    } finally {
+      setGeneratingOffer(false);
+    }
+  };
+
+  const handleOpenPreviewOffer = () => {
+    const targetEmail = recipientType === "agent" ? (agentEmail || recipientEmail) : recipientEmail;
+    setPreviewRecipientEmail(targetEmail || "");
+    setPreviewSubject(`Letter of Intent to Purchase: ${propertyAddress || "Subject Property"}`);
+    setPreviewMessage(proposalData.plainText);
+    setSendSuccessMsg(null);
+    setSendErrorMsg(null);
+    setShowPreviewModal(true);
+  };
+
+  const handleSendOffer = async () => {
+    const targetEmail = (previewRecipientEmail || (recipientType === "agent" ? (agentEmail || recipientEmail) : recipientEmail)).trim();
+    if (!targetEmail) {
+      setSendErrorMsg("Please enter a valid recipient email address.");
+      if (!showPreviewModal) setShowPreviewModal(true);
+      return;
+    }
+    setSendingOffer(true);
+    setSendErrorMsg(null);
+    setSendSuccessMsg(null);
+
+    try {
+      // 1. Ensure offer is recorded in repository and PDF generated
+      let offer = generatedOffer;
+      if (!offer) {
+        offer = await handleGenerateFormalLoi();
+      }
+      if (!offer || !offer.id) {
+        throw new Error(offerError || "Failed to create offer record before sending.");
+      }
+
+      // 2. Dispatch offer email with attached official PDF
+      const sendRes = await api.sendOffer(offer.id, {
+        to: targetEmail,
+        subject: previewSubject || `Purchase Offer / Letter of Intent — ${propertyAddress}`,
+        message: previewMessage || proposalData.plainText,
+        html: proposalData.htmlMarkup,
+      });
+
+      if (sendRes.ok) {
+        setGeneratedOffer(sendRes.offer);
+        const msg = sendRes.emailStatus === "sent"
+          ? `✓ Offer successfully sent to ${targetEmail} with official PDF attached!`
+          : `✓ Offer saved to repository & PDF generated (Email dispatch: ${sendRes.emailStatus}).`;
+        setSendSuccessMsg(msg);
+        setSaveSuccessMsg(msg);
+        setTimeout(() => {
+          setShowPreviewModal(false);
+        }, 1800);
+      }
+    } catch (err: any) {
+      setSendErrorMsg(err?.message || "Failed to send offer email.");
+    } finally {
+      setSendingOffer(false);
     }
   };
 
@@ -681,6 +1063,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         });
       }
 
+      if (enrichedData) {
+        if (enrichedData.bedrooms != null) customFieldsUpdate.push({ id: "cf_beds", name: "Bedrooms", type: "number", value: String(enrichedData.bedrooms) });
+        if (enrichedData.bathrooms != null) customFieldsUpdate.push({ id: "cf_baths", name: "Bathrooms", type: "number", value: String(enrichedData.bathrooms) });
+        if (enrichedData.squareFootage != null) customFieldsUpdate.push({ id: "cf_sqft", name: "Square Footage", type: "number", value: String(enrichedData.squareFootage) });
+        if (enrichedData.yearBuilt != null) customFieldsUpdate.push({ id: "cf_year", name: "Year Built", type: "number", value: String(enrichedData.yearBuilt) });
+        if (enrichedData.estimatedRent != null) customFieldsUpdate.push({ id: "cf_rent", name: "Market Rent", type: "currency", value: String(enrichedData.estimatedRent) });
+        if (enrichedData.estimatedValue != null) customFieldsUpdate.push({ id: "cf_avm", name: "AVM Market Value", type: "currency", value: String(enrichedData.estimatedValue) });
+      }
+
       if (activeProperty?.id) {
         const updatePayload: Partial<ClientInput> = {
           clientType: propertyType,
@@ -697,6 +1088,11 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         if (sellerName) {
           updatePayload.contactName = sellerName;
         }
+        if (sellerPhone) updatePayload.phone = sellerPhone;
+        if (recipientEmail) updatePayload.email = recipientEmail;
+        if (agentName) updatePayload.agentName = agentName;
+        if (agentEmail) updatePayload.agentEmail = agentEmail;
+        if (agentPhone) updatePayload.agentPhone = agentPhone;
 
         const res = await api.updateClient(activeProperty.id, updatePayload);
         if (res.client) {
@@ -710,6 +1106,10 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           companyName: propertyAddress || "New Property Underwritten",
           contactName: sellerName || "Unknown Owner",
           email: recipientEmail || "",
+          phone: sellerPhone || "",
+          agentName: agentName || "",
+          agentEmail: agentEmail || "",
+          agentPhone: agentPhone || "",
           dealValue: activeOffer,
           stage: "Leads",
           clientType: propertyType,
@@ -763,6 +1163,11 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         propertyAddress: propertyAddress || activeProperty?.address || activeProperty?.companyName || "Property",
         sellerName: sellerName || activeProperty?.contactName || "Property Owner",
         sellerEmail: recipientEmail || activeProperty?.email || "",
+        sellerPhone,
+        agentName,
+        agentEmail,
+        agentPhone,
+        recipientType,
         offerType: offerTypeStr,
         cashOfferAmount: tab === "cash" ? offerAmount : 0,
         creativePurchasePrice: tab === "creative" ? creativePrice : 0,
@@ -809,9 +1214,12 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           if (parsedAddr.zip) updatePayload.zip = parsedAddr.zip;
           updatePayload.companyName = propertyAddress;
         }
-        if (sellerName) {
-          updatePayload.contactName = sellerName;
-        }
+        if (sellerName) updatePayload.contactName = sellerName;
+        if (sellerPhone) updatePayload.phone = sellerPhone;
+        if (recipientEmail) updatePayload.email = recipientEmail;
+        if (agentName) updatePayload.agentName = agentName;
+        if (agentEmail) updatePayload.agentEmail = agentEmail;
+        if (agentPhone) updatePayload.agentPhone = agentPhone;
 
         const res = await api.updateClient(activeProperty.id, updatePayload);
         if (res.client) {
@@ -823,6 +1231,10 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           companyName: propertyAddress || "New Property Underwritten",
           contactName: sellerName || "Unknown Owner",
           email: recipientEmail || "",
+          phone: sellerPhone,
+          agentName,
+          agentEmail,
+          agentPhone,
           dealValue: offerAmount,
           stage: "Leads",
           clientType: propertyType,
@@ -1015,21 +1427,46 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <div style={{ width: "170px" }}>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #94a3b8)", letterSpacing: "0.05em", marginBottom: "4px" }}>
-                Seller / Owner Name
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <div style={{ width: "150px" }}>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--lime, #d6ff3f)", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                Property Owner
               </label>
               <input
                 type="text"
                 value={sellerName}
                 onChange={(e) => setSellerName(e.target.value)}
-                placeholder="Owner name (optional)"
+                placeholder="Owner name"
                 style={{
                   width: "100%",
                   height: "38px",
-                  padding: "0 12px",
-                  fontSize: "13px",
+                  padding: "0 10px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "1px solid var(--border, #30363d)",
+                  backgroundColor: "var(--panel, #121216)",
+                  color: "var(--ink, #f8fafc)",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ width: "150px" }}>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                Listing Agent
+              </label>
+              <input
+                type="text"
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                placeholder="Agent name (optional)"
+                style={{
+                  width: "100%",
+                  height: "38px",
+                  padding: "0 10px",
+                  fontSize: "12.5px",
                   fontWeight: 600,
                   borderRadius: "6px",
                   border: "1px solid var(--border, #30363d)",
@@ -1070,12 +1507,36 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
               </select>
             </div>
 
-            <div style={{ display: "flex", gap: "8px", alignItems: "flex-end", alignSelf: "flex-end" }}>
+            <div style={{ display: "flex", gap: "8px", alignItems: "flex-end", alignSelf: "flex-end", flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={handleCreateFormalOffer}
-                disabled={creatingOffer || savingToCrm}
-                title="Create formal purchase offer and dispatch to seller"
+                onClick={handleOpenPreviewOffer}
+                title="Preview formal purchase offer & LOI package"
+                style={{
+                  height: "38px",
+                  padding: "0 14px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  whiteSpace: "nowrap",
+                  borderRadius: "6px",
+                  border: "1px solid #38bdf8",
+                  backgroundColor: "rgba(56, 189, 248, 0.12)",
+                  color: "#38bdf8",
+                  cursor: "pointer",
+                }}
+              >
+                <span>👁️</span>
+                <span>Preview Offer</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendOffer}
+                disabled={sendingOffer}
+                title="Manually send offer with PDF to recipient"
                 style={{
                   height: "38px",
                   padding: "0 14px",
@@ -1087,14 +1548,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   whiteSpace: "nowrap",
                   borderRadius: "6px",
                   border: "none",
-                  backgroundColor: "#0284c7",
+                  backgroundColor: "#2563eb",
                   color: "#ffffff",
-                  cursor: "pointer",
-                  boxShadow: "0 2px 8px rgba(2, 132, 199, 0.3)",
+                  cursor: sendingOffer ? "not-allowed" : "pointer",
+                  boxShadow: "0 2px 8px rgba(37, 99, 235, 0.35)",
+                  opacity: sendingOffer ? 0.7 : 1,
                 }}
               >
-                <span>⚡</span>
-                <span>{creatingOffer ? "Creating…" : "Create Formal Offer"}</span>
+                <span>📤</span>
+                <span>{sendingOffer ? "Sending..." : "Send Offer"}</span>
               </button>
 
               <button
@@ -1288,6 +1750,242 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           )}
         </div>
 
+        {/* ── Property Lead Auto-Enrichment (RentCast MLS Specs, AVM & Comps) ── */}
+        <div
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "rgba(214, 255, 63, 0.04)",
+            borderBottom: "1px solid var(--border, #30363d)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "20px" }}>⚡</span>
+              <div>
+                <strong style={{ fontSize: "13.5px", color: "var(--ink, #f8fafc)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>Property Lead Auto-Enrichment</span>
+                  <span style={{ fontSize: "10px", fontWeight: 800, padding: "1px 7px", borderRadius: "4px", backgroundColor: "rgba(214, 255, 63, 0.15)", color: "var(--primary, #d6ff3f)", border: "1px solid rgba(214, 255, 63, 0.3)" }}>
+                    RentCast MLS Data
+                  </span>
+                </strong>
+                <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", display: "block", marginTop: "1px" }}>
+                  Pull beds, baths, sqft, year built, AVM market value &amp; comps automatically.
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => handleAutoEnrich(undefined, activeProperty)}
+                disabled={enriching || !propertyAddress.trim()}
+                title="Automatically pull verified MLS specs, valuations, and comps for this property address"
+                style={{
+                  height: "34px",
+                  padding: "0 16px",
+                  fontWeight: 700,
+                  fontSize: "12.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  whiteSpace: "nowrap",
+                  borderRadius: "6px",
+                  border: "1px solid var(--primary, #d6ff3f)",
+                  backgroundColor: "rgba(214, 255, 63, 0.15)",
+                  color: "var(--primary, #d6ff3f)",
+                  cursor: enriching || !propertyAddress.trim() ? "not-allowed" : "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>{enriching ? "🔍" : "⚡"}</span>
+                <span>{enriching ? "Enriching..." : "Auto-Enrich Data"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Feedback banners */}
+          {enrichError && (
+            <div style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", fontSize: "12px" }}>
+              {enrichError}
+            </div>
+          )}
+          {enrichSuccess && (
+            <div style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#34d399", fontSize: "12px" }}>
+              {enrichSuccess}
+            </div>
+          )}
+
+          {/* Inline RentCast API key entry if not yet configured */}
+          {showApiKeyInput && (
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "10px 14px", borderRadius: "8px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>RentCast API Key:</span>
+              <input
+                type="text"
+                value={apiKeyDraft}
+                onChange={(e) => setApiKeyDraft(e.target.value)}
+                placeholder="Paste your RentCast API Key..."
+                style={{ flex: "1 1 240px", height: "32px", padding: "0 10px", fontSize: "12.5px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "var(--ink, #f8fafc)", outline: "none" }}
+              />
+              <button
+                type="button"
+                onClick={handleSaveApiKey}
+                disabled={savingApiKey || !apiKeyDraft.trim()}
+                style={{ height: "32px", padding: "0 14px", fontSize: "12px", fontWeight: 700, borderRadius: "6px", background: "var(--primary, #d6ff3f)", color: "#000", border: "none", cursor: "pointer" }}
+              >
+                {savingApiKey ? "Saving..." : "Save Key & Auto-Enrich"}
+              </button>
+              {apiKeyMsg && <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)" }}>{apiKeyMsg}</span>}
+            </div>
+          )}
+
+          {/* Enriching progress banner */}
+          {enriching && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderRadius: "8px", background: "rgba(56, 189, 248, 0.12)", border: "1px solid rgba(56, 189, 248, 0.35)", fontSize: "12.5px", color: "#38bdf8" }}>
+              <span style={{ fontSize: "16px" }}>🔄</span>
+              <span><strong>Connecting to RentCast API...</strong> Fetching verified MLS specs, public county tax appraisal, AVM valuation, and comps for <em>{propertyAddress || "selected property"}</em>...</span>
+            </div>
+          )}
+
+          {/* Prompt when not yet enriched */}
+          {!enrichedData && !enriching && !enrichError && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.02)", border: "1px dashed var(--border, #30363d)", fontSize: "12px", color: "var(--muted, #94a3b8)", flexWrap: "wrap" }}>
+              <span>
+                💡 {propertyAddress.trim() ? `Click "⚡ Auto-Enrich Data" to query RentCast for MLS specs, AVM valuation & comps for "${propertyAddress}".` : "Select a property above or enter an address to pull verified MLS specs & valuations."}
+              </span>
+              {propertyAddress.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleAutoEnrich(undefined, activeProperty)}
+                  style={{ background: "none", border: "none", color: "var(--primary, #d6ff3f)", fontSize: "12px", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}
+                >
+                  ⚡ Run Auto-Enrich Now →
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Enriched live metrics badge row */}
+          {enrichedData && (
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", paddingTop: "2px" }}>
+              {/* AVM Market Value */}
+              <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>AVM Value</span>
+                <strong style={{ fontSize: "13.5px", color: "var(--primary, #d6ff3f)" }}>
+                  {enrichedData.estimatedValue != null ? `$${enrichedData.estimatedValue.toLocaleString()}` : "N/A"}
+                </strong>
+                {enrichedData.estimatedValue != null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCashArv(enrichedData.estimatedValue!);
+                      setSaveSuccessMsg(`Set Cash Underwriter ARV to AVM $${enrichedData.estimatedValue!.toLocaleString()}!`);
+                      setTimeout(() => setSaveSuccessMsg(null), 3500);
+                    }}
+                    title="Set Cash Wholesale ARV to this verified AVM value"
+                    style={{ fontSize: "10.5px", fontWeight: 700, padding: "2px 7px", borderRadius: "4px", background: "rgba(214, 255, 63, 0.15)", border: "1px solid rgba(214, 255, 63, 0.3)", color: "var(--primary, #d6ff3f)", cursor: "pointer" }}
+                  >
+                    Use as ARV
+                  </button>
+                )}
+              </div>
+
+              {/* Market Rent */}
+              {enrichedData.estimatedRent ? (
+                <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>Market Rent</span>
+                  <strong style={{ fontSize: "13.5px", color: "#38bdf8" }}>
+                    ${enrichedData.estimatedRent.toLocaleString()}/mo
+                  </strong>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubtoRent(enrichedData.estimatedRent!);
+                      setCreativeRent(enrichedData.estimatedRent!);
+                      setSaveSuccessMsg(`Applied Market Rent $${enrichedData.estimatedRent!.toLocaleString()}/mo to SubTo & Seller Financing!`);
+                      setTimeout(() => setSaveSuccessMsg(null), 3500);
+                    }}
+                    title="Apply market rent to SubTo & Creative financing cash flow models"
+                    style={{ fontSize: "10.5px", fontWeight: 700, padding: "2px 7px", borderRadius: "4px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer" }}
+                  >
+                    Apply to Rent
+                  </button>
+                </div>
+              ) : null}
+
+              {/* Specs */}
+              <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>Specs</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
+                  {enrichedData.bedrooms ?? "—"} beds / {enrichedData.bathrooms ?? "—"} baths • {enrichedData.squareFootage ? `${enrichedData.squareFootage.toLocaleString()} sqft` : "—"}
+                </span>
+              </div>
+
+              {/* Year Built & Asset Class */}
+              <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>Property</span>
+                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
+                  {enrichedData.yearBuilt ? `Built ${enrichedData.yearBuilt}` : "Year N/A"} • {enrichedData.propertyType || "Single Family"}
+                </span>
+              </div>
+
+              {/* Comps Button */}
+              {enrichedData.comps && enrichedData.comps.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowComps(!showComps)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "7px",
+                    background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)",
+                    border: "1px solid rgba(168, 85, 247, 0.45)",
+                    color: "#c084fc",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>🏘️</span>
+                  <span>{enrichedData.comps.length} Comps {showComps ? "▲ Hide" : "▼ View"}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Expandable Comps Drawer */}
+          {showComps && enrichedData?.comps && enrichedData.comps.length > 0 && (
+            <div style={{ marginTop: "4px", padding: "12px 14px", borderRadius: "8px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#c084fc", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Recent Comparable Sales (RentCast MLS Data)</span>
+                <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)" }}>
+                  Avg Comp: <strong style={{ color: "var(--primary, #d6ff3f)" }}>${Math.round(enrichedData.comps.reduce((s, c) => s + (c.price || 0), 0) / enrichedData.comps.length).toLocaleString()}</strong>
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "8px" }}>
+                {enrichedData.comps.slice(0, 6).map((c, i) => (
+                  <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel-2, #16161b)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
+                    <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
+                      <span>{c.bedrooms}b / {c.bathrooms}ba • {c.squareFootage ? `${c.squareFootage.toLocaleString()} sqft` : ""}</span>
+                      <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
+                    </div>
+                    {c.distanceMiles != null && (
+                      <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                        {c.distanceMiles.toFixed(2)} mi away
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Tab Navigation */}
         <div
           style={{
@@ -1365,17 +2063,133 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                         style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
                       />
                     </div>
+
+                    {/* Offer Letter Addressed To (Target Recipient) */}
                     <div>
-                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
-                        Seller / Owner Name
+                      <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", display: "block", marginBottom: "6px", letterSpacing: "0.04em" }}>
+                        Generate Offer Letter For:
                       </span>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setRecipientType("agent")}
+                          style={{
+                            padding: "8px 4px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            borderRadius: "6px",
+                            border: recipientType === "agent" ? "1.5px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                            backgroundColor: recipientType === "agent" ? "rgba(56, 189, 248, 0.18)" : "var(--panel, #121216)",
+                            color: recipientType === "agent" ? "#38bdf8" : "var(--muted, #94a3b8)",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          👔 Agent
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecipientType("owner")}
+                          style={{
+                            padding: "8px 4px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            borderRadius: "6px",
+                            border: recipientType === "owner" ? "1.5px solid var(--lime, #d6ff3f)" : "1px solid var(--border, #30363d)",
+                            backgroundColor: recipientType === "owner" ? "rgba(214, 255, 63, 0.18)" : "var(--panel, #121216)",
+                            color: recipientType === "owner" ? "var(--lime, #d6ff3f)" : "var(--muted, #94a3b8)",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          👤 Owner
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecipientType("both")}
+                          style={{
+                            padding: "8px 4px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            borderRadius: "6px",
+                            border: recipientType === "both" ? "1.5px solid #c084fc" : "1px solid var(--border, #30363d)",
+                            backgroundColor: recipientType === "both" ? "rgba(192, 132, 252, 0.18)" : "var(--panel, #121216)",
+                            color: recipientType === "both" ? "#c084fc" : "var(--muted, #94a3b8)",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          👥 Both
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Listing Agent Contact Card */}
+                    <div style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid rgba(56, 189, 248, 0.25)", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.04em" }}>
+                          👔 Listing Agent Contact
+                        </span>
+                        {agentName && <span style={{ fontSize: "10px", color: "#38bdf8", fontWeight: 700 }}>✓ Auto-loaded</span>}
+                      </div>
+                      <input
+                        type="text"
+                        value={agentName}
+                        onChange={(e) => setAgentName(e.target.value)}
+                        placeholder="Listing Agent Name"
+                        style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                      />
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                        <input
+                          type="email"
+                          value={agentEmail}
+                          onChange={(e) => setAgentEmail(e.target.value)}
+                          placeholder="Agent Email"
+                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                        />
+                        <input
+                          type="text"
+                          value={agentPhone}
+                          onChange={(e) => setAgentPhone(e.target.value)}
+                          placeholder="Agent Phone"
+                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Property Owner / Seller Contact Card */}
+                    <div style={{ background: "rgba(214, 255, 63, 0.04)", border: "1px solid rgba(214, 255, 63, 0.25)", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "var(--lime, #d6ff3f)", letterSpacing: "0.04em" }}>
+                          👤 Property Owner Contact
+                        </span>
+                        {sellerName && <span style={{ fontSize: "10px", color: "var(--lime, #d6ff3f)", fontWeight: 700 }}>✓ Auto-loaded</span>}
+                      </div>
                       <input
                         type="text"
                         value={sellerName}
                         onChange={(e) => setSellerName(e.target.value)}
-                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
+                        placeholder="Owner / Seller Name"
+                        style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
                       />
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                        <input
+                          type="email"
+                          value={recipientEmail}
+                          onChange={(e) => setRecipientEmail(e.target.value)}
+                          placeholder="Owner Email"
+                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                        />
+                        <input
+                          type="text"
+                          value={sellerPhone}
+                          onChange={(e) => setSellerPhone(e.target.value)}
+                          placeholder="Owner Phone"
+                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                        />
+                      </div>
                     </div>
+
                     <div>
                       <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
                         Buyer Vesting Entity
@@ -1448,40 +2262,158 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <button
+                      type="button"
+                      style={{
+                        padding: "12px",
+                        fontWeight: 800,
+                        backgroundColor: "rgba(56, 189, 248, 0.12)",
+                        color: "#38bdf8",
+                        border: "1.5px solid #38bdf8",
+                        borderRadius: "7px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        fontSize: "13px",
+                      }}
+                      onClick={handleOpenPreviewOffer}
+                    >
+                      <span>👁️</span>
+                      <span>Preview Offer</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{
+                        padding: "12px",
+                        fontWeight: 800,
+                        backgroundColor: "#2563eb",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "7px",
+                        cursor: sendingOffer ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        fontSize: "13px",
+                        boxShadow: "0 2px 8px rgba(37, 99, 235, 0.4)",
+                        opacity: sendingOffer ? 0.7 : 1,
+                      }}
+                      onClick={handleSendOffer}
+                      disabled={sendingOffer}
+                    >
+                      <span>📤</span>
+                      <span>{sendingOffer ? "Sending..." : "Send Offer"}</span>
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     style={{
                       width: "100%",
                       padding: "10px",
                       fontWeight: 700,
-                      backgroundColor: "var(--lime, #d6ff3f)",
-                      color: "var(--lime-ink, #0c0d08)",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                    }}
-                    onClick={handleCopyText}
-                  >
-                    📋 Copy Text LOI
-                  </button>
-                  <button
-                    type="button"
-                    style={{
-                      width: "100%",
-                      padding: "10px",
-                      fontWeight: 600,
-                      backgroundColor: "var(--panel-2, #16161b)",
+                      backgroundColor: "rgba(255, 255, 255, 0.04)",
                       color: "var(--ink, #f8fafc)",
                       border: "1px solid var(--border, #30363d)",
                       borderRadius: "6px",
-                      cursor: "pointer",
+                      cursor: generatingOffer ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      fontSize: "12px",
+                      opacity: generatingOffer ? 0.7 : 1,
                     }}
-                    onClick={handleSaveTermsToProperty}
-                    disabled={savingToCrm}
+                    onClick={handleGenerateFormalLoi}
+                    disabled={generatingOffer}
                   >
-                    {savingToCrm ? "Saving..." : "💾 Save Terms & Fee to Property"}
+                    {generatingOffer ? "⚡ Generating Official LOI & PDF..." : "⚡ Generate Official LOI & Store in Offers"}
                   </button>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    <button
+                      type="button"
+                      style={{
+                        padding: "10px",
+                        fontWeight: 700,
+                        backgroundColor: "var(--lime, #d6ff3f)",
+                        color: "var(--lime-ink, #0c0d08)",
+                        border: "none",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                      onClick={handleCopyText}
+                    >
+                      📋 Copy Text LOI
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        padding: "10px",
+                        fontWeight: 600,
+                        backgroundColor: "var(--panel-2, #16161b)",
+                        color: "var(--ink, #f8fafc)",
+                        border: "1px solid var(--border, #30363d)",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                      onClick={handleSaveTermsToProperty}
+                      disabled={savingToCrm}
+                    >
+                      {savingToCrm ? "Saving..." : "💾 Save Terms to Lead"}
+                    </button>
+                  </div>
+
+                  {generatedOffer && (
+                    <div
+                      style={{
+                        padding: "12px",
+                        borderRadius: "7px",
+                        background: "rgba(37, 99, 235, 0.12)",
+                        border: "1px solid rgba(37, 99, 235, 0.35)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 800, color: "#38bdf8", textTransform: "uppercase" }}>
+                          ✓ Formal LOI Generated
+                        </span>
+                        <span style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", fontFamily: "monospace" }}>
+                          Ref #{generatedOffer.pdfId?.slice(0, 8)}
+                        </span>
+                      </div>
+                      <a
+                        href={generatedOffer.pdfUrl || `/offer-pdf/${generatedOffer.pdfId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          borderRadius: "6px",
+                          backgroundColor: "#0284c7",
+                          color: "#ffffff",
+                          fontWeight: 700,
+                          fontSize: "12px",
+                          textAlign: "center",
+                          textDecoration: "none",
+                          display: "block",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        📄 Open & Download Official PDF LOI
+                      </a>
+                    </div>
+                  )}
 
                   {copySuccess && (
                     <div style={{ padding: "8px 10px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", textAlign: "center", fontWeight: 700 }}>
@@ -1491,6 +2423,11 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   {saveSuccessMsg && (
                     <div style={{ padding: "8px 10px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10b981", fontSize: "12px", textAlign: "center", fontWeight: 700 }}>
                       {saveSuccessMsg}
+                    </div>
+                  )}
+                  {offerError && (
+                    <div style={{ padding: "8px 10px", borderRadius: "6px", background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#ef4444", fontSize: "12px", textAlign: "center", fontWeight: 700 }}>
+                      ⚠️ {offerError}
                     </div>
                   )}
                 </div>
@@ -2090,6 +3027,420 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           </div>
         </div>
       </div>
+
+      {/* Manual Preview & Send Offer Modal */}
+      {showPreviewModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.8)",
+            backdropFilter: "blur(5px)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+          onClick={() => setShowPreviewModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--panel, #121216)",
+              border: "1px solid var(--border, #30363d)",
+              borderRadius: "12px",
+              width: "100%",
+              maxWidth: "840px",
+              maxHeight: "92vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "16px 22px",
+                borderBottom: "1px solid var(--border, #30363d)",
+                backgroundColor: "var(--panel-2, #16161b)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "20px" }}>👁️</span>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Preview Offer & Letter of Intent
+                  </h3>
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                  {propertyAddress || "Subject Property"} · Vesting: {acquisitionsCompany || "Revzenta Capital"} and/or assigns
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--muted, #94a3b8)",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Delivery Configuration */}
+              <div
+                style={{
+                  background: "var(--panel-2, #16161b)",
+                  border: "1px solid var(--border, #30363d)",
+                  borderRadius: "8px",
+                  padding: "14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.04em" }}>
+                    📬 Recipient & Email Dispatch Settings
+                  </span>
+
+                  {/* Recipient Mode Selector */}
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecipientType("agent");
+                        setPreviewRecipientEmail(agentEmail || recipientEmail || "");
+                      }}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        border: recipientType === "agent" ? "1.5px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                        background: recipientType === "agent" ? "rgba(56, 189, 248, 0.15)" : "var(--panel, #121216)",
+                        color: recipientType === "agent" ? "#38bdf8" : "var(--muted, #94a3b8)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      👔 Agent {agentName ? `(${agentName})` : ""}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecipientType("owner");
+                        setPreviewRecipientEmail(recipientEmail || "");
+                      }}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        border: recipientType === "owner" ? "1.5px solid var(--lime, #d6ff3f)" : "1px solid var(--border, #30363d)",
+                        background: recipientType === "owner" ? "rgba(214, 255, 63, 0.15)" : "var(--panel, #121216)",
+                        color: recipientType === "owner" ? "var(--lime, #d6ff3f)" : "var(--muted, #94a3b8)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      👤 Owner {sellerName ? `(${sellerName})` : ""}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecipientType("both");
+                        setPreviewRecipientEmail(agentEmail ? `${agentEmail}, ${recipientEmail}` : recipientEmail);
+                      }}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        border: recipientType === "both" ? "1.5px solid #a855f7" : "1px solid var(--border, #30363d)",
+                        background: recipientType === "both" ? "rgba(168, 85, 247, 0.15)" : "var(--panel, #121216)",
+                        color: recipientType === "both" ? "#c084fc" : "var(--muted, #94a3b8)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      👥 Both
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--ink, #f8fafc)", marginBottom: "4px" }}>
+                      Send To (Recipient Email)
+                    </label>
+                    <input
+                      type="email"
+                      value={previewRecipientEmail}
+                      onChange={(e) => setPreviewRecipientEmail(e.target.value)}
+                      placeholder="recipient@example.com"
+                      style={{
+                        width: "100%",
+                        height: "36px",
+                        padding: "0 10px",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border, #30363d)",
+                        background: "var(--panel, #121216)",
+                        color: "var(--ink, #f8fafc)",
+                        fontSize: "12px",
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--ink, #f8fafc)", marginBottom: "4px" }}>
+                      Email Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={previewSubject}
+                      onChange={(e) => setPreviewSubject(e.target.value)}
+                      placeholder="Formal Purchase Offer / Letter of Intent"
+                      style={{
+                        width: "100%",
+                        height: "36px",
+                        padding: "0 10px",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border, #30363d)",
+                        background: "var(--panel, #121216)",
+                        color: "var(--ink, #f8fafc)",
+                        fontSize: "12px",
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Offer Key Metrics Banner */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ background: "rgba(56, 189, 248, 0.08)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "8px", padding: "10px" }}>
+                  <div style={{ fontSize: "11px", color: "#38bdf8", fontWeight: 700 }}>PRIMARY OFFER</div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                    ${Math.max(cashMetrics.netWholesaleOffer, subtoPrice, creativePrice).toLocaleString()}
+                  </div>
+                </div>
+
+                <div style={{ background: "rgba(214, 255, 63, 0.08)", border: "1px solid rgba(214, 255, 63, 0.2)", borderRadius: "8px", padding: "10px" }}>
+                  <div style={{ fontSize: "11px", color: "var(--lime, #d6ff3f)", fontWeight: 700 }}>CLOSING TIMELINE</div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                    {closingDays} Days
+                  </div>
+                </div>
+
+                <div style={{ background: "rgba(168, 85, 247, 0.08)", border: "1px solid rgba(168, 85, 247, 0.2)", borderRadius: "8px", padding: "10px" }}>
+                  <div style={{ fontSize: "11px", color: "#c084fc", fontWeight: 700 }}>EARNEST MONEY</div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                    $2,500
+                  </div>
+                </div>
+
+                <div style={{ background: "rgba(244, 63, 94, 0.08)", border: "1px solid rgba(244, 63, 94, 0.2)", borderRadius: "8px", padding: "10px" }}>
+                  <div style={{ fontSize: "11px", color: "#fb7185", fontWeight: 700 }}>INSPECTION PERIOD</div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                    10 Business Days
+                  </div>
+                </div>
+              </div>
+
+              {/* Letter Preview Window */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
+                    Letter of Intent Document Preview
+                  </span>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab("formatted")}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        border: previewTab === "formatted" ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                        background: previewTab === "formatted" ? "var(--primary, #0284c7)" : "var(--panel-2, #16161b)",
+                        color: "#ffffff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      📄 Formatted LOI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab("plain")}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        border: previewTab === "plain" ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                        background: previewTab === "plain" ? "var(--primary, #0284c7)" : "var(--panel-2, #16161b)",
+                        color: "#ffffff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✉️ Plain Text
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: previewTab === "formatted" ? "rgba(255,255,255,0.03)" : "var(--panel-2, #16161b)",
+                    border: "1px solid var(--border, #30363d)",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    maxHeight: "340px",
+                    overflowY: "auto",
+                    color: "var(--ink, #f8fafc)",
+                  }}
+                >
+                  {previewTab === "formatted" ? (
+                    <div
+                      dangerouslySetInnerHTML={{ __html: proposalData.htmlMarkup }}
+                      style={{ fontSize: "13px", lineHeight: "1.6" }}
+                    />
+                  ) : (
+                    <textarea
+                      value={previewMessage}
+                      onChange={(e) => setPreviewMessage(e.target.value)}
+                      style={{
+                        width: "100%",
+                        height: "280px",
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--ink, #f8fafc)",
+                        fontFamily: "monospace",
+                        fontSize: "12px",
+                        lineHeight: "1.6",
+                        outline: "none",
+                        resize: "vertical",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Notification & Feedback */}
+              {sendSuccessMsg && (
+                <div style={{ padding: "10px 14px", borderRadius: "7px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#10b981", fontSize: "13px", fontWeight: 700, textAlign: "center" }}>
+                  {sendSuccessMsg}
+                </div>
+              )}
+              {sendErrorMsg && (
+                <div style={{ padding: "10px 14px", borderRadius: "7px", background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.4)", color: "#ef4444", fontSize: "13px", fontWeight: 700, textAlign: "center" }}>
+                  ⚠️ {sendErrorMsg}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: "14px 22px",
+                borderTop: "1px solid var(--border, #30363d)",
+                backgroundColor: "var(--panel-2, #16161b)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                {generatedOffer && (
+                  <a
+                    href={generatedOffer.pdfUrl || `/offer-pdf/${generatedOffer.pdfId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: "6px",
+                      backgroundColor: "rgba(56, 189, 248, 0.15)",
+                      border: "1px solid #38bdf8",
+                      color: "#38bdf8",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span>📄</span>
+                    <span>View Official PDF</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(false)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border, #30363d)",
+                    background: "var(--panel, #121216)",
+                    color: "var(--ink, #f8fafc)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSendOffer}
+                disabled={sendingOffer}
+                style={{
+                  padding: "10px 22px",
+                  borderRadius: "7px",
+                  border: "none",
+                  backgroundColor: "#2563eb",
+                  color: "#ffffff",
+                  fontSize: "13px",
+                  fontWeight: 800,
+                  cursor: sendingOffer ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 2px 10px rgba(37, 99, 235, 0.4)",
+                  opacity: sendingOffer ? 0.7 : 1,
+                }}
+              >
+                <span>📤</span>
+                <span>{sendingOffer ? "Sending Offer..." : "Send Offer"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
