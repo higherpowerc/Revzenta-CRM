@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ThemeToggle from "./ThemeToggle";
+import PrivacyPolicy from "./PrivacyPolicy";
+import TermsOfService from "./TermsOfService";
+import SecurityPage from "./SecurityPage";
 
 interface WebsiteProps {
   onSignIn: () => void;
@@ -7,6 +10,27 @@ interface WebsiteProps {
 }
 
 export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
+  // Active Legal Page state
+  const [activeLegalPage, setActiveLegalPage] = useState<"privacy" | "terms" | "security" | null>(() => {
+    const h = window.location.hash.toLowerCase();
+    if (h.includes("privacy")) return "privacy";
+    if (h.includes("terms")) return "terms";
+    if (h.includes("security")) return "security";
+    return null;
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      const h = window.location.hash.toLowerCase();
+      if (h.includes("privacy")) setActiveLegalPage("privacy");
+      else if (h.includes("terms")) setActiveLegalPage("terms");
+      else if (h.includes("security")) setActiveLegalPage("security");
+      else setActiveLegalPage(null);
+    };
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
+
   // ROI Calculator State
   const [leadsPerMonth, setLeadsPerMonth] = useState(60);
   const [avgAssignmentFee, setAvgAssignmentFee] = useState(12500);
@@ -30,6 +54,78 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
   };
+
+  if (activeLegalPage === "privacy") {
+    return (
+      <PrivacyPolicy
+        onBack={() => {
+          setActiveLegalPage(null);
+          window.location.hash = "";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onNavigateTerms={() => {
+          setActiveLegalPage("terms");
+          window.location.hash = "#terms";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onNavigateSecurity={() => {
+          setActiveLegalPage("security");
+          window.location.hash = "#security";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+    );
+  }
+
+  if (activeLegalPage === "terms") {
+    return (
+      <TermsOfService
+        onBack={() => {
+          setActiveLegalPage(null);
+          window.location.hash = "";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onNavigatePrivacy={() => {
+          setActiveLegalPage("privacy");
+          window.location.hash = "#privacy";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onNavigateSecurity={() => {
+          setActiveLegalPage("security");
+          window.location.hash = "#security";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+    );
+  }
+
+  if (activeLegalPage === "security") {
+    return (
+      <SecurityPage
+        onBack={() => {
+          setActiveLegalPage(null);
+          window.location.hash = "";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onNavigatePrivacy={() => {
+          setActiveLegalPage("privacy");
+          window.location.hash = "#privacy";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onNavigateTerms={() => {
+          setActiveLegalPage("terms");
+          window.location.hash = "#terms";
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+    );
+  }
 
   return (
     <div className="rw-page">
@@ -669,12 +765,48 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
             </div>
 
             <div className="rw-footer-col">
-              <h4>Solutions</h4>
+              <h4>Trust &amp; Legal</h4>
               <ul className="rw-footer-links">
-                <li><a href="#pricing">Pricing Plans</a></li>
+                <li>
+                  <a
+                    href="#privacy"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveLegalPage("privacy");
+                      window.location.hash = "#privacy";
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    Privacy Policy
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#terms"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveLegalPage("terms");
+                      window.location.hash = "#terms";
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    Terms of Service
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#security"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveLegalPage("security");
+                      window.location.hash = "#security";
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    Security &amp; Compliance
+                  </a>
+                </li>
                 <li><a href="#faq">Legal MLS FAQ</a></li>
-                <li><a href="#lead-engine">PropStream CSV Import</a></li>
-                <li><a href="#lead-engine">BatchLeads Webhook</a></li>
               </ul>
             </div>
 
@@ -689,11 +821,44 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
           </div>
 
           <div className="rw-footer-bottom">
-            <div>© {new Date().getFullYear()} Revzenta CRM. All rights reserved.</div>
+            <div>© {new Date().getFullYear()} Revzenta LLC. All rights reserved.</div>
             <div style={{ display: "flex", gap: "20px" }}>
-              <span>Privacy Policy</span>
-              <span>Terms of Service</span>
-              <span>Security</span>
+              <a
+                href="#privacy"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveLegalPage("privacy");
+                  window.location.hash = "#privacy";
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
+              >
+                Privacy Policy
+              </a>
+              <a
+                href="#terms"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveLegalPage("terms");
+                  window.location.hash = "#terms";
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
+              >
+                Terms of Service
+              </a>
+              <a
+                href="#security"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveLegalPage("security");
+                  window.location.hash = "#security";
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
+              >
+                Security
+              </a>
             </div>
           </div>
         </div>

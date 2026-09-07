@@ -76,14 +76,19 @@ export default function App() {
    *  the user is signed out. */
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState<boolean>(() => window.location.hash.startsWith("#/login"));
-  const [viewingWebsite, setViewingWebsite] = useState<boolean>(() => window.location.hash.startsWith("#/website"));
+  const isWebsiteOrLegalHash = (h: string) => {
+    const l = h.toLowerCase();
+    return l.startsWith("#/website") || l.includes("privacy") || l.includes("terms") || l.includes("security");
+  };
+
+  const [viewingWebsite, setViewingWebsite] = useState<boolean>(() => isWebsiteOrLegalHash(window.location.hash));
 
   useEffect(() => {
     const onHash = () => {
       if (window.location.hash.startsWith("#/login")) {
         setShowLogin(true);
         setViewingWebsite(false);
-      } else if (window.location.hash.startsWith("#/website")) {
+      } else if (isWebsiteOrLegalHash(window.location.hash)) {
         setShowLogin(false);
         setViewingWebsite(true);
       } else {
@@ -1141,8 +1146,43 @@ export default function App() {
           />
         )}
       </main>
-      <footer className="foot">
-        Revzenta CRM {orgName && orgName !== "Revzenta" ? `· Workspace: ${orgName}` : ""} · product build · v0.1
+      <footer className="foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+        <div>Revzenta CRM {orgName && orgName !== "Revzenta" ? `· Workspace: ${orgName}` : ""} · product build · v0.1</div>
+        <div style={{ display: "flex", gap: "16px", fontSize: "12px" }}>
+          <a
+            href="#/privacy"
+            onClick={(e) => {
+              e.preventDefault();
+              setViewingWebsite(true);
+              window.location.hash = "#/privacy";
+            }}
+            style={{ color: "var(--muted)", textDecoration: "none", cursor: "pointer" }}
+          >
+            Privacy Policy
+          </a>
+          <a
+            href="#/terms"
+            onClick={(e) => {
+              e.preventDefault();
+              setViewingWebsite(true);
+              window.location.hash = "#/terms";
+            }}
+            style={{ color: "var(--muted)", textDecoration: "none", cursor: "pointer" }}
+          >
+            Terms of Service
+          </a>
+          <a
+            href="#/security"
+            onClick={(e) => {
+              e.preventDefault();
+              setViewingWebsite(true);
+              window.location.hash = "#/security";
+            }}
+            style={{ color: "var(--muted)", textDecoration: "none", cursor: "pointer" }}
+          >
+            Security &amp; Safeguards
+          </a>
+        </div>
       </footer>
       </div>
       </div>
