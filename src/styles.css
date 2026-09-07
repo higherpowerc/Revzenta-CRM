@@ -1151,15 +1151,15 @@ legend.field-label {
    untouched, and at widths where the tabs fit nothing visibly changes. */
 .owner-workspace .tabs {
   min-width: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 @media (max-width: 1320px) {
   .owner-workspace .nav-inner {
-    gap: 14px;
-    padding: 0 16px;
+    gap: 12px;
+    padding: 0 14px;
   }
   .owner-workspace .tab {
-    padding: 8px 9px;
+    padding: 7.5px 10px;
   }
   .owner-workspace .nav-user {
     max-width: 120px;
@@ -1169,7 +1169,7 @@ legend.field-label {
   }
   .owner-workspace .tabs {
     min-width: 0;
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 }
 
@@ -1374,11 +1374,19 @@ legend.field-label {
 .nav {
   align-self: flex-start;
   height: 100vh;
-  width: 232px;
+  width: 270px;
   flex: none;
   display: flex;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .nav .nav-inner {
@@ -1390,8 +1398,8 @@ legend.field-label {
   height: auto;
   flex-direction: column;
   align-items: stretch;
-  gap: 14px;
-  padding: 18px 14px;
+  gap: 8px;
+  padding: 16px 12px;
 }
 
 .nav-header-row {
@@ -1410,30 +1418,42 @@ legend.field-label {
 
 .nav .brand-text {
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .nav .tabs {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  overflow-y: auto;
+  overflow: visible;
+  overflow-x: hidden !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nav .tabs::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .nav .tab {
   width: 100%;
   text-align: left;
-  padding: 9px 12px;
+  padding: 7.5px 12px;
   justify-content: flex-start;
+  white-space: nowrap;
+  font-size: 13.5px;
 }
 
 .nav .nav-right {
   margin: auto 0 0;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
+  gap: 8px;
 }
 
 .nav .nav-right .eye-btn {
@@ -1446,7 +1466,7 @@ legend.field-label {
 
 /* ── Owner Sidebar Sectioning & Business Type CRM controls ──────── */
 .nav-section-title {
-  padding: 14px 8px 4px;
+  padding: 9px 8px 3px;
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1454,13 +1474,14 @@ legend.field-label {
   color: var(--muted);
   user-select: none;
   border-top: 1px solid var(--line);
-  margin-top: 8px;
+  margin-top: 5px;
+  white-space: nowrap;
 }
 
 .nav-section-title:first-of-type {
   border-top: none;
   margin-top: 0;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .nav-accounts-row {
@@ -1472,6 +1493,7 @@ legend.field-label {
 
 .nav-accounts-row .tab {
   flex: 1;
+  min-width: 0;
 }
 
 .nav-build-btn {
@@ -1608,11 +1630,10 @@ legend.field-label {
   color: var(--ink);
 }
 
-/* Laptops: slim the sidebar so tables keep their room (content keeps its
-   own internal-scroll guards; breakpoints below 960 are untouched). */
+/* Laptops: keep the sidebar wide enough so tabs never wrap and no scrollbar is needed */
 @media (max-width: 1280px) {
   .nav {
-    width: 196px;
+    width: 268px;
   }
 }
 
