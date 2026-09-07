@@ -121,7 +121,7 @@ export default function TermsOfService({ onBack, onSignIn, onLaunchApp, onNaviga
           </p>
 
           <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--rw-text)", marginTop: "32px", marginBottom: "12px" }}>
-            2. Real Estate Wholesaling &amp; Equitable Interest Doctrine
+            2. Real Estate Wholesaling, State Guidelines &amp; Equitable Interest Doctrine
           </h2>
           <p>
             Revzenta CRM provides contract generators for Purchase and Sale Agreements (PSA), Assignment of Contracts, and Letters of Intent (LOI). When utilizing these templates:
@@ -132,6 +132,12 @@ export default function TermsOfService({ onBack, onSignIn, onLaunchApp, onNaviga
             </li>
             <li>
               <strong>Required Disclosures:</strong> You agree to include all required statutory disclaimers in your offers, LOIs, and marketing collateral indicating your principal capacity and non-agency status.
+            </li>
+            <li>
+              <strong>User Duty for State-Specific Wholesaling Compliance:</strong> Real estate wholesaling laws, licensing thresholds, marketing restrictions, and disclosure rules vary significantly across state and municipal jurisdictions (including, without limitation, specific licensing statutes in Illinois, Oklahoma, Texas, South Carolina, and other states). It is your sole, affirmative duty to ensure that all wholesaling practices, marketing collateral, seller negotiations, and contract assignments strictly follow all lawful practices and state-specific statutory guidelines in the jurisdictions where you conduct business.
+            </li>
+            <li>
+              <strong>No Defense or Legal Representation:</strong> Revzenta LLC does NOT defend, represent, counsel, or indemnify users against state-specific laws, regulatory investigations, real estate licensing board citations, statutory penalties, or civil lawsuits arising from wholesaling activities. You assume 100% legal, regulatory, and financial responsibility for your transactions and agree to indemnify and hold harmless Revzenta LLC from any regulatory enforcement or third-party claims arising from your activities.
             </li>
             <li>
               <strong>Independent Legal Counsel:</strong> Contract templates provided in Revzenta CRM are standard drafting starting points. Subscribers are strongly advised to have qualified local real estate counsel review and approve forms for compliance with state-specific closing rules.

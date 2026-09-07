@@ -189,11 +189,13 @@ export default function CustomerAgreement({
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
-            5. REAL ESTATE STATUTORY NON-AGENCY DISCLAIMER
+            5. REAL ESTATE STATUTORY NON-AGENCY &amp; STATE WHOLESALING COMPLIANCE DISCLAIMER
           </h3>
           <p style={{ color: "var(--rw-text-dim)" }}>
             (a) <strong>Software Provider Status:</strong> Subscriber explicitly acknowledges that Revzenta LLC is an enterprise technology provider and is <strong>NOT a licensed real estate broker, brokerage, agent, appraisal firm, or escrow agency</strong>.<br />
-            (b) <strong>Principal Investor Capacity:</strong> In marketing real estate contracts or utilizing Revzenta deal underwriting tools, Subscriber acts solely as an independent principal real estate investor acquiring or assigning equitable contractual rights pursuant to the Equitable Interest Doctrine and state-specific disclosure requirements.
+            (b) <strong>Principal Investor Capacity:</strong> In marketing real estate contracts or utilizing Revzenta deal underwriting tools, Subscriber acts solely as an independent principal real estate investor acquiring or assigning equitable contractual rights pursuant to the Equitable Interest Doctrine and state-specific disclosure requirements.<br />
+            (c) <strong>Subscriber Sole Duty for State-Specific Wholesaling Guidelines:</strong> Real estate wholesaling laws, licensing mandates, marketing restrictions, and disclosure rules vary significantly by state and municipality (including, but not limited to, wholesaling licensing statutes, equitable interest advertising constraints, double-closing rules, and earnest money deposit requirements). It is Subscriber&apos;s sole, non-delegable duty to ensure that all wholesaling practices, contracts, seller communications, and dispositions strictly comply with lawful practices and state-specific guidelines in each jurisdiction where Subscriber conducts transactions.<br />
+            (d) <strong>No Defense or Legal Representation:</strong> Revzenta LLC does NOT defend, represent, counsel, or indemnify Subscriber against state-specific laws, real estate licensing commission investigations, regulatory citations, statutory penalties, or civil lawsuits arising out of Subscriber&apos;s wholesaling practices. Subscriber assumes full, independent legal and financial responsibility for its transactions and agrees to indemnify and hold harmless Revzenta LLC from any regulatory enforcement or third-party claims arising from Subscriber&apos;s activities.
           </p>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
