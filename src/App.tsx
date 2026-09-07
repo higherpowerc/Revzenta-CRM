@@ -198,6 +198,7 @@ export default function App() {
    *  each business type CRM (B2B, B2C, Wholesale Real Estate) directly from the side menu. */
   const [previewVertical, setPreviewVertical] = useState<string | null>(null);
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   /** Whether the owner is in their cockpit vs previewing a business type CRM */
   const isOwnerCockpit = isOwnerOrg && !previewVertical;
@@ -312,6 +313,94 @@ export default function App() {
     return !(v === "appointments" || v === "finance");
   };
   const effectiveViewFinal: View = viewWholesaleAllowed(effectiveView) ? effectiveView : "dashboard";
+
+  const activeTabLabel = useMemo(() => {
+    if (previewVertical === "wholesalebiz") {
+      return "Wholesale Real Estate (Preview)";
+    }
+    if (isOwnerCockpit) {
+      switch (effectiveViewFinal) {
+        case "dashboard": return "Dashboard & ROI";
+        case "finance": return "Revenue & Stripe";
+        case "clients": return "Subscribers";
+        case "onboarding": return "Client Onboarding";
+        case "leads": return "Sales Leads";
+        case "appointments": return "Demo Calls";
+        case "tasks": return "Tasks";
+        case "tickets": return "Support Tickets";
+        case "documents": return "Signed Agreements";
+        case "admin": return "Template & Admin";
+        case "compliance": return "Compliance & DNC";
+        case "settings": return "Settings";
+        default: return "Menu";
+      }
+    }
+    if (isWholesale) {
+      switch (effectiveViewFinal) {
+        case "dashboard": return "Dashboard";
+        case "leads": return "Opportunities";
+        case "offers": return "Offers Repository";
+        case "documents": return "Transaction Hub";
+        case "buybox": return "Buy Box";
+        case "clients": return "Investors";
+        case "connections": return "Connections";
+        case "tasks": return "Tasks";
+        case "tickets": return "Support";
+        case "settings": return "Settings";
+        case "compliance": return "Compliance & DNC";
+        default: return "Menu";
+      }
+    }
+    switch (effectiveViewFinal) {
+      case "dashboard": return "Dashboard";
+      case "leads": return "Leads";
+      case "clients": return "Clients";
+      case "appointments": return "Appointments";
+      case "tasks": return "Tasks";
+      case "tickets": return "Support";
+      case "finance": return "Finance";
+      case "settings": return "Settings";
+      default: return "Menu";
+    }
+  }, [previewVertical, isOwnerCockpit, effectiveViewFinal, isWholesale]);
+
+  const activeTabIcon = useMemo(() => {
+    if (previewVertical === "wholesalebiz") return "🏠";
+    if (isOwnerCockpit) {
+      switch (effectiveViewFinal) {
+        case "dashboard": return "📊";
+        case "finance": return "💰";
+        case "clients": return "👥";
+        case "onboarding": return "🚀";
+        case "leads": return "🎯";
+        case "appointments": return "📅";
+        case "tasks": return "📋";
+        case "tickets": return "🎫";
+        case "documents": return "📑";
+        case "admin": return "📝";
+        case "compliance": return "🛡️";
+        case "settings": return "⚙️";
+        default: return "☰";
+      }
+    }
+    if (isWholesale) {
+      switch (effectiveViewFinal) {
+        case "dashboard": return "📊";
+        case "leads": return "🏘️";
+        case "offers": return "📑";
+        case "documents": return "🤝";
+        case "buybox": return "🎯";
+        case "clients": return "💼";
+        case "connections": return "🔌";
+        case "tasks": return "📋";
+        case "tickets": return "🎫";
+        case "settings": return "⚙️";
+        case "compliance": return "🛡️";
+        default: return "☰";
+      }
+    }
+    return "☰";
+  }, [previewVertical, isOwnerCockpit, effectiveViewFinal, isWholesale]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -508,25 +597,81 @@ export default function App() {
             banner + main + footer) flowing to its right. Same tabs, same
             controls — only their position changed. */}
         <div className="shell">
-        <header className="nav">
+        <header className={`nav ${mobileMenuOpen ? "mobile-nav-open" : ""}`}>
         <div className="nav-inner">
-          <button className="brand" onClick={() => setView("dashboard")} aria-label="Go to dashboard">
-            <span className="brand-mark">{brandMark}</span>
-            <span className="brand-text">
-              {isOwner ? (
-                <>
-                  Revzenta
-                  <span className="brand-sub">CRM</span>
-                </>
-              ) : (
-                <>
-                  {orgName}
-                  <span className="brand-sub">CRM</span>
-                </>
-              )}
-            </span>
-          </button>
-          <nav className="tabs" aria-label="Main">
+          <div className="nav-header-row">
+            <button
+              className="brand"
+              onClick={() => {
+                setView("dashboard");
+                setMobileMenuOpen(false);
+              }}
+              aria-label="Go to dashboard"
+            >
+              <span className="brand-mark">{brandMark}</span>
+              <span className="brand-text">
+                {isOwner ? (
+                  <>
+                    Revzenta
+                    <span className="brand-sub">CRM</span>
+                  </>
+                ) : (
+                  <>
+                    {orgName}
+                    <span className="brand-sub">CRM</span>
+                  </>
+                )}
+              </span>
+            </button>
+
+            {/* Mobile-only header controls (visible <= 960px) */}
+            <div className="mobile-nav-tools">
+              <ThemeToggle />
+              <button
+                type="button"
+                className="icon-btn mobile-website-btn"
+                onClick={() => {
+                  setViewingWebsite(true);
+                  window.location.hash = "#/website";
+                  setMobileMenuOpen(false);
+                }}
+                title="View Revzenta Marketing Website"
+                aria-label="View Revzenta Marketing Website"
+              >
+                🌐
+              </button>
+              <button
+                type="button"
+                className={`mobile-menu-toggle ${mobileMenuOpen ? "active" : ""}`}
+                onClick={() => setMobileMenuOpen((o) => !o)}
+                aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                aria-expanded={mobileMenuOpen}
+              >
+                <span className="mobile-menu-toggle-icon">{mobileMenuOpen ? "✕" : "☰"}</span>
+                <span className="mobile-menu-toggle-text">{mobileMenuOpen ? "Close" : "Menu"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile active tab bar (visible only <= 960px): shows current tab name and opens menu on tap */}
+          <div
+            className="mobile-current-bar"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            role="button"
+            tabIndex={0}
+            aria-label="Toggle navigation menu"
+          >
+            <div className="mobile-current-info">
+              <span className="mobile-current-icon">{activeTabIcon}</span>
+              <span className="mobile-current-label">{activeTabLabel}</span>
+            </div>
+            <div className="mobile-current-action">
+              <span className="mobile-current-hint">{mobileMenuOpen ? "Tap to close" : "All menus"}</span>
+              <span className="mobile-current-chevron">{mobileMenuOpen ? "▲" : "▼"}</span>
+            </div>
+          </div>
+
+          <nav className={`tabs ${mobileMenuOpen ? "mobile-open" : ""}`} aria-label="Main">
             {isOwnerCockpit ? (
               <>
                 {/* 1. Executive Overview & ROI */}
@@ -535,7 +680,10 @@ export default function App() {
                 </div>
                 <button
                   className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
-                  onClick={() => setView("dashboard")}
+                  onClick={() => {
+                    setView("dashboard");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Pulse overview: MRR, Active Subscribers, Pipeline, and ROI"
                 >
                   <span className="tab-icon">📊</span>
@@ -543,7 +691,10 @@ export default function App() {
                 </button>
                 <button
                   className={effectiveViewFinal === "finance" ? "tab active" : "tab"}
-                  onClick={() => setView("finance")}
+                  onClick={() => {
+                    setView("finance");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Stripe subscription billing, revenue metrics, and cash flow"
                 >
                   <span className="tab-icon">💰</span>
@@ -560,6 +711,7 @@ export default function App() {
                     onClick={() => {
                       setCreateAccountOpen(false);
                       setView("clients");
+                      setMobileMenuOpen(false);
                     }}
                     title="Website subscribers, tenant workspaces, and 1-click CRM launch"
                   >
@@ -573,6 +725,7 @@ export default function App() {
                     onClick={() => {
                       setCreateAccountOpen(true);
                       setView("clients");
+                      setMobileMenuOpen(false);
                     }}
                   >
                     + Build
@@ -583,6 +736,7 @@ export default function App() {
                   onClick={() => {
                     setOnboardingStage(null);
                     setView("onboarding");
+                    setMobileMenuOpen(false);
                   }}
                   title="Track new subscribers moving through setup & onboarding"
                 >
@@ -601,6 +755,7 @@ export default function App() {
                     setOnboardingStage(null);
                     setLeadsFilter("active");
                     setView("leads");
+                    setMobileMenuOpen(false);
                   }}
                   title="Website inquiries, trial signups, and prospective subscriber leads"
                 >
@@ -609,7 +764,10 @@ export default function App() {
                 </button>
                 <button
                   className={effectiveViewFinal === "appointments" ? "tab active" : "tab"}
-                  onClick={() => setView("appointments")}
+                  onClick={() => {
+                    setView("appointments");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Sales demo calls & client onboarding sessions"
                 >
                   <span className="tab-icon">📅</span>
@@ -617,7 +775,10 @@ export default function App() {
                 </button>
                 <button
                   className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
-                  onClick={() => setView("tasks")}
+                  onClick={() => {
+                    setView("tasks");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Operational to-do list, sales follow-ups, and action items"
                 >
                   <span className="tab-icon">📋</span>
@@ -625,7 +786,10 @@ export default function App() {
                 </button>
                 <button
                   className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
-                  onClick={() => setView("tickets")}
+                  onClick={() => {
+                    setView("tickets");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Customer support tickets and inquiries submitted from subscriber CRMs"
                 >
                   <span className="tab-icon">🎫</span>
@@ -641,6 +805,7 @@ export default function App() {
                   onClick={() => {
                     setPreviewVertical("wholesalebiz");
                     setView("dashboard");
+                    setMobileMenuOpen(false);
                   }}
                   title="Inspect and test drive the live Wholesale Real Estate workspace experience"
                 >
@@ -654,7 +819,10 @@ export default function App() {
                 </div>
                 <button
                   className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
-                  onClick={() => setView("documents")}
+                  onClick={() => {
+                    setView("documents");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Audit trail and signed Master SaaS Agreements for all subscribers"
                 >
                   <span className="tab-icon">📑</span>
@@ -662,7 +830,10 @@ export default function App() {
                 </button>
                 <button
                   className={effectiveViewFinal === "admin" ? "tab active" : "tab"}
-                  onClick={() => setView("admin")}
+                  onClick={() => {
+                    setView("admin");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Master agreement contract editor, PIN security, and full data export"
                 >
                   <span className="tab-icon">📝</span>
@@ -670,7 +841,10 @@ export default function App() {
                 </button>
                 <button
                   className={effectiveViewFinal === "compliance" ? "tab active" : "tab"}
-                  onClick={() => setView("compliance")}
+                  onClick={() => {
+                    setView("compliance");
+                    setMobileMenuOpen(false);
+                  }}
                   title="TCPA DNC compliance, non-agency disclosures, and regulatory safeguards"
                 >
                   <span className="tab-icon">🛡️</span>
@@ -678,7 +852,10 @@ export default function App() {
                 </button>
                 <button
                   className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
-                  onClick={() => setView("settings")}
+                  onClick={() => {
+                    setView("settings");
+                    setMobileMenuOpen(false);
+                  }}
                   title="Master organization settings, API credentials, and billing keys"
                 >
                   <span className="tab-icon">⚙️</span>
@@ -693,7 +870,10 @@ export default function App() {
                 {canSeeTab("dashboard") && (
                   <button
                     className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
-                    onClick={() => setView("dashboard")}
+                    onClick={() => {
+                      setView("dashboard");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Dashboard
                   </button>
@@ -708,6 +888,7 @@ export default function App() {
                       setOnboardingStage(null);
                       setLeadsFilter("active");
                       setView("leads");
+                      setMobileMenuOpen(false);
                     }}
                     title="Wholesale property pipeline and acquisition opportunities"
                   >
@@ -719,7 +900,10 @@ export default function App() {
                 {canSeeTab("offers") && (
                   <button
                     className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
-                    onClick={() => setView("offers")}
+                    onClick={() => {
+                      setView("offers");
+                      setMobileMenuOpen(false);
+                    }}
                     title="Wholesale purchase proposals & dispatched offers repository"
                   >
                     Offers Repository
@@ -730,7 +914,10 @@ export default function App() {
                 {canSeeTab("documents") && (
                   <button
                     className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
-                    onClick={() => setView("documents")}
+                    onClick={() => {
+                      setView("documents");
+                      setMobileMenuOpen(false);
+                    }}
                     title="Title, escrow, and contract transaction hub"
                   >
                     Transaction Hub
@@ -741,7 +928,10 @@ export default function App() {
                 {canSeeTab("buybox") && (
                   <button
                     className={effectiveViewFinal === "buybox" ? "tab active" : "tab"}
-                    onClick={() => setView("buybox")}
+                    onClick={() => {
+                      setView("buybox");
+                      setMobileMenuOpen(false);
+                    }}
                     title="Investor buy box criteria matching engine"
                   >
                     Buy Box
@@ -752,7 +942,10 @@ export default function App() {
                 {canSeeTab("investors") && (
                   <button
                     className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
-                    onClick={() => setView("clients")}
+                    onClick={() => {
+                      setView("clients");
+                      setMobileMenuOpen(false);
+                    }}
                     title="Vetted cash buyers and creative finance network"
                   >
                     Investors
@@ -763,7 +956,10 @@ export default function App() {
                 {canSeeTab("connections") && (
                   <button
                     className={effectiveViewFinal === "connections" ? "tab active" : "tab"}
-                    onClick={() => setView("connections")}
+                    onClick={() => {
+                      setView("connections");
+                      setMobileMenuOpen(false);
+                    }}
                     title="Inbound webhook channels & data connections"
                   >
                     Connections
@@ -774,7 +970,10 @@ export default function App() {
                 {canSeeTab("tasks") && (
                   <button
                     className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
-                    onClick={() => setView("tasks")}
+                    onClick={() => {
+                      setView("tasks");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Tasks
                   </button>
@@ -784,7 +983,10 @@ export default function App() {
                 {canSeeTab("support") && (
                   <button
                     className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
-                    onClick={() => setView("tickets")}
+                    onClick={() => {
+                      setView("tickets");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Support
                   </button>
@@ -794,7 +996,10 @@ export default function App() {
                 {canSeeTab("settings") && (
                   <button
                     className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
-                    onClick={() => setView("settings")}
+                    onClick={() => {
+                      setView("settings");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Settings
                   </button>
@@ -804,7 +1009,10 @@ export default function App() {
                 {(canSeeTab("settings") || canSeeTab("clients")) && (
                   <button
                     className={effectiveViewFinal === "compliance" ? "tab active" : "tab"}
-                    onClick={() => setView("compliance")}
+                    onClick={() => {
+                      setView("compliance");
+                      setMobileMenuOpen(false);
+                    }}
                     title="TCPA DNC compliance, non-agency disclosures, and legal safeguards"
                   >
                     Compliance &amp; DNC
@@ -816,7 +1024,10 @@ export default function App() {
               <>
                 <button
                   className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
-                  onClick={() => setView("dashboard")}
+                  onClick={() => {
+                    setView("dashboard");
+                    setMobileMenuOpen(false);
+                  }}
                 >
                   Dashboard
                 </button>
@@ -828,6 +1039,7 @@ export default function App() {
                       setOnboardingStage(null);
                       setLeadsFilter("active");
                       setView("leads");
+                      setMobileMenuOpen(false);
                     }}
                   >
                     Leads
@@ -836,21 +1048,30 @@ export default function App() {
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
-                    onClick={() => setView("clients")}
+                    onClick={() => {
+                      setView("clients");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Clients
                   </button>
                 )}
                 <button
                   className={effectiveViewFinal === "appointments" ? "tab active" : "tab"}
-                  onClick={() => setView("appointments")}
+                  onClick={() => {
+                    setView("appointments");
+                    setMobileMenuOpen(false);
+                  }}
                 >
                   Appointments
                 </button>
                 {canSeeTab("tasks") && (
                   <button
                     className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
-                    onClick={() => setView("tasks")}
+                    onClick={() => {
+                      setView("tasks");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Tasks
                   </button>
@@ -858,7 +1079,10 @@ export default function App() {
                 {canSeeTab("support") && (
                   <button
                     className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
-                    onClick={() => setView("tickets")}
+                    onClick={() => {
+                      setView("tickets");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Support
                   </button>
@@ -866,7 +1090,10 @@ export default function App() {
                 {canSeeTab("finance") && (
                   <button
                     className={effectiveViewFinal === "finance" ? "tab active" : "tab"}
-                    onClick={() => setView("finance")}
+                    onClick={() => {
+                      setView("finance");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Finance
                   </button>
@@ -874,7 +1101,10 @@ export default function App() {
                 {canSeeTab("settings") && (
                   <button
                     className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
-                    onClick={() => setView("settings")}
+                    onClick={() => {
+                      setView("settings");
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Settings
                   </button>
@@ -886,7 +1116,10 @@ export default function App() {
                     <button
                       type="button"
                       className="btn btn-sm btn-ghost nav-preview-exit-btn"
-                      onClick={() => setPreviewVertical(null)}
+                      onClick={() => {
+                        setPreviewVertical(null);
+                        setMobileMenuOpen(false);
+                      }}
                       title="Return to Owner / Admin CRM"
                     >
                       <span>←</span>
@@ -896,6 +1129,26 @@ export default function App() {
                 )}
               </>
             )}
+
+            {/* Mobile menu footer with user info & sign-out button (visible only in mobile vertical menu) */}
+            <div className="mobile-menu-footer">
+              <div className="mobile-menu-user-row">
+                <span className="mobile-menu-user-badge">User:</span>
+                <span className={`mobile-menu-user-name${blurPii(piiHidden)}`}>
+                  {navUserName} {orgName ? `· ${orgName}` : ""}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm mobile-menu-signout"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+              >
+                Sign out
+              </button>
+            </div>
           </nav>
           <div className="nav-right">
             {/* Global theme toggle (Light / Dark mode) */}

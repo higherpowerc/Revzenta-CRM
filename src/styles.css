@@ -153,6 +153,30 @@ html,
 body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+  -webkit-text-size-adjust: 100%;
+}
+
+#root,
+.app {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.shell {
+  width: 100%;
+  max-width: 100vw;
+}
+
+.content {
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 body {
@@ -1357,6 +1381,16 @@ legend.field-label {
   padding: 18px 14px;
 }
 
+.nav-header-row {
+  display: contents;
+}
+
+.mobile-nav-tools,
+.mobile-current-bar,
+.mobile-menu-footer {
+  display: none;
+}
+
 .nav .brand {
   padding: 4px 6px 2px;
 }
@@ -1577,6 +1611,8 @@ legend.field-label {
 @media (max-width: 960px) {
   .shell {
     flex-direction: column;
+    width: 100%;
+    max-width: 100vw;
   }
 
   .nav {
@@ -1585,36 +1621,253 @@ legend.field-label {
     overflow: visible;
     border-right: none;
     border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg);
+  }
+
+  [data-theme="dark"] .nav {
+    background: #0a0a0c;
+  }
+
+  [data-theme="light"] .nav {
+    background: #ffffff;
   }
 
   .nav .nav-inner {
-    flex-direction: row;
-    align-items: center;
-    gap: 14px;
-    padding: 10px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 10px 14px;
+    width: 100%;
   }
 
+  .nav-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .mobile-nav-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mobile-website-btn {
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--lime-dim, rgba(214, 255, 63, 0.12));
+    color: var(--lime, #d6ff3f);
+    border: 1px solid rgba(214, 255, 63, 0.4);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.15s ease;
+  }
+
+  [data-theme="light"] .mobile-menu-toggle {
+    background: rgba(22, 163, 74, 0.12);
+    color: #16a34a;
+    border-color: rgba(22, 163, 74, 0.4);
+  }
+
+  .mobile-menu-toggle.active {
+    background: var(--lime);
+    color: var(--lime-ink, #000);
+    border-color: var(--lime);
+  }
+
+  [data-theme="light"] .mobile-menu-toggle.active {
+    background: #16a34a;
+    color: #fff;
+    border-color: #16a34a;
+  }
+
+  .mobile-current-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-top: 8px;
+    user-select: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  [data-theme="light"] .mobile-current-bar {
+    background: #f1f5f9;
+  }
+
+  .mobile-current-bar:hover,
+  .mobile-current-bar:active {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--line-strong);
+  }
+
+  .mobile-current-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .mobile-current-icon {
+    font-size: 15px;
+  }
+
+  .mobile-current-action {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  .mobile-current-chevron {
+    font-size: 10px;
+    color: var(--lime);
+  }
+
+  [data-theme="light"] .mobile-current-chevron {
+    color: #16a34a;
+  }
+
+  /* When menu is closed on mobile, hide the tabs completely so full viewport is preserved */
   .nav .tabs {
-    flex: 1 1 auto;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 2px;
+    display: none;
+  }
+
+  /* When menu is opened on mobile, display tabs as a full-width vertical list scrolling DOWN the page */
+  .nav .tabs.mobile-open {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: calc(100vh - 120px);
+    max-height: calc(100dvh - 120px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 2px 32px;
+    gap: 4px;
+    margin-top: 8px;
+    border-top: 1px solid var(--line);
   }
 
   .nav .tab {
-    width: auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    padding: 11px 14px;
+    font-size: 14.5px;
+    border-radius: 8px;
+    white-space: normal;
+  }
+
+  .nav-section-title {
+    padding: 14px 10px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    margin-top: 10px;
+  }
+
+  .nav-section-title:first-of-type {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 4px;
+  }
+
+  .nav-accounts-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .nav-accounts-row .tab {
+    flex: 1;
+  }
+
+  .nav-build-btn {
+    flex: none;
     white-space: nowrap;
-    padding: 8px 10px;
+  }
+
+  .mobile-menu-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 14px 10px 4px;
+    border-top: 1px solid var(--line-strong);
+    width: 100%;
+  }
+
+  .mobile-menu-user-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mobile-menu-user-badge {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .mobile-menu-user-name {
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-menu-signout {
+    flex: none;
+    color: var(--danger);
   }
 
   .nav .nav-right {
-    margin: 0 0 0 auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    padding-top: 0;
-    border-top: none;
+    display: none;
   }
 
   .nav .nav-user {
@@ -1626,7 +1879,7 @@ legend.field-label {
   }
 
   .main {
-    padding: 24px 16px 48px;
+    padding: 20px 14px 44px;
   }
 }
 
@@ -2641,7 +2894,11 @@ legend.field-label {
 /* ── Table ─────────────────────────────────────────────────── */
 
 .table-wrap {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .table {
@@ -3912,25 +4169,8 @@ p.inv-notes.cockpit-foot {
     width: 100%;
   }
 
-  .nav-inner {
-    height: auto;
-    padding: 10px 16px;
-    flex-wrap: wrap;
-    gap: 8px 14px;
-  }
-
   .nav-user {
     display: none;
-  }
-
-  .nav-right {
-    margin-left: auto;
-  }
-
-  .tabs {
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: auto;
   }
 
   .main {
@@ -4021,32 +4261,43 @@ p.inv-notes.cockpit-foot {
   .table,
   .table tbody,
   .table tr,
-  .table td {
-    display: block;
-    width: 100%;
-    min-width: 0;
+  .table td,
+  .accounts-table,
+  .accounts-table tbody,
+  .accounts-table tr,
+  .accounts-table td {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
-  .table thead {
-    display: none;
+  .table thead,
+  .accounts-table thead {
+    display: none !important;
   }
 
-  .table tbody tr {
+  .table tbody tr,
+  .accounts-table tbody tr {
     border-bottom: 1px solid var(--line);
     padding: 10px 0;
   }
 
-  .table tbody tr:last-child {
+  .table tbody tr:last-child,
+  .accounts-table tbody tr:last-child {
     border-bottom: none;
   }
 
-  .table td {
-    border: none;
-    padding: 5px 16px;
-    text-align: left;
+  .table td,
+  .accounts-table td {
+    border: none !important;
+    padding: 6px 14px !important;
+    text-align: left !important;
+    min-width: 0 !important;
+    white-space: normal !important;
   }
 
-  .table td::before {
+  .table td::before,
+  .accounts-table td::before {
     content: attr(data-label);
     display: block;
     font-size: 10.5px;
@@ -4055,6 +4306,26 @@ p.inv-notes.cockpit-foot {
     text-transform: uppercase;
     color: var(--muted);
     margin-bottom: 2px;
+  }
+
+  .accounts-table td[data-label="Account"],
+  .accounts-table td[data-label="Business Type"],
+  .accounts-table td[data-label="Phone"],
+  .accounts-table td[data-label="Email"],
+  .accounts-table td[data-label="Members"],
+  .accounts-table td[data-label="Clients records"],
+  .accounts-table td[data-label="Created"],
+  .accounts-table td[data-label="Subscription"],
+  .accounts-table td[data-label="Actions"] {
+    min-width: 0 !important;
+    text-align: left !important;
+  }
+
+  .accounts-table .row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
   }
 
   .num {
@@ -4114,6 +4385,30 @@ p.inv-notes.cockpit-foot {
      specificity selector.) */
   .modal .modal-actions {
     border-radius: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .window-stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+    gap: 6px;
+  }
+
+  .window-stat-value {
+    font-size: 15px;
+  }
+
+  .dashboard-window {
+    padding: 16px 14px;
+  }
+
+  .kpi-row-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .page-head {
+    margin-bottom: 18px;
+    gap: 12px;
   }
 }
 
@@ -5626,4 +5921,57 @@ input.accent-hex::placeholder,
   width: 1rem;
   height: 1rem;
   flex: none;
+}
+
+/* ── Universal Mobile Safeguards (Zero Horizontal Wobble) ─────────
+   Guarantees that on mobile screens (<=768px), all tables, forms,
+   containers, and grids are strictly single-axis vertical scrolling.
+   Prevents multi-directional ('left right up down all over') wobble. */
+@media (max-width: 768px) {
+  html, body, #root, .app, .shell, .content, .main {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .accounts-table {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .accounts-table,
+  .accounts-table tbody,
+  .accounts-table tr,
+  .accounts-table td {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .accounts-table thead {
+    display: none !important;
+  }
+
+  .accounts-table td[data-label="Account"],
+  .accounts-table td[data-label="Business Type"],
+  .accounts-table td[data-label="Phone"],
+  .accounts-table td[data-label="Email"],
+  .accounts-table th:nth-child(4),
+  .accounts-table .acc-email,
+  .accounts-table td[data-label="Members"],
+  .accounts-table td[data-label="Clients records"],
+  .accounts-table td[data-label="Created"],
+  .accounts-table td[data-label="Subscription"],
+  .accounts-table td[data-label="Actions"],
+  .accounts-table th.actions-th {
+    min-width: 0 !important;
+    text-align: left !important;
+  }
+
+  .table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+  }
 }
