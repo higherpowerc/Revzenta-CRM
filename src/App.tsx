@@ -529,68 +529,30 @@ export default function App() {
           <nav className="tabs" aria-label="Main">
             {isOwnerCockpit ? (
               <>
+                {/* 1. Executive Overview & ROI */}
+                <div className="nav-section-title">
+                  <span>Executive &amp; Metrics</span>
+                </div>
                 <button
                   className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
                   onClick={() => setView("dashboard")}
+                  title="Pulse overview: MRR, Active Subscribers, Pipeline, and ROI"
                 >
-                  Dashboard
-                </button>
-                {/* Pipeline tab: "Leads" for owner */}
-                <button
-                  className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setLeadsStage(null);
-                    setOnboardingStage(null);
-                    setLeadsFilter("active");
-                    setView("leads");
-                  }}
-                >
-                  Leads
-                </button>
-                <button
-                  className={effectiveViewFinal === "onboarding" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setOnboardingStage(null);
-                    setView("onboarding");
-                  }}
-                >
-                  Onboarding
-                </button>
-                <button
-                  className={effectiveViewFinal === "appointments" ? "tab active" : "tab"}
-                  onClick={() => setView("appointments")}
-                >
-                  Appointments
-                </button>
-                <button
-                  className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
-                  onClick={() => setView("tasks")}
-                >
-                  Tasks
-                </button>
-                <button
-                  className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
-                  onClick={() => setView("tickets")}
-                >
-                  Tickets
+                  <span className="tab-icon">📊</span>
+                  <span>Dashboard &amp; ROI</span>
                 </button>
                 <button
                   className={effectiveViewFinal === "finance" ? "tab active" : "tab"}
                   onClick={() => setView("finance")}
+                  title="Stripe subscription billing, revenue metrics, and cash flow"
                 >
-                  Finance
-                </button>
-                <button
-                  className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
-                  onClick={() => setView("offers")}
-                  title="Wholesale purchase proposals & dispatched offers repository"
-                >
-                  Offers Repository
+                  <span className="tab-icon">💰</span>
+                  <span>Revenue &amp; Stripe</span>
                 </button>
 
-                {/* Client Accounts Hub — Build & View Client CRMs */}
+                {/* 2. Subscribers & Workspaces */}
                 <div className="nav-section-title">
-                  <span>Client Workspaces</span>
+                  <span>Subscribers &amp; Workspaces</span>
                 </div>
                 <div className="nav-accounts-row">
                   <button
@@ -599,15 +561,15 @@ export default function App() {
                       setCreateAccountOpen(false);
                       setView("clients");
                     }}
-                    title="View client accounts & access each client's CRM"
+                    title="Website subscribers, tenant workspaces, and 1-click CRM launch"
                   >
                     <span className="tab-icon">👥</span>
-                    <span>Client Accounts</span>
+                    <span>Subscribers</span>
                   </button>
                   <button
                     type="button"
                     className="btn btn-primary btn-sm nav-build-btn"
-                    title="Build a new client account"
+                    title="Provision a new subscriber workspace"
                     onClick={() => {
                       setCreateAccountOpen(true);
                       setView("clients");
@@ -616,8 +578,61 @@ export default function App() {
                     + Build
                   </button>
                 </div>
+                <button
+                  className={effectiveViewFinal === "onboarding" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setOnboardingStage(null);
+                    setView("onboarding");
+                  }}
+                  title="Track new subscribers moving through setup & onboarding"
+                >
+                  <span className="tab-icon">🚀</span>
+                  <span>Client Onboarding</span>
+                </button>
 
-                {/* Client CRM Preview — Owner/Admin Only */}
+                {/* 3. Sales & Growth Pipeline */}
+                <div className="nav-section-title">
+                  <span>Sales &amp; Growth</span>
+                </div>
+                <button
+                  className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setLeadsStage(null);
+                    setOnboardingStage(null);
+                    setLeadsFilter("active");
+                    setView("leads");
+                  }}
+                  title="Website inquiries, trial signups, and prospective subscriber leads"
+                >
+                  <span className="tab-icon">🎯</span>
+                  <span>Sales Leads</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "appointments" ? "tab active" : "tab"}
+                  onClick={() => setView("appointments")}
+                  title="Sales demo calls & client onboarding sessions"
+                >
+                  <span className="tab-icon">📅</span>
+                  <span>Demo Calls</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
+                  onClick={() => setView("tasks")}
+                  title="Operational to-do list, sales follow-ups, and action items"
+                >
+                  <span className="tab-icon">📋</span>
+                  <span>Tasks</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
+                  onClick={() => setView("tickets")}
+                  title="Customer support tickets and inquiries submitted from subscriber CRMs"
+                >
+                  <span className="tab-icon">🎫</span>
+                  <span>Support Tickets</span>
+                </button>
+
+                {/* 4. Client CRM Live Preview */}
                 <div className="nav-section-title">
                   <span>Client CRM Preview</span>
                 </div>
@@ -627,40 +642,47 @@ export default function App() {
                     setPreviewVertical("wholesalebiz");
                     setView("dashboard");
                   }}
-                  title="View Wholesale Real Estate CRM"
+                  title="Inspect and test drive the live Wholesale Real Estate workspace experience"
                 >
                   <span className="tab-icon">🏠</span>
                   <span>Wholesale Real Estate</span>
                 </button>
 
-                {/* Owner Administration */}
+                {/* 5. Legal & Platform Administration */}
                 <div className="nav-section-title">
-                  <span>System</span>
+                  <span>Legal &amp; System</span>
                 </div>
-                <button
-                  className={effectiveViewFinal === "admin" ? "tab active" : "tab"}
-                  onClick={() => setView("admin")}
-                >
-                  Administration
-                </button>
                 <button
                   className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
                   onClick={() => setView("documents")}
+                  title="Audit trail and signed Master SaaS Agreements for all subscribers"
                 >
-                  Documents
+                  <span className="tab-icon">📑</span>
+                  <span>Signed Agreements</span>
                 </button>
                 <button
-                  className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
-                  onClick={() => setView("settings")}
+                  className={effectiveViewFinal === "admin" ? "tab active" : "tab"}
+                  onClick={() => setView("admin")}
+                  title="Master agreement contract editor, PIN security, and full data export"
                 >
-                  Settings
+                  <span className="tab-icon">📝</span>
+                  <span>Template &amp; Admin</span>
                 </button>
                 <button
                   className={effectiveViewFinal === "compliance" ? "tab active" : "tab"}
                   onClick={() => setView("compliance")}
                   title="TCPA DNC compliance, non-agency disclosures, and regulatory safeguards"
                 >
-                  Compliance &amp; DNC
+                  <span className="tab-icon">🛡️</span>
+                  <span>Compliance &amp; DNC</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
+                  onClick={() => setView("settings")}
+                  title="Master organization settings, API credentials, and billing keys"
+                >
+                  <span className="tab-icon">⚙️</span>
+                  <span>Settings</span>
                 </button>
               </>
             ) : isWholesale ? (

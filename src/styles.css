@@ -1377,6 +1377,7 @@ legend.field-label {
   width: 100%;
   text-align: left;
   padding: 9px 12px;
+  justify-content: flex-start;
 }
 
 .nav .nav-right {
@@ -1399,14 +1400,20 @@ legend.field-label {
 /* ── Owner Sidebar Sectioning & Business Type CRM controls ──────── */
 .nav-section-title {
   padding: 14px 8px 4px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
   user-select: none;
   border-top: 1px solid var(--line);
-  margin-top: 6px;
+  margin-top: 8px;
+}
+
+.nav-section-title:first-of-type {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 4px;
 }
 
 .nav-accounts-row {
