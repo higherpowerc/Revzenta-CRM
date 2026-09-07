@@ -122,11 +122,10 @@ export const WHOLESALE_VERTICAL: VerticalTemplate = {
   ],
 };
 
-export const VERTICALS: VerticalTemplate[] = [B2B_VERTICAL, B2C_VERTICAL, WHOLESALE_VERTICAL];
+export const VERTICALS: VerticalTemplate[] = [WHOLESALE_VERTICAL, B2B_VERTICAL, B2C_VERTICAL];
 
-/** All selectable business types in display order: B2B first (the default),
- *  then B2C, then Wholesale Real Estate. */
-export const ALL_VERTICALS: VerticalTemplate[] = VERTICALS;
+/** All selectable business types in display order: Wholesale Real Estate is the sole active business type. */
+export const ALL_VERTICALS: VerticalTemplate[] = [WHOLESALE_VERTICAL];
 
 /** key → template. */
 export const VERTICAL_MAP: Record<string, VerticalTemplate> = Object.fromEntries(
@@ -134,19 +133,15 @@ export const VERTICAL_MAP: Record<string, VerticalTemplate> = Object.fromEntries
 );
 
 /** Resolve a business-type key → template, or null when unknown. Legacy keys
- *  from the retired catalog ('general', 'cleaning', 'landscaping', …) are no
- *  longer valid here — they resolve to null (the server's plain-org path) and
- *  display as B2B via verticalLabel. */
+ *  from retired catalogs are resolved via VERTICAL_MAP or fallback to Wholesale Real Estate. */
 export function getVertical(key: string | null | undefined): VerticalTemplate | null {
   if (!key) return null;
   return VERTICAL_MAP[key] ?? null;
 }
 
-/** Display label for an org's stored vertical_key. Unknown / empty / legacy
- *  keys ('general','cleaning','landscaping',…) all display as B2B — the
- *  default business type (owner direction 2026-08-16). */
+/** Display label for an org's stored vertical_key. */
 export function verticalLabel(key: string | null | undefined): string {
-  return VERTICAL_MAP[key ?? ""]?.label ?? B2B_VERTICAL.label;
+  return VERTICAL_MAP[key ?? ""]?.label ?? WHOLESALE_VERTICAL.label;
 }
 
 /** Stored org custom-field shape (orgs.custom_fields entries). */

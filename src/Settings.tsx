@@ -117,8 +117,8 @@ export default function Settings({
   const [newFieldOptions, setNewFieldOptions] = useState<string[]>([]);
   const [confirmRemoveField, setConfirmRemoveField] = useState<number | null>(null);
 
-  /* 3f-1: the business type picker for the additive "Apply template" path */
-  const [applyVertical, setApplyVertical] = useState("b2b");
+  /* Business type picker for template application */
+  const [applyVertical, setApplyVertical] = useState("wholesalebiz");
 
   /* Adaptive intake (Phase 1): account-level vertical config */
   const [serviceModel, setServiceModel] = useState<OrgSettings["serviceModel"]>("both");
@@ -468,7 +468,7 @@ export default function Settings({
       // (the default type; legacy keys from the retired catalog display as
       // B2B and re-applying the B2B template is the migration path).
       setApplyVertical(
-        ALL_VERTICALS.some((v) => v.key === settings.verticalKey) ? settings.verticalKey : "b2b",
+        ALL_VERTICALS.some((v) => v.key === settings.verticalKey) ? settings.verticalKey : "wholesalebiz",
       );
       setRevenueModel(settings.revenueModel);
       setMonthlySubscriptionAmount(settings.monthlySubscriptionAmount);

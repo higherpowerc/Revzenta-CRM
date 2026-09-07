@@ -617,32 +617,10 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Business Type CRMs — Owner/Admin Only */}
+                {/* Client CRM Preview — Owner/Admin Only */}
                 <div className="nav-section-title">
-                  <span>Business Type CRMs</span>
+                  <span>Client CRM Preview</span>
                 </div>
-                <button
-                  className={previewVertical === "b2b" ? "tab active tab-btype" : "tab tab-btype"}
-                  onClick={() => {
-                    setPreviewVertical("b2b");
-                    setView("dashboard");
-                  }}
-                  title="View B2B Business Type CRM"
-                >
-                  <span className="tab-icon">🏢</span>
-                  <span>B2B CRM</span>
-                </button>
-                <button
-                  className={previewVertical === "b2c" ? "tab active tab-btype" : "tab tab-btype"}
-                  onClick={() => {
-                    setPreviewVertical("b2c");
-                    setView("dashboard");
-                  }}
-                  title="View B2C Business Type CRM"
-                >
-                  <span className="tab-icon">🛍️</span>
-                  <span>B2C CRM</span>
-                </button>
                 <button
                   className={previewVertical === "wholesalebiz" ? "tab active tab-btype" : "tab tab-btype"}
                   onClick={() => {
@@ -959,47 +937,17 @@ export default function App() {
         {previewVertical && (
           <div className="btype-preview-banner" role="status">
             <div className="btype-preview-left">
-              <span className="btype-preview-icon">
-                {previewVertical === "wholesalebiz" ? "🏠" : previewVertical === "b2c" ? "🛍️" : "🏢"}
-              </span>
+              <span className="btype-preview-icon">🏠</span>
               <div className="btype-preview-text">
                 <div className="btype-preview-title">
-                  Viewing <strong>{previewVertical === "wholesalebiz" ? "Wholesale Real Estate CRM" : previewVertical === "b2c" ? "B2C CRM" : "B2B CRM"}</strong> (Business Type Preview)
+                  Viewing <strong>Wholesale Real Estate CRM</strong> (Client CRM Preview)
                 </div>
                 <div className="btype-preview-sub">
-                  Exploring the client-facing CRM experience, pipeline stages, and modules for this business type.
+                  Exploring the client-facing Wholesale Real Estate CRM pipeline, property leads, and deal modules.
                 </div>
               </div>
             </div>
             <div className="btype-preview-actions">
-              <span className="btype-preview-switch-label">Switch:</span>
-              {previewVertical !== "b2b" && (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost btype-switch-btn"
-                  onClick={() => { setPreviewVertical("b2b"); setView("dashboard"); }}
-                >
-                  🏢 B2B
-                </button>
-              )}
-              {previewVertical !== "b2c" && (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost btype-switch-btn"
-                  onClick={() => { setPreviewVertical("b2c"); setView("dashboard"); }}
-                >
-                  🛍️ B2C
-                </button>
-              )}
-              {previewVertical !== "wholesalebiz" && (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost btype-switch-btn"
-                  onClick={() => { setPreviewVertical("wholesalebiz"); setView("dashboard"); }}
-                >
-                  🏠 Wholesale
-                </button>
-              )}
               <button
                 type="button"
                 className="btn btn-sm btn-primary btype-build-btn"

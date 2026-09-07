@@ -148,9 +148,8 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
   useEffect(() => {
     if (initialCreateOpen) setCreateOpen(true);
   }, [initialCreateOpen]);
-  /** 3f-1: the business type picker (owner direction 2026-08-16 — the catalog
-   *  is B2B & B2C only; B2B is the default: "Mainly we will be selling B2B"). */
-  const [vertical, setVertical] = useState("b2b");
+  /** Business type picker: Wholesale Real Estate is the primary business type. */
+  const [vertical, setVertical] = useState("wholesalebiz");
   /** When business type is Wholesale Real Estate, package tier is hidden and omitted */
   const isWholesaleCreate =
     vertical === "wholesalebiz" ||
@@ -300,7 +299,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
       setEmail("");
       setPassword("");
       setShowPassword(false);
-      setVertical("b2b");
+      setVertical("wholesalebiz");
       setTier("");
       await load();
     } catch (err) {
