@@ -1412,14 +1412,21 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
           {isWholesale && canEdit && (
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-primary"
               onClick={() => setCalcProperty("new")}
-              title="Open Wholesale Deal Calculator"
+              title="Open Deal Calculator to underwrite and build a new creative deal"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: 800,
+              }}
             >
-              🏠 Deal Calculator
+              <span>🏗️</span>
+              <span>Build Deal</span>
             </button>
           )}
-          {canEdit && scope !== "middle" && (
+          {!isWholesale && canEdit && scope !== "middle" && (
             <button className="btn btn-primary" onClick={() => setModal({ mode: "create" })}>
               {addCta}
             </button>
@@ -1599,12 +1606,13 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               pipeline (orphaned) is a repair surface, not a creation one. */}
           {canEdit && scoped.length === 0 && filter !== "lost" && filter !== "dnc" && filter !== "maybe" && filter !== "orphaned" && scope !== "middle" && (
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap" }}>
-              <button className="btn btn-primary" onClick={() => setModal({ mode: "create" })}>
-                {emptyCta}
-              </button>
-              {isWholesale && (
-                <button className="btn btn-ghost" onClick={() => setCalcProperty("new")}>
-                  🏠 Deal Calculator
+              {isWholesale ? (
+                <button className="btn btn-primary" onClick={() => setCalcProperty("new")}>
+                  🏗️ Build Deal
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setModal({ mode: "create" })}>
+                  {emptyCta}
                 </button>
               )}
             </div>
@@ -2176,17 +2184,18 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 </>
               ) : isWholesale ? (
                 <>
-                  {/* Opportunities 12 cols: Address | Owner First Name | Owner Last Name | Est. Value | Est. Equity | Open Mortgage | Beds | Baths | Sqft | Year Built | Property Class | Actions */}
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "5%" }} />
-                  <col style={{ width: "5%" }} />
+                  {/* Opportunities 13 cols: Address | Owner First Name | Owner Last Name | Est. Value | Est. Equity | Open Mortgage | Beds | Baths | Sqft | Year Built | Property Class | Deal Calculator | Actions */}
+                  <col style={{ width: "15%" }} />
                   <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "4.5%" }} />
+                  <col style={{ width: "4.5%" }} />
                   <col style={{ width: "6%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "8%" }} />
                 </>
@@ -2218,6 +2227,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                   <th style={{ textAlign: "center" }}>Square Footage</th>
                   <th style={{ textAlign: "center" }}>Year Built</th>
                   <th style={{ textAlign: "center" }}>Property Class</th>
+                  <th style={{ textAlign: "center" }}>Deal Calculator</th>
                   <th className="actions-th" style={{ textAlign: "center" }}>Actions</th>
                 </tr>
               ) : (
@@ -2380,7 +2390,34 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                         </span>
                       </td>
 
-                      {/* 12. Actions (Edit & More Menu — Create Offer and Cancelation Notice removed) */}
+                      {/* 12. Deal Calculator */}
+                      <td data-label="Deal Calculator" style={{ textAlign: "center" }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "5px",
+                            fontSize: "11.5px",
+                            fontWeight: 700,
+                            padding: "4px 10px",
+                            borderRadius: "6px",
+                            background: "rgba(214, 255, 63, 0.12)",
+                            color: "var(--lime, #d6ff3f)",
+                            border: "1px solid rgba(214, 255, 63, 0.35)",
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            transition: "all 0.15s ease",
+                          }}
+                          title={`Open Deal Calculator for ${c.address || primaryName(false, c)}`}
+                          onClick={() => setCalcProperty(c)}
+                        >
+                          🧮 Build Deal
+                        </button>
+                      </td>
+
+                      {/* 13. Actions (Edit & More Menu — Create Offer and Cancelation Notice removed) */}
                       <td data-label="Actions" style={{ textAlign: "center" }}>
                         <div className="row-actions" style={{ justifyContent: "center", alignItems: "center" }}>
                           {canEdit && (

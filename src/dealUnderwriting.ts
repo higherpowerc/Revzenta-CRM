@@ -574,6 +574,7 @@ export interface ProposalGeneratorInput {
   acquisitionsCompany: string;
   selectedOptions: Array<'cash' | 'subto' | 'creative'>;
   closingDays: number;
+  earnestMoney?: number;
   cashMetrics: CashDealMetrics;
   subtoMetrics: SubjectToMetrics;
   subtoInput: SubjectToInput;
@@ -642,10 +643,12 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
 
   let optIdx = 1;
 
+  const earnestVal = input.earnestMoney != null && !isNaN(input.earnestMoney) ? input.earnestMoney : 2500;
+
   if (input.selectedOptions.includes('cash')) {
     text += `OPTION ${optIdx++}: IMMEDIATE ALL-CASH SETTLEMENT\n`;
     text += `• Net Cash Purchase Price: $${input.cashMetrics.netWholesaleOffer.toLocaleString()} (Net Walkaway to Seller)\n`;
-    text += `• Earnest Money Deposit: $1,000.00 (Escrow deposited within 48 business hours)\n`;
+    text += `• Earnest Money Deposit: $${earnestVal.toLocaleString()} (Escrow deposited within 48 business hours)\n`;
     text += `• Closing Timeline: ${input.closingDays} Days (or flexible date of Seller's choice)\n`;
     text += `• Condition: Sold 100% strictly "As-Is, Where-Is" (Zero repairs, cleaning, or debris removal required)\n`;
     text += `• Closing Costs: Buyer pays 100% of customary escrow and closing costs. Zero agent fees or commissions.\n\n`;
@@ -730,6 +733,7 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
               </div>
               <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #047857;">
                 <li>Net cash walkaway at closing</li>
+                <li>Earnest Money Deposit: $${earnestVal.toLocaleString()} (escrow deposited within 48 business hours)</li>
                 <li>Closing within ${input.closingDays} business days</li>
                 <li>Sold 100% strictly "As-Is" — zero repairs or cleaning</li>
                 <li>Buyer pays all standard closing costs</li>

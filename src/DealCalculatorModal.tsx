@@ -369,6 +369,11 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     setSubtoPrice(purchasePrice);
     setSubtoRent(rent);
 
+    const cfEmd = p.customFields?.find((c) => c.name.toLowerCase().includes("earnest"))?.value;
+    const numEmd = Number(String(cfEmd).replace(/[^0-9.]/g, ""));
+    if (!isNaN(numEmd) && numEmd > 0) setEarnestMoneyDeposit(numEmd);
+    else setEarnestMoneyDeposit(2500);
+
     const cfBeds = p.customFields?.find((c) => c.name.toLowerCase().includes("bed"))?.value;
     const cfBaths = p.customFields?.find((c) => c.name.toLowerCase().includes("bath"))?.value;
     const cfSqft = p.customFields?.find((c) => c.name.toLowerCase().includes("sqft") || c.name.toLowerCase().includes("square"))?.value;
@@ -632,6 +637,11 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     "creative",
   ]);
   const [closingDays, setClosingDays] = useState<number>(14);
+  const [earnestMoneyDeposit, setEarnestMoneyDeposit] = useState<number>(() => {
+    const cfEmd = property?.customFields?.find((c) => c.name.toLowerCase().includes("earnest"))?.value;
+    const num = Number(String(cfEmd).replace(/[^0-9.]/g, ""));
+    return !isNaN(num) && num > 0 ? num : 2500;
+  });
   const [includeAssignability, setIncludeAssignability] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<"formatted" | "plain">("formatted");
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
@@ -822,6 +832,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       acquisitionsCompany,
       selectedOptions: selectedProposalOptions,
       closingDays,
+      earnestMoney: earnestMoneyDeposit,
       cashMetrics,
       subtoMetrics,
       subtoInput: {
@@ -867,6 +878,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     acquisitionsCompany,
     selectedProposalOptions,
     closingDays,
+    earnestMoneyDeposit,
     cashMetrics,
     subtoMetrics,
     subtoPrice,
@@ -942,6 +954,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         subtoPurchasePrice: selectedProposalOptions.includes("subto") ? subtoPrice : 0,
         creativePurchasePrice: selectedProposalOptions.includes("creative") ? creativePrice : 0,
         closingDays,
+        earnestMoneyDeposit,
         status: "Sent",
         notes: previewMessage || proposalData.plainText,
       });
@@ -985,9 +998,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     setSendSuccessMsg(null);
 
     try {
-      // 1. Ensure offer is recorded in repository and PDF generated
+      // 1. Ensure offer is recorded in repository and PDF generated with latest terms
       let offer = generatedOffer;
-      if (!offer) {
+      if (!offer || offer.earnestMoneyDeposit !== earnestMoneyDeposit) {
         offer = await handleGenerateFormalLoi();
       }
       if (!offer || !offer.id) {
@@ -1048,12 +1061,14 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             !c.name.toLowerCase().includes("assignment value") &&
             !c.name.toLowerCase().includes("projected assignment") &&
             !c.name.toLowerCase().includes("purchase price") &&
+            !c.name.toLowerCase().includes("earnest") &&
             !c.name.toLowerCase().includes("property address")
         ),
         { id: "cf_arv", name: "ARV", type: "currency", value: String(cashArv) },
         { id: "cf_repairs", name: "Repairs", type: "currency", value: String(cashRepairs) },
         { id: "cf_fee", name: "Assignment Value", type: "currency", value: String(activeFee) },
         { id: "cf_offer", name: "Underwritten Purchase Price", type: "currency", value: String(activeOffer) },
+        { id: "cf_earnest", name: "Earnest Money", type: "currency", value: String(earnestMoneyDeposit) },
       ];
 
       if (parsedAddr.address) {
@@ -1175,7 +1190,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         creativePurchasePrice: tab === "creative" ? creativePrice : 0,
         subtoPurchasePrice: tab === "subto" ? subtoPrice : 0,
         status: "sent",
-        earnestMoneyDeposit: tab === "cash" ? cashMetrics.buyerClosingCostAmount || 2500 : 2500,
+        earnestMoneyDeposit: earnestMoneyDeposit || 2500,
         inspectionPeriodDays: closingDays || 14,
         closingPeriodDays: closingDays || 21,
       };
@@ -1186,7 +1201,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         console.warn("api.createOffer notice:", e);
       }
 
-      // 2. Also stamp Offer Sent, Cash Offer, and Assignment Value on the property itself
+      // 2. Also stamp Offer Sent, Cash Offer, Assignment Value, and Earnest Money on the property itself
       const todayStr = new Date().toISOString().split("T")[0];
       const parsedAddr = parseAddressString(propertyAddress);
       const customFieldsUpdate = [
@@ -1196,12 +1211,14 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             !c.name.toLowerCase().includes("cash offer") &&
             !c.name.toLowerCase().includes("offer structure") &&
             !c.name.toLowerCase().includes("assignment value") &&
-            !c.name.toLowerCase().includes("assignment fee")
+            !c.name.toLowerCase().includes("assignment fee") &&
+            !c.name.toLowerCase().includes("earnest")
         ),
         { id: "cf_offer_sent", name: "Offer Sent", type: "text", value: todayStr },
         { id: "cf_cash_offer", name: "Cash Offer", type: "currency", value: String(offerAmount) },
         { id: "cf_offer_structure", name: "Offer Structure", type: "text", value: offerTypeStr },
         { id: "cf_fee", name: "Assignment Value", type: "currency", value: String(activeFee) },
+        { id: "cf_earnest", name: "Earnest Money", type: "currency", value: String(earnestMoneyDeposit) },
       ];
 
       if (activeProperty?.id) {
@@ -2326,17 +2343,25 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </label>
                     </div>
 
-                    <div>
-                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
-                        Closing Timeline (Days)
-                      </span>
-                      <input
-                        type="number"
-                        min={3}
-                        max={90}
-                        value={closingDays}
-                        onChange={(e) => setClosingDays(Number(e.target.value) || 14)}
-                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                      <div>
+                        <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                          Closing Timeline (Days)
+                        </span>
+                        <input
+                          type="number"
+                          min={3}
+                          max={90}
+                          value={closingDays}
+                          onChange={(e) => setClosingDays(Number(e.target.value) || 14)}
+                          style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
+                        />
+                      </div>
+                      <CurrencyField
+                        label="Earnest Money Deposit (EMD)"
+                        value={earnestMoneyDeposit}
+                        onChange={setEarnestMoneyDeposit}
+                        hint="Escrow deposit"
                       />
                     </div>
                   </div>
@@ -3104,7 +3129,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 cursor: "pointer",
               }}
             >
-              {savingToCrm ? "Saving…" : "Apply & Save to CRM"}
+              {savingToCrm ? "Saving…" : !activeProperty ? "Add Deal to Pipeline" : "Apply & Save to CRM"}
             </button>
           </div>
         </div>
@@ -3373,10 +3398,35 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </div>
                     </div>
 
-                    <div style={{ background: "rgba(168, 85, 247, 0.08)", border: "1px solid rgba(168, 85, 247, 0.2)", borderRadius: "8px", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "10px", color: "#c084fc", fontWeight: 800 }}>EARNEST MONEY</div>
-                      <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
-                        $2,500
+                    <div style={{ background: "rgba(168, 85, 247, 0.1)", border: "1.5px solid rgba(168, 85, 247, 0.4)", borderRadius: "8px", padding: "7px 10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: "10px", color: "#c084fc", fontWeight: 800 }}>EARNEST PRICE (EMD)</div>
+                        <span style={{ fontSize: "9px", color: "#c084fc", fontWeight: 600 }}>✏️ Edit</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "2px", marginTop: "2px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 800, color: "#c084fc" }}>$</span>
+                        <input
+                          type="text"
+                          value={earnestMoneyDeposit ? earnestMoneyDeposit.toLocaleString() : ""}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9]/g, "");
+                            const val = Number(raw) || 0;
+                            setEarnestMoneyDeposit(val);
+                          }}
+                          placeholder="2,500"
+                          title="Set earnest price before sending offer"
+                          style={{
+                            width: "100%",
+                            background: "transparent",
+                            border: "none",
+                            borderBottom: "1px dashed rgba(192, 132, 252, 0.6)",
+                            color: "var(--ink, #f8fafc)",
+                            fontSize: "14px",
+                            fontWeight: 800,
+                            padding: "0 2px",
+                            outline: "none",
+                          }}
+                        />
                       </div>
                     </div>
 

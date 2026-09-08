@@ -5711,6 +5711,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const status = typeof body.status === "string" ? body.status.trim() : "Sent";
     const notes = typeof body.notes === "string" ? body.notes : "";
     const closingDays = Number(body.closingDays) || 14;
+    const earnestMoneyDeposit = Number(body.earnestMoneyDeposit) || Number(body.earnestMoney) || 2500;
 
     // If no clientId was provided, find existing property lead or auto-create one
     if (!clientId && propertyAddress) {
@@ -5766,6 +5767,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         subtoPurchasePrice,
         creativePurchasePrice,
         closingDays,
+        earnestMoney: earnestMoneyDeposit,
       });
       storeOfferPdf(pdfBytes, pdfId);
     } catch (pdfErr) {

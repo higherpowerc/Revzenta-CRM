@@ -807,6 +807,7 @@ export interface WholesaleOffer {
   creativeBalloonYears: number;
   creativeTotalPaid: number;
   closingDays: number;
+  earnestMoneyDeposit?: number;
   emailStatus: "sent" | "failed" | string;
   status: OfferStatus | string;
   notes: string;

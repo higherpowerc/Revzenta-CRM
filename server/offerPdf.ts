@@ -29,6 +29,7 @@ export interface OfferPdfInput {
   creativeBalloonYears?: number;
   creativeTotalPaidToSeller?: number;
   closingDays?: number;
+  earnestMoney?: number;
   includeAssignability?: boolean;
   rawOfferText?: string;
 }
@@ -359,7 +360,8 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
     const title = totalSelected > 1 ? `Option ${optNumber++}: ALL-CASH SETTLEMENT` : "PRIMARY ALL-CASH PURCHASE OFFER";
     drawRow(title, `$${cashAmt.toLocaleString()} Net Cash Walkaway`, true, [0.94, 0.99, 0.95]);
     drawRow("Closing Timeline", `Fast ${days}-business-day closing or seller choice`);
-    drawRow("Earnest Money Deposit", "$1,000.00 deposited into neutral escrow upon agreement");
+    const emdVal = input.earnestMoney != null && !isNaN(input.earnestMoney) ? input.earnestMoney : 2500;
+    drawRow("Earnest Money Deposit", `$${emdVal.toLocaleString()} deposited into neutral escrow upon agreement`);
     drawRow("Property Condition", "100% As-Is, Where-Is — Zero repairs or cleaning required");
     drawRow("Closing Costs & Fees", "Buyer pays 100% of standard closing costs. Zero commissions.");
     if (input.includeAssignability !== false) {
