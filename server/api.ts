@@ -801,20 +801,26 @@ export function isAgreementStatus(v: unknown): v is AgreementStatus {
  * The tier drives auto Services tags + the per-tier onboarding checklist +
  * the future billing tier (per-tier pricing is the owner's call at charge
  * time — NO hard-coded rates). Values: '' (unset) | tier1..tier4. */
-export type PackageTier = "" | "tier1" | "tier2" | "tier3" | "tier4";
-export const TIER_KEYS: readonly string[] = ["tier1", "tier2", "tier3", "tier4"];
+export type PackageTier = "" | "starter" | "pro" | "scale" | "tier1" | "tier2" | "tier3" | "tier4";
+export const TIER_KEYS: readonly string[] = ["starter", "pro", "scale", "tier1", "tier2", "tier3", "tier4"];
 export const TIER_LABELS: Record<string, string> = {
-  "": "",
-  tier1: "Tier 1 — Website only",
-  tier2: "Tier 2 — Website + CRM",
-  tier3: "Tier 3 — Website + CRM + Lead gen",
-  tier4: "Tier 4 — Custom package",
+  "": "— Unset —",
+  starter: "Starter Wholesaler — $79/mo",
+  pro: "Pro Dealmaker — $199/mo",
+  scale: "Scale & Brokerage — $399/mo",
+  tier1: "Starter Wholesaler — $79/mo",
+  tier2: "Pro Dealmaker — $199/mo",
+  tier3: "Scale & Brokerage — $399/mo",
+  tier4: "Custom Enterprise Package",
 };
 export const TIER_SERVICE_TAGS: Record<string, string[]> = {
   "": [],
-  tier1: ["Website"],
-  tier2: ["Website", "CRM"],
-  tier3: ["Website", "CRM", "Lead gen"],
+  starter: ["Inbound Pipeline", "Contacts & Buyers", "Tasks"],
+  pro: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "E-Signatures"],
+  scale: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "Team Seats", "Custom Riders"],
+  tier1: ["Inbound Pipeline"],
+  tier2: ["Inbound Pipeline", "Transaction Hub"],
+  tier3: ["Inbound Pipeline", "Transaction Hub", "Team Seats"],
   tier4: ["Custom package"],
 };
 function isPackageTier(v: unknown): v is PackageTier {
@@ -831,6 +837,38 @@ function isPackageTier(v: unknown): v is PackageTier {
  *  routes (see reseedOnboardingItems + the /onboarding endpoints). */
 export const TIER_ONBOARDING_ITEMS: Record<string, string[]> = {
   "": [],
+  starter: [
+    "Configure domain & workspace branding",
+    "Connect Inbound Webhook / Zapier lead ingestion",
+    "Import initial Cash Buyers CSV list",
+    "Walk through Creative Hub deal underwriter",
+    "Complete TCPA compliance & disclaimer onboarding"
+  ],
+  pro: [
+    "Configure domain & workspace branding",
+    "Connect Inbound Webhook / Zapier lead ingestion",
+    "Import initial Cash Buyers CSV list",
+    "Walk through Creative Hub deal underwriter",
+    "Complete TCPA compliance & disclaimer onboarding",
+    "Activate RentCast API key for instantaneous comps",
+    "Setup Buyer Buy Box criteria matching filters",
+    "Configure Transaction Hub escrow milestone templates",
+    "Test standard Purchase Agreement e-sign generation"
+  ],
+  scale: [
+    "Configure domain & workspace branding",
+    "Connect Inbound Webhook / Zapier lead ingestion",
+    "Import initial Cash Buyers CSV list",
+    "Walk through Creative Hub deal underwriter",
+    "Complete TCPA compliance & disclaimer onboarding",
+    "Activate RentCast API key for instantaneous comps",
+    "Setup Buyer Buy Box criteria matching filters",
+    "Configure Transaction Hub escrow milestone templates",
+    "Test standard Purchase Agreement e-sign generation",
+    "Invite and configure Acquisition & Dispo team seats",
+    "Set granular role-based tab permission gates",
+    "Dedicated white-glove onboarding kickoff call"
+  ],
   tier1: [
     "Kickoff call with the client",
     "Collect brand assets and content",

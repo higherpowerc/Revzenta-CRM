@@ -129,6 +129,7 @@ export interface User {
    *  numbers/text color (hex); '' = unset -> theme defaults. */
   dashboardColor: string;
   created_at: string;
+  tier?: string;
 }
 
 interface UserRow {
@@ -175,6 +176,7 @@ export function toUser(row: UserRow): User {
     stages: org ? parseStages(org.stages) : [...DEFAULT_STAGES],
     accentColor: org?.accent_color ?? DEFAULT_ACCENT,
     dashboardColor: org?.dashboard_color ?? "",
+    tier: (org?.tier || "pro") as any,
     created_at: row.created_at,
   };
 }

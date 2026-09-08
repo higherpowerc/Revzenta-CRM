@@ -8,7 +8,7 @@ import revzentaLogo from "./assets/revzenta-logo.png";
 
 interface WebsiteProps {
   onSignIn: () => void;
-  onLaunchApp: () => void;
+  onLaunchApp: (tier?: "starter" | "pro" | "scale" | any) => void;
 }
 
 export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
@@ -661,7 +661,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 <li><span>✓</span> Daily task management & reminders</li>
                 <li><span>✓</span> Dark / Light mode adaptive UI</li>
               </ul>
-              <button type="button" className="btn btn-outline" style={{ width: "100%" }} onClick={onLaunchApp}>
+              <button type="button" className="btn btn-outline" style={{ width: "100%" }} onClick={() => onLaunchApp("starter")}>
                 Get Started
               </button>
             </div>
@@ -684,7 +684,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 <li><span>✓</span> Inspection & EMD countdown clocks</li>
                 <li><span>✓</span> Shared Title Company Escrow Portal</li>
               </ul>
-              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={onLaunchApp}>
+              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => onLaunchApp("pro")}>
                 Start Pro Trial
               </button>
             </div>
@@ -706,7 +706,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 <li><span>✓</span> Dedicated onboarding specialist</li>
                 <li><span>✓</span> 24/7 Priority support</li>
               </ul>
-              <button type="button" className="btn btn-outline" style={{ width: "100%" }} onClick={onLaunchApp}>
+              <button type="button" className="btn btn-outline" style={{ width: "100%" }} onClick={() => onLaunchApp("scale")}>
                 Contact Sales
               </button>
             </div>

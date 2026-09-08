@@ -19,8 +19,9 @@ import TransactionHub from "./TransactionHub";
 import Connections from "./Connections";
 import Compliance from "./Compliance";
 import Website from "./Website";
+import UpgradeGate from "./UpgradeGate";
 import { api } from "./api";
-import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User } from "./types";
+import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
 import { initials } from "./bits";
 import { PiiContext, PII_HIDDEN_KEY, blurPii, PiiEyeIcon, PiiEyeOffIcon } from "./pii";
@@ -219,6 +220,16 @@ export default function App() {
       )
     )
   );
+
+  /** Package tier preview toggle (allows owner to test Starter / Pro / Scale behavior) */
+  const [previewTier, setPreviewTier] = useState<PackageTier | null>(null);
+
+  /** Package tier outfitting: starter ($79/mo), pro ($199/mo), scale ($399/mo).
+   *  Owner cockpit has unconstrained superadmin access (scale).
+   *  Subscribers read their org's package tier from user.tier. */
+  const effectiveTier: PackageTier =
+    previewTier ||
+    normalizeTier(isOwnerCockpit || user?.isOwner ? "scale" : (user?.tier || "pro"));
 
   /* Team users per client account (owner request 2026-08-14) — tab gating.
      Restricted members carry per-tab grants on user.permissions; org admins
@@ -562,7 +573,12 @@ export default function App() {
           setShowLogin(true);
           window.location.hash = "#/login";
         }}
-        onLaunchApp={() => {
+        onLaunchApp={(selectedTier) => {
+          if (selectedTier) {
+            try {
+              localStorage.setItem("revzenta:selected-tier", selectedTier);
+            } catch {}
+          }
           setShowLogin(true);
           window.location.hash = "#/login";
         }}
@@ -577,7 +593,10 @@ export default function App() {
           setViewingWebsite(false);
           window.location.hash = "";
         }}
-        onLaunchApp={() => {
+        onLaunchApp={(selectedTier) => {
+          if (selectedTier) {
+            setPreviewTier(selectedTier);
+          }
           setViewingWebsite(false);
           window.location.hash = "";
         }}
@@ -865,10 +884,15 @@ export default function App() {
                       setView("documents");
                       setMobileMenuOpen(false);
                     }}
-                    title="Title, escrow, and contract transaction hub"
+                    title={hasTierAccess(effectiveTier, "documents") ? "Title, escrow, and contract transaction hub" : "Transaction Hub (Pro & Scale feature)"}
                   >
                     <span className="tab-icon">🤝</span>
-                    <span>Transaction Hub</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Transaction Hub</span>
+                      {!hasTierAccess(effectiveTier, "documents") && (
+                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
+                      )}
+                    </span>
                   </button>
                 )}
 
@@ -880,10 +904,15 @@ export default function App() {
                       setView("offers");
                       setMobileMenuOpen(false);
                     }}
-                    title="Wholesale purchase proposals & dispatched offers repository"
+                    title={hasTierAccess(effectiveTier, "offers") ? "Wholesale purchase proposals & dispatched offers repository" : "Offers Repository (Pro & Scale feature)"}
                   >
                     <span className="tab-icon">📑</span>
-                    <span>Offers Repository</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Offers Repository</span>
+                      {!hasTierAccess(effectiveTier, "offers") && (
+                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
+                      )}
+                    </span>
                   </button>
                 )}
 
@@ -895,10 +924,15 @@ export default function App() {
                       setView("buybox");
                       setMobileMenuOpen(false);
                     }}
-                    title="Investor buy box criteria matching engine"
+                    title={hasTierAccess(effectiveTier, "buybox") ? "Investor buy box criteria matching engine" : "Buy Box Matcher (Pro & Scale feature)"}
                   >
                     <span className="tab-icon">🎯</span>
-                    <span>Buy Box</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Buy Box</span>
+                      {!hasTierAccess(effectiveTier, "buybox") && (
+                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
+                      )}
+                    </span>
                   </button>
                 )}
 
@@ -1119,6 +1153,46 @@ export default function App() {
                   {navUserName} {orgName ? `· ${orgName}` : ""}
                 </span>
               </div>
+              {!isOwnerCockpit && (
+                <div style={{ marginTop: "6px", marginBottom: "8px" }}>
+                  <span
+                    className="plan-tier-badge"
+                    title={`Active Subscription Plan: ${TIER_LABELS[effectiveTier] || effectiveTier}`}
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "999px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background:
+                        effectiveTier === "scale"
+                          ? "rgba(245, 158, 11, 0.15)"
+                          : effectiveTier === "pro"
+                          ? "rgba(168, 85, 247, 0.15)"
+                          : "rgba(6, 182, 212, 0.15)",
+                      border:
+                        effectiveTier === "scale"
+                          ? "1px solid rgba(245, 158, 11, 0.4)"
+                          : effectiveTier === "pro"
+                          ? "1px solid rgba(168, 85, 247, 0.4)"
+                          : "1px solid rgba(6, 182, 212, 0.4)",
+                      color:
+                        effectiveTier === "scale"
+                          ? "#fbbf24"
+                          : effectiveTier === "pro"
+                          ? "#c084fc"
+                          : "#22d3ee",
+                      letterSpacing: "0.03em",
+                      textTransform: "uppercase"
+                    }}
+                  >
+                    <span>{TIER_BADGES[effectiveTier]?.icon || "⚡"}</span>
+                    <span>{TIER_SHORT_LABELS[effectiveTier] || effectiveTier}</span>
+                  </span>
+                </div>
+              )}
               <button
                 type="button"
                 className="btn btn-ghost btn-sm mobile-menu-signout"
@@ -1147,6 +1221,68 @@ export default function App() {
             >
               {piiHidden ? <PiiEyeOffIcon /> : <PiiEyeIcon />}
             </button>
+            {!isOwnerCockpit ? (
+              <span
+                className="plan-tier-badge"
+                title={`Active Subscription Plan: ${TIER_LABELS[effectiveTier] || effectiveTier}`}
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "3px 10px",
+                  borderRadius: "999px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  background:
+                    effectiveTier === "scale"
+                      ? "rgba(245, 158, 11, 0.15)"
+                      : effectiveTier === "pro"
+                      ? "rgba(168, 85, 247, 0.15)"
+                      : "rgba(6, 182, 212, 0.15)",
+                  border:
+                    effectiveTier === "scale"
+                      ? "1px solid rgba(245, 158, 11, 0.4)"
+                      : effectiveTier === "pro"
+                      ? "1px solid rgba(168, 85, 247, 0.4)"
+                      : "1px solid rgba(6, 182, 212, 0.4)",
+                  color:
+                    effectiveTier === "scale"
+                      ? "#fbbf24"
+                      : effectiveTier === "pro"
+                      ? "#c084fc"
+                      : "#22d3ee",
+                  letterSpacing: "0.03em",
+                  textTransform: "uppercase"
+                }}
+              >
+                <span>{TIER_BADGES[effectiveTier]?.icon || "⚡"}</span>
+                <span>{TIER_SHORT_LABELS[effectiveTier] || effectiveTier}</span>
+              </span>
+            ) : previewVertical ? (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }} title="Preview CRM as tier">
+                {(["starter", "pro", "scale"] as PackageTier[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setPreviewTier(t)}
+                    title={`Test CRM as ${TIER_LABELS[t]}`}
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      padding: "2px 7px",
+                      borderRadius: "6px",
+                      border: effectiveTier === t ? "1px solid #a855f7" : "1px solid rgba(255,255,255,0.15)",
+                      background: effectiveTier === t ? "rgba(168, 85, 247, 0.25)" : "transparent",
+                      color: effectiveTier === t ? "#ffffff" : "var(--muted)",
+                      cursor: "pointer",
+                      textTransform: "uppercase"
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <span className={`nav-user${blurPii(piiHidden)}`} title={user.email}>
               {navUserName}
               {orgName ? ` · ${orgName}` : ""}
@@ -1218,17 +1354,35 @@ export default function App() {
             verticalKey={verticalKey}
           />
         ) : effectiveViewFinal === "offers" ? (
-          <Offers
-            crmBusinessName={orgName}
-            onNavigateToProperty={() => {
-              setLeadsStage(null);
-              setOnboardingStage(null);
-              setLeadsFilter("active");
-              setView("leads");
-            }}
-          />
+          !hasTierAccess(effectiveTier, "offers") ? (
+            <UpgradeGate
+              featureName="Offers Repository & Contract Dispatch"
+              featureDescription="Standardized purchase proposals, assignment fee calculations, and automated contract dispatch are included with Pro Dealmaker and Scale & Brokerage packages."
+              requiredTier="pro"
+              currentTier={effectiveTier}
+            />
+          ) : (
+            <Offers
+              crmBusinessName={orgName}
+              onNavigateToProperty={() => {
+                setLeadsStage(null);
+                setOnboardingStage(null);
+                setLeadsFilter("active");
+                setView("leads");
+              }}
+            />
+          )
         ) : effectiveViewFinal === "buybox" ? (
-          <BuyBoxMatcher canEdit={canEditTab("buybox")} />
+          !hasTierAccess(effectiveTier, "buybox") ? (
+            <UpgradeGate
+              featureName="AI Buy Box Matcher & Auto-Disposition"
+              featureDescription="Instantaneously match underwritten properties against vetted cash buyer acquisition criteria and rank buyers by match confidence on the Pro Dealmaker and Scale & Brokerage packages."
+              requiredTier="pro"
+              currentTier={effectiveTier}
+            />
+          ) : (
+            <BuyBoxMatcher canEdit={canEditTab("buybox")} />
+          )
         ) : effectiveViewFinal === "clients" ? (
           /* Owner live-test reorg 2026-08-18 — the owner's Clients tab hosts
              the ACCOUNT management panel (create / view / reset / delete) via
@@ -1265,7 +1419,14 @@ export default function App() {
              Client-account management moved to the Clients tab (2026-08-18). */
           <Admin />
         ) : effectiveViewFinal === "documents" ? (
-          isWholesale ? (
+          !hasTierAccess(effectiveTier, "documents") ? (
+            <UpgradeGate
+              featureName="Transaction Hub & Escrow Milestone Tracker"
+              featureDescription="Coordinate title companies, escrow officers, earnest money deposits, and closing milestones seamlessly in one centralized pipeline on the Pro Dealmaker and Scale & Brokerage packages."
+              requiredTier="pro"
+              currentTier={effectiveTier}
+            />
+          ) : isWholesale ? (
             <TransactionHub crmBusinessName={orgName} />
           ) : (
             <Documents verticalLabel={undefined} />
@@ -1286,6 +1447,7 @@ export default function App() {
             currentUserId={user.id}
             isOwnerOrg={isOwnerOrg}
             isWholesale={isWholesale}
+            tier={effectiveTier}
           />
         )}
       </main>

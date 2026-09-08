@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "./api";
 import { fmtDate, money, type Client, type OnboardingItem, type Org } from "./types";
-import { PACKAGE_TIERS, TIER_LABELS, TIER_SHORT_LABELS, type PackageTier } from "./types";
+import { PACKAGE_TIERS, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES, normalizeTier, type PackageTier } from "./types";
 import { ALL_VERTICALS, verticalLabel } from "./verticals";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import ProvisionNotices from "./ProvisionNotices";
@@ -82,6 +82,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
   const [editSub, setEditSub] = useState("");
   const [editVertical, setEditVertical] = useState("");
   const [editBillingDate, setEditBillingDate] = useState("");
+  const [editTier, setEditTier] = useState<PackageTier>("pro");
 
   /* Privacy eye for Subscription charges (persists across reloads) */
   const SUB_HIDDEN_KEY = "crm:sub-hidden";
@@ -150,14 +151,12 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
   }, [initialCreateOpen]);
   /** Business type picker: Wholesale Real Estate is the primary business type. */
   const [vertical, setVertical] = useState("wholesalebiz");
-  /** When business type is Wholesale Real Estate, package tier is hidden and omitted */
   const isWholesaleCreate =
     vertical === "wholesalebiz" ||
     vertical === "wholesale" ||
     vertical.toLowerCase().includes("wholesale");
-  /** Owner 2026-08-27 — the client package tier picked on the Create-account
-   *  form ('' unset | tier1..4). Stored on the new account (org). */
-  const [tier, setTier] = useState<PackageTier>("");
+  /** Package tier (starter, pro, scale for wholesale | tier1..4 for agency) */
+  const [tier, setTier] = useState<PackageTier>("pro");
   const [formError, setFormError] = useState<string | null>(null);
   const [created, setCreated] = useState<{
     orgName: string;
@@ -289,7 +288,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
         email: email.trim(),
         password,
         vertical,
-        tier: isWholesaleCreate ? "" : tier,
+        tier: tier || (isWholesaleCreate ? "pro" : ""),
       });
       // Keep the form expanded so the just-created account alert (temp
       // password!) is guaranteed visible even if the owner collapsed it.
@@ -300,7 +299,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
       setPassword("");
       setShowPassword(false);
       setVertical("wholesalebiz");
-      setTier("");
+      setTier("pro");
       await load();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Create failed.");
@@ -435,6 +434,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
     setEditSub(String(o.monthlySubscriptionAmount ?? 0));
     setEditVertical(o.verticalKey || "");
     setEditBillingDate(o.billingCycleDate || "");
+    setEditTier((o.tier as PackageTier) || "pro");
   }
 
   /** Save: PUT the linked owner-org client record (name / phone / deal value),
@@ -470,6 +470,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
           monthlySubscriptionAmount: subValue,
           billingCycleDate: editBillingDate,
           verticalKey: editVertical,
+          tier: editTier,
         });
         setEditing(null);
         await load(); // re-join: Subscription column + prefill data
@@ -512,6 +513,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
         monthlySubscriptionAmount: subValue,
         billingCycleDate: editBillingDate,
         verticalKey: editVertical,
+        tier: editTier,
       });
       setEditing(null);
       await load(); // re-join: Deal value column + Clients cell + prefill data
@@ -695,24 +697,32 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                 later in Settings.
               </span>
             </label>
-            {!isWholesaleCreate && (
-              <label className="field">
-                <span className="field-label">Package tier</span>
-                <select value={tier} onChange={(e) => setTier(e.target.value as PackageTier)}>
-                  <option value="">— No tier —</option>
-                  {PACKAGE_TIERS.map((t) => (
-                    <option key={t} value={t}>
-                      {TIER_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
-                <span className="field-hint">
-                  The client's package tier (Website / +CRM / +Lead gen / Custom). It flows to the
-                  account and drives Services tags + the onboarding checklist. Pricing is set at
-                  charge time.
-                </span>
-              </label>
-            )}
+            <label className="field">
+              <span className="field-label">Package tier</span>
+              <select value={tier} onChange={(e) => setTier(e.target.value as PackageTier)}>
+                {isWholesaleCreate ? (
+                  <>
+                    <option value="starter">⚡ Starter Wholesaler ($79/mo)</option>
+                    <option value="pro">🔥 Pro Dealmaker ($199/mo)</option>
+                    <option value="scale">👑 Scale &amp; Brokerage ($399/mo)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="">— No tier —</option>
+                    {PACKAGE_TIERS.map((t) => (
+                      <option key={t} value={t}>
+                        {TIER_LABELS[t]}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+              <span className="field-hint">
+                {isWholesaleCreate
+                  ? "Configures feature access: Starter ($79/mo), Pro ($199/mo), or Scale ($399/mo)."
+                  : "The client's package tier. Drives Services tags + onboarding checklist."}
+              </span>
+            </label>
             <label className="field">
               <span className="field-label">Client email *</span>
               <input
@@ -862,20 +872,53 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                         ) : null}
                       </td>
                       <td data-label="Business Type">
-                        <span
-                          className="chip"
-                          style={{
-                            fontWeight: 600,
-                            fontSize: "12px",
-                            background: "var(--bg-soft)",
-                            border: "1px solid var(--line-strong)",
-                            textTransform: "none",
-                            letterSpacing: "normal"
-                          }}
-                          title={`Business Type: ${bType}`}
-                        >
-                          {bType}
-                        </span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
+                          <span
+                            className="chip"
+                            style={{
+                              fontWeight: 600,
+                              fontSize: "12px",
+                              background: "var(--bg-soft)",
+                              border: "1px solid var(--line-strong)",
+                              textTransform: "none",
+                              letterSpacing: "normal"
+                            }}
+                            title={`Business Type: ${bType}`}
+                          >
+                            {bType}
+                          </span>
+                          {o.tier && (
+                            <span
+                              className="chip"
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                background:
+                                  normalizeTier(o.tier) === "scale"
+                                    ? "rgba(245, 158, 11, 0.15)"
+                                    : normalizeTier(o.tier) === "pro"
+                                    ? "rgba(168, 85, 247, 0.15)"
+                                    : "rgba(6, 182, 212, 0.15)",
+                                color:
+                                  normalizeTier(o.tier) === "scale"
+                                    ? "#fbbf24"
+                                    : normalizeTier(o.tier) === "pro"
+                                    ? "#c084fc"
+                                    : "#22d3ee",
+                                border:
+                                  normalizeTier(o.tier) === "scale"
+                                    ? "1px solid rgba(245, 158, 11, 0.3)"
+                                    : normalizeTier(o.tier) === "pro"
+                                    ? "1px solid rgba(168, 85, 247, 0.3)"
+                                    : "1px solid rgba(6, 182, 212, 0.3)",
+                                textTransform: "uppercase"
+                              }}
+                            >
+                              {TIER_BADGES[normalizeTier(o.tier)]?.icon || "⚡"}{" "}
+                              {TIER_SHORT_LABELS[normalizeTier(o.tier)] || o.tier}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="acc-line" data-label="Phone">
                         {linked?.phone ? (
@@ -1408,6 +1451,21 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
                       onChange={(e) => setEditBillingDate(e.target.value)}
                       aria-label="Billing cycle date"
                     />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Package plan</span>
+                    <select
+                      value={editTier}
+                      onChange={(e) => setEditTier(e.target.value as PackageTier)}
+                      aria-label="Package plan"
+                    >
+                      <option value="starter">⚡ Starter Wholesaler ($79/mo)</option>
+                      <option value="pro">🔥 Pro Dealmaker ($199/mo)</option>
+                      <option value="scale">👑 Scale &amp; Brokerage ($399/mo)</option>
+                    </select>
+                    <span className="field-hint">
+                      Controls feature access: Starter ($79/mo), Pro ($199/mo with Transaction Hub, Offers &amp; Buy Box), or Scale ($399/mo with Team seats).
+                    </span>
                   </label>
                   <p className="field-hint">
                     Edits the client's own record in your workspace — the account's CRM data is not touched.{" "}

@@ -13,6 +13,11 @@ import {
   type OrgSettings,
   type TabPermissions,
   type TenantTab,
+  type PackageTier,
+  TIER_LABELS,
+  TIER_SHORT_LABELS,
+  TIER_BADGES,
+  hasTierAccess,
   money,
 } from "./types";
 import StageEditor from "./StageEditor";
@@ -71,6 +76,7 @@ export default function Settings({
   currentUserId,
   isOwnerOrg = false,
   isWholesale = false,
+  tier = "pro",
 }: {
   /** Team-users UI (owner request 2026-08-14) — false for a restricted member
    *  with view-only "settings" access: every save/apply affordance is hidden
@@ -89,6 +95,8 @@ export default function Settings({
   isOwnerOrg?: boolean;
   /** Wholesale CRM workspace indicator */
   isWholesale?: boolean;
+  /** Active package tier (starter, pro, scale) */
+  tier?: PackageTier;
 }) {
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -991,6 +999,50 @@ export default function Settings({
         </div>
       )}
 
+      {/* Active Package Tier & Subscription Plan */}
+      <div className="card admin-form" style={{ marginBottom: "20px", border: "1px solid rgba(168, 85, 247, 0.3)", background: "linear-gradient(135deg, rgba(24, 17, 46, 0.8), rgba(18, 11, 36, 0.95))" }}>
+        <div className="admin-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+              <span style={{ fontSize: "20px" }}>{isOwnerOrg ? "👑" : (TIER_BADGES[tier]?.icon || "⚡")}</span>
+              <h2 className="admin-card-title" style={{ margin: 0 }}>
+                {isOwnerOrg ? "Revzenta SuperAdmin Cockpit" : (TIER_LABELS[tier] || "Revzenta Wholesaler Plan")}
+              </h2>
+              <span
+                className="chip"
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  background: isOwnerOrg || tier === "scale" ? "rgba(245, 158, 11, 0.2)" : tier === "pro" ? "rgba(168, 85, 247, 0.2)" : "rgba(6, 182, 212, 0.2)",
+                  color: isOwnerOrg || tier === "scale" ? "#fbbf24" : tier === "pro" ? "#c084fc" : "#22d3ee",
+                  border: isOwnerOrg || tier === "scale" ? "1px solid rgba(245, 158, 11, 0.4)" : tier === "pro" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(6, 182, 212, 0.4)"
+                }}
+              >
+                {isOwnerOrg ? "SuperAdmin" : "Active Subscription"}
+              </span>
+            </div>
+            <p className="admin-card-sub" style={{ margin: 0, maxWidth: "680px" }}>
+              {isOwnerOrg
+                ? "Full unrestricted administrative access across the platform, client workspaces, and subscriber billing."
+                : tier === "starter"
+                ? "Starter Wholesaler tier ($79/mo) — Includes Creative Hub deal underwriting, cash buyers directory, pipeline leads, and compliance safeguards."
+                : tier === "pro"
+                ? "Pro Dealmaker tier ($199/mo) — Full access to Transaction Hub escrow pipelines, Offers Repository, RentCast comps, and AI Buy Box Matcher."
+                : "Scale & Brokerage tier ($399/mo) — Complete unconstrained access with multi-seat team accounts, role-based tab controls, and priority platform bandwidth."}
+            </p>
+          </div>
+          {!isOwnerOrg && tier !== "scale" && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => alert(`To upgrade your subscription plan to ${tier === "starter" ? "Pro Dealmaker ($199/mo) or Scale & Brokerage ($399/mo)" : "Scale & Brokerage ($399/mo)"}, please contact your account administrator or sales at support@revzenta.com.`)}
+            >
+              Upgrade Plan
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="admin-grid">
         <div className="card admin-form">
           <div className="admin-card-head">
@@ -1211,135 +1263,155 @@ export default function Settings({
       </div>
 
       {/* Team users per client account (owner request 2026-08-14) — the
-          member-management UI. ORG ADMIN ONLY (isOrgAdmin: the account's
-          original owner login or a stored role='admin' member; the server
-          403s the routes for everyone else, so a non-admin never sees this
-          section and cannot read the member list). Passwords are write-only:
-          the admin types a temp password at create/reset; the API hashes it
-          and never returns it — the admin passes it to the member directly. */}
+          member-management UI. ORG ADMIN ONLY.
+          Gated on Starter & Pro (single primary seat); unlocked on Scale & Brokerage (multi-seat team accounts). */}
       {isOrgAdmin && (
         <>
-          <div className="card admin-form members-add-card">
-            <div className="admin-card-head">
-              <h2 className="admin-card-title">Add a team member</h2>
-              <p className="admin-card-sub">
-                A teammate signs in with their own email and a temporary password you set — it is
-                hashed and never shown again, so share it with them yourself.
-              </p>
-            </div>
-            {membersError && (
-              <div className="alert alert-error" role="alert">
-                {membersError}
-              </div>
-            )}
-            {membersSaved && (
-              <div className="alert alert-success" role="status">
-                {membersSaved}
-              </div>
-            )}
-            <form onSubmit={handleAddMember} className="form">
-              <div className="member-form-grid">
-                <label className="field">
-                  <span className="field-label">Email</span>
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="teammate@yourcompany.com"
-                    maxLength={254}
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-label">Temporary password</span>
-                  <input
-                    type="text"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="At least 8 characters"
-                    minLength={8}
-                    autoComplete="off"
-                    spellCheck={false}
-                    required
-                  />
-                  <span className="field-hint">
-                    Shown to you only at this moment — the member signs in with it and you can
-                    reset it any time.
-                  </span>
-                </label>
-                <div className="field">
-                  <span className="field-label">Role</span>
-                  <div className="seg intake-seg" role="radiogroup" aria-label="Member role">
-                    {(
-                      [
-                        ["member", "Member"],
-                        ["admin", "Admin"],
-                      ] as const
-                    ).map(([val, label]) => (
-                      <button
-                        key={val}
-                        type="button"
-                        role="radio"
-                        aria-checked={newRole === val}
-                        className={newRole === val ? "seg-btn active" : "seg-btn"}
-                        onClick={() => {
-                          setMembersError(null);
-                          setMembersSaved(null);
-                          setNewRole(val);
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <span className="field-hint">
-                    {newRole === "admin"
-                      ? "Admins have full access to every tab and manage team members."
-                      : "Members get per-tab access — pick it below."}
+          {!isOwnerOrg && !hasTierAccess(tier, "team") ? (
+            <div className="card admin-form" style={{ border: "1px solid rgba(168, 85, 247, 0.3)", background: "rgba(18, 11, 36, 0.5)", marginBottom: "20px" }}>
+              <div className="admin-card-head">
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "18px" }}>👑</span>
+                  <h2 className="admin-card-title" style={{ margin: 0 }}>Multi-Seat Team Accounts &amp; Roles</h2>
+                  <span className="chip" style={{ fontSize: "11px", background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
+                    Scale &amp; Brokerage Plan ($399/mo)
                   </span>
                 </div>
+                <p className="admin-card-sub" style={{ maxWidth: "680px" }}>
+                  Your current plan (<strong>{TIER_SHORT_LABELS[tier] || tier}</strong>) includes 1 primary seat. Upgrade to <strong>Scale &amp; Brokerage ($399/mo)</strong> to invite unlimited acquisition managers, dispo reps, and transaction coordinators with granular per-tab permissions.
+                </p>
               </div>
-              {newRole === "member" && (
-                <div className="field tab-access-field">
-                  <div className="tab-access-header">
-                    <span className="field-label">Tab access</span>
-                    <div className="tab-access-quick-actions">
-                      <span className="quick-label">Set all:</span>
-                      <button
-                        type="button"
-                        className="btn-quick-perm"
-                        onClick={() => {
-                          const all: Record<TenantTab, PermChoice> = {} as any;
-                          for (const t of TENANT_TABS) all[t] = "view";
-                          setNewChoices(all);
-                        }}
-                      >
-                        View only
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-quick-perm"
-                        onClick={() => {
-                          const all: Record<TenantTab, PermChoice> = {} as any;
-                          for (const t of TENANT_TABS) all[t] = "edit";
-                          setNewChoices(all);
-                        }}
-                      >
-                        Can edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-quick-perm"
-                        onClick={() => {
-                          const all: Record<TenantTab, PermChoice> = {} as any;
-                          for (const t of TENANT_TABS) all[t] = "none";
-                          setNewChoices(all);
-                        }}
-                      >
-                        No access
-                      </button>
+              <div style={{ marginTop: "12px" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => alert("To upgrade to Scale & Brokerage ($399/mo) for multi-seat team accounts, please contact your account administrator or sales at support@revzenta.com.")}
+                >
+                  Upgrade to Scale & Brokerage ($399/mo)
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="card admin-form members-add-card">
+              <div className="admin-card-head">
+                <h2 className="admin-card-title">Add a team member</h2>
+                <p className="admin-card-sub">
+                  A teammate signs in with their own email and a temporary password you set — it is
+                  hashed and never shown again, so share it with them yourself.
+                </p>
+              </div>
+              {membersError && (
+                <div className="alert alert-error" role="alert">
+                  {membersError}
+                </div>
+              )}
+              {membersSaved && (
+                <div className="alert alert-success" role="status">
+                  {membersSaved}
+                </div>
+              )}
+              <form onSubmit={handleAddMember} className="form">
+                <div className="member-form-grid">
+                  <label className="field">
+                    <span className="field-label">Email</span>
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="teammate@yourcompany.com"
+                      maxLength={254}
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Temporary password</span>
+                    <input
+                      type="text"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      minLength={8}
+                      maxLength={128}
+                      required
+                    />
+                    <span className="field-hint">
+                      Shown to you only at this moment — the member signs in with it and you can
+                      reset it at any time.
+                    </span>
+                  </label>
+                  <div className="field">
+                    <span className="field-label">Role</span>
+                    <div className="seg intake-seg" role="radiogroup" aria-label="Member role">
+                      {(
+                        [
+                          ["member", "Member"],
+                          ["admin", "Admin"],
+                        ] as const
+                      ).map(([val, label]) => (
+                        <button
+                          key={val}
+                          type="button"
+                          role="radio"
+                          aria-checked={newRole === val}
+                          className={newRole === val ? "seg-btn active" : "seg-btn"}
+                          onClick={() => {
+                            setMembersError(null);
+                            setMembersSaved(null);
+                            setNewRole(val);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
                     </div>
+                    <span className="field-hint">
+                      {newRole === "admin"
+                        ? "Admins have full access to every tab and manage team members."
+                        : "Members get per-tab access — pick it below."}
+                    </span>
                   </div>
+                </div>
+                {newRole === "member" && (
+                  <div className="field tab-access-field">
+                    <div className="tab-access-header">
+                      <span className="field-label">Tab access</span>
+                      <div className="tab-access-quick-actions">
+                        <span className="quick-label">Set all:</span>
+                        <button
+                          type="button"
+                          className="btn-quick-perm"
+                          onClick={() => {
+                            const all: Record<TenantTab, PermChoice> = {} as any;
+                            for (const t of TENANT_TABS) all[t] = "view";
+                            setNewChoices(all);
+                          }}
+                        >
+                          View only
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-quick-perm"
+                          onClick={() => {
+                            const all: Record<TenantTab, PermChoice> = {} as any;
+                            for (const t of TENANT_TABS) all[t] = "edit";
+                            setNewChoices(all);
+                          }}
+                        >
+                          Can edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-quick-perm"
+                          onClick={() => {
+                            const all: Record<TenantTab, PermChoice> = {} as any;
+                            for (const t of TENANT_TABS) all[t] = "none";
+                            setNewChoices(all);
+                          }}
+                        >
+                          No access
+                        </button>
+                      </div>
+                    </div>
                   <div className="perm-grid">
                     {MEMBER_TAB_LABELS.map(({ tab, label, icon }) => (
                       <div className={`perm-picker perm-picker-${newChoices[tab]}`} key={tab}>
@@ -1377,6 +1449,7 @@ export default function Settings({
               </div>
             </form>
           </div>
+          )}
 
           <div className="card admin-table members-card">
             <div className="admin-card-head">

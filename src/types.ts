@@ -99,37 +99,86 @@ export type PaymentStatus = "none" | "sent" | "paid";
  *  and it drives auto Services tags + the per-tier onboarding checklist + the
  *  future billing tier. Per-tier pricing is the owner's call at charge time —
  *  no hard-coded rates. */
-export type PackageTier = "" | "tier1" | "tier2" | "tier3" | "tier4";
+export type PackageTier = "" | "starter" | "pro" | "scale" | "tier1" | "tier2" | "tier3" | "tier4";
 
-/** The four package tiers, in display order (owner 2026-08-27). */
-export const PACKAGE_TIERS: PackageTier[] = ["tier1", "tier2", "tier3", "tier4"];
+/** Standard package tiers for Revzenta Wholesaling CRM */
+export const PACKAGE_TIERS: PackageTier[] = ["starter", "pro", "scale"];
 
-/** Human label per tier (used by the intake selector, the create-account
- *  package selector and the accounts chip). */
 export const TIER_LABELS: Record<PackageTier, string> = {
-  "": "",
-  tier1: "Tier 1 — Website only",
-  tier2: "Tier 2 — Website + CRM",
-  tier3: "Tier 3 — Website + CRM + Lead gen",
-  tier4: "Tier 4 — Custom package",
+  "": "— Default / Unset —",
+  starter: "Starter Wholesaler — $79/mo",
+  pro: "Pro Dealmaker — $199/mo (Most Popular)",
+  scale: "Scale & Brokerage — $399/mo",
+  tier1: "Starter Wholesaler — $79/mo",
+  tier2: "Pro Dealmaker — $199/mo",
+  tier3: "Scale & Brokerage — $399/mo",
+  tier4: "Custom Enterprise Package",
 };
 
-/** The short package-tier label (fits a chip on the accounts table). */
 export const TIER_SHORT_LABELS: Record<PackageTier, string> = {
-  "": "",
-  tier1: "Tier 1 · Website",
-  tier2: "Tier 2 · Website + CRM",
-  tier3: "Tier 3 · Website + CRM + Lead gen",
-  tier4: "Tier 4 · Custom",
+  "": "Standard",
+  starter: "Starter · $79",
+  pro: "Pro · $199",
+  scale: "Scale · $399",
+  tier1: "Starter · $79",
+  tier2: "Pro · $199",
+  tier3: "Scale · $399",
+  tier4: "Custom",
 };
 
-/** Auto Services tags each tier drives (owner 2026-08-27). When a tier is set
- *  the server merges these tags into the client's services list. */
+export const TIER_BADGES: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  starter: { label: "Starter Plan", icon: "⚡", color: "#00a89f", bg: "rgba(0, 168, 159, 0.12)" },
+  pro: { label: "Pro Dealmaker", icon: "🔥", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)" },
+  scale: { label: "Scale & Brokerage", icon: "👑", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.12)" },
+  tier1: { label: "Starter Plan", icon: "⚡", color: "#00a89f", bg: "rgba(0, 168, 159, 0.12)" },
+  tier2: { label: "Pro Dealmaker", icon: "🔥", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)" },
+  tier3: { label: "Scale & Brokerage", icon: "👑", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.12)" },
+  tier4: { label: "Scale & Brokerage", icon: "👑", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.12)" },
+};
+
+/** Normalize any tier key to canonical 'starter' | 'pro' | 'scale' */
+export function normalizeTier(t?: string | null): "starter" | "pro" | "scale" {
+  if (!t) return "pro";
+  const s = t.toLowerCase().trim();
+  if (s === "starter" || s === "tier1") return "starter";
+  if (s === "scale" || s === "tier3" || s === "tier4") return "scale";
+  return "pro";
+}
+
+/** Check if a given package tier has access to a specific wholesale capability */
+export function hasTierAccess(
+  tier: string | undefined | null,
+  feature: "leads" | "creative" | "buyers" | "tasks" | "comps" | "buybox" | "transactions" | "documents" | "offers" | "clocks" | "team"
+): boolean {
+  const norm = normalizeTier(tier);
+  switch (feature) {
+    case "leads":
+    case "creative":
+    case "buyers":
+    case "tasks":
+      return true; // Included in all tiers
+    case "comps":
+    case "buybox":
+    case "transactions":
+    case "documents":
+    case "offers":
+    case "clocks":
+      return norm === "pro" || norm === "scale"; // Requires Pro or Scale
+    case "team":
+      return norm === "scale"; // Requires Scale
+    default:
+      return true;
+  }
+}
+
 export const TIER_SERVICE_TAGS: Record<PackageTier, string[]> = {
   "": [],
-  tier1: ["Website"],
-  tier2: ["Website", "CRM"],
-  tier3: ["Website", "CRM", "Lead gen"],
+  starter: ["Inbound Pipeline", "Contacts & Buyers", "Tasks"],
+  pro: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "E-Signatures"],
+  scale: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "Team Seats", "Custom Riders"],
+  tier1: ["Inbound Pipeline"],
+  tier2: ["Inbound Pipeline", "Transaction Hub"],
+  tier3: ["Inbound Pipeline", "Transaction Hub", "Team Seats"],
   tier4: ["Custom package"],
 };
 
@@ -530,6 +579,8 @@ export interface User {
   /** Dashboard color picker (owner 2026-08-29): the account's dashboard
    *  numbers/text color (hex); unset/empty -> theme defaults. */
   dashboardColor?: string;
+  /** The tenant's subscribed package plan tier (starter, pro, scale) */
+  tier?: PackageTier;
   created_at?: string;
 }
 
