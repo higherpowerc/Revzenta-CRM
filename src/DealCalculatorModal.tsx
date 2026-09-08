@@ -187,7 +187,8 @@ function parseAddressString(raw: string) {
 }
 
 export default function DealCalculatorModal({ property, allProperties, onClose, onUpdated, crmBusinessName }: Props) {
-  const [tab, setTab] = useState<"proposal" | "cash" | "creative" | "subto">("proposal");
+  // Active Calculation Tab: Deal Types first (Cash Wholesale MAO), then Proposal Settings
+  const [tab, setTab] = useState<"cash" | "creative" | "subto" | "proposal">("cash");
 
   const [propertiesList, setPropertiesList] = useState<Client[]>(allProperties || []);
   const [activeProperty, setActiveProperty] = useState<Client | null>(property || null);
@@ -1480,7 +1481,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
             <div style={{ width: "160px" }}>
               <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em", marginBottom: "4px" }}>
-                Property Type
+                Property / Deal Type
               </label>
               <select
                 value={propertyType}
@@ -1999,10 +2000,10 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           }}
         >
           {[
-            { id: "proposal" as const, icon: "📋", label: "Multi-Option LOI & Proposal" },
             { id: "cash" as const, icon: "💵", label: "Cash Wholesale & MAO" },
             { id: "creative" as const, icon: "🤝", label: "Seller Financing (Owner Carry)" },
             { id: "subto" as const, icon: "🏦", label: "Subject-To (Mortgage Takeover)" },
+            { id: "proposal" as const, icon: "📋", label: "Proposal Settings & Multi-Option LOI" },
           ].map((item) => {
             const isActive = tab === item.id;
             return (
@@ -2040,200 +2041,279 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
           
           {/* ================================================================ */}
-          {/* TAB 1: MULTI-OPTION LOI & PROPOSAL */}
+          {/* TAB: MULTI-OPTION LOI & PROPOSAL SETTINGS */}
           {/* ================================================================ */}
           {tab === "proposal" && (
-            <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: "20px" }}>
-              {/* Controls Column */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 14px 0", fontSize: "14px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
-                    Proposal Settings
-                  </h3>
-                  
-                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                    <div>
-                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
-                        Property Address
-                      </span>
-                      <input
-                        type="text"
-                        value={propertyAddress}
-                        onChange={(e) => setPropertyAddress(e.target.value)}
-                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
-                      />
-                    </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Deal Type Selection Banner */}
+              <div
+                style={{
+                  background: "var(--panel-2, #16161b)",
+                  border: "1px solid var(--border, #30363d)",
+                  borderRadius: "10px",
+                  padding: "12px 20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "20px" }}>🏷️</span>
+                  <div>
+                    <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em" }}>
+                      Deal Types &amp; Purchase Options
+                    </span>
+                    <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", display: "block", marginTop: "1px" }}>
+                      Toggle which deal structures are included in this formal Letter of Intent &amp; proposal:
+                    </span>
+                  </div>
+                </div>
 
-                    {/* Offer Letter Addressed To (Target Recipient) */}
-                    <div>
-                      <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", display: "block", marginBottom: "6px", letterSpacing: "0.04em" }}>
-                        Generate Offer Letter For:
-                      </span>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
-                        <button
-                          type="button"
-                          onClick={() => setRecipientType("agent")}
-                          style={{
-                            padding: "8px 4px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            borderRadius: "6px",
-                            border: recipientType === "agent" ? "1.5px solid #38bdf8" : "1px solid var(--border, #30363d)",
-                            backgroundColor: recipientType === "agent" ? "rgba(56, 189, 248, 0.18)" : "var(--panel, #121216)",
-                            color: recipientType === "agent" ? "#38bdf8" : "var(--muted, #94a3b8)",
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                          }}
-                        >
-                          👔 Agent
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRecipientType("owner")}
-                          style={{
-                            padding: "8px 4px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            borderRadius: "6px",
-                            border: recipientType === "owner" ? "1.5px solid var(--lime, #d6ff3f)" : "1px solid var(--border, #30363d)",
-                            backgroundColor: recipientType === "owner" ? "rgba(214, 255, 63, 0.18)" : "var(--panel, #121216)",
-                            color: recipientType === "owner" ? "var(--lime, #d6ff3f)" : "var(--muted, #94a3b8)",
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                          }}
-                        >
-                          👤 Owner
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRecipientType("both")}
-                          style={{
-                            padding: "8px 4px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            borderRadius: "6px",
-                            border: recipientType === "both" ? "1.5px solid #c084fc" : "1px solid var(--border, #30363d)",
-                            backgroundColor: recipientType === "both" ? "rgba(192, 132, 252, 0.18)" : "var(--panel, #121216)",
-                            color: recipientType === "both" ? "#c084fc" : "var(--muted, #94a3b8)",
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                          }}
-                        >
-                          👥 Both
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Listing Agent Contact Card */}
-                    <div style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid rgba(56, 189, 248, 0.25)", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.04em" }}>
-                          👔 Listing Agent Contact
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  {[
+                    { id: "cash" as const, icon: "💵", label: "Immediate All-Cash", value: "$" + cashMetrics.netWholesaleOffer.toLocaleString(), color: "#38bdf8" },
+                    { id: "subto" as const, icon: "🏦", label: "Subject-To Takeover", value: "$" + subtoPrice.toLocaleString(), color: "#c084fc" },
+                    { id: "creative" as const, icon: "🤝", label: "Seller Financing", value: "$" + creativePrice.toLocaleString(), color: "var(--lime, #d6ff3f)" },
+                  ].map((opt) => {
+                    const isSelected = selectedProposalOptions.includes(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            if (selectedProposalOptions.length > 1) {
+                              setSelectedProposalOptions(selectedProposalOptions.filter((x) => x !== opt.id));
+                            }
+                          } else {
+                            setSelectedProposalOptions([...selectedProposalOptions, opt.id]);
+                          }
+                        }}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: "8px",
+                          border: isSelected ? `1.5px solid ${opt.color}` : "1px solid var(--border, #30363d)",
+                          backgroundColor: isSelected ? "rgba(255, 255, 255, 0.05)" : "var(--panel, #121216)",
+                          color: isSelected ? "var(--ink, #f8fafc)" : "var(--muted, #94a3b8)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span style={{ fontSize: "16px" }}>{opt.icon}</span>
+                        <div style={{ textAlign: "left" }}>
+                          <div style={{ fontSize: "12px", fontWeight: 700, color: isSelected ? opt.color : "inherit" }}>
+                            {opt.label}
+                          </div>
+                          <div style={{ fontSize: "11px", fontWeight: 600, color: isSelected ? "var(--ink, #f8fafc)" : "var(--muted, #94a3b8)" }}>
+                            {opt.value}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "14px", marginLeft: "4px", color: isSelected ? opt.color : "var(--muted, #94a3b8)" }}>
+                          {isSelected ? "☑" : "☐"}
                         </span>
-                        {agentName && <span style={{ fontSize: "10px", color: "#38bdf8", fontWeight: 700 }}>✓ Auto-loaded</span>}
-                      </div>
-                      <input
-                        type="text"
-                        value={agentName}
-                        onChange={(e) => setAgentName(e.target.value)}
-                        placeholder="Listing Agent Name"
-                        style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
-                      />
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                        <input
-                          type="email"
-                          value={agentEmail}
-                          onChange={(e) => setAgentEmail(e.target.value)}
-                          placeholder="Agent Email"
-                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
-                        />
-                        <input
-                          type="text"
-                          value={agentPhone}
-                          onChange={(e) => setAgentPhone(e.target.value)}
-                          placeholder="Agent Phone"
-                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
-                        />
-                      </div>
-                    </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                    {/* Property Owner / Seller Contact Card */}
-                    <div style={{ background: "rgba(214, 255, 63, 0.04)", border: "1px solid rgba(214, 255, 63, 0.25)", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "var(--lime, #d6ff3f)", letterSpacing: "0.04em" }}>
-                          👤 Property Owner Contact
+              <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: "20px" }}>
+                {/* Controls Column */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div style={{ background: "var(--panel-2, #16161b)", padding: "18px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                    <h3 style={{ margin: "0 0 14px 0", fontSize: "14px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
+                      Proposal Settings
+                    </h3>
+                    
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      {/* Deal Type / Purchase Options at Top of Proposal Settings */}
+                      <div style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid rgba(56, 189, 248, 0.25)", borderRadius: "8px", padding: "12px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", display: "block", marginBottom: "8px", letterSpacing: "0.04em" }}>
+                          🏷️ Deal Type &amp; Purchase Options:
                         </span>
-                        {sellerName && <span style={{ fontSize: "10px", color: "var(--lime, #d6ff3f)", fontWeight: 700 }}>✓ Auto-loaded</span>}
-                      </div>
-                      <input
-                        type="text"
-                        value={sellerName}
-                        onChange={(e) => setSellerName(e.target.value)}
-                        placeholder="Owner / Seller Name"
-                        style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
-                      />
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                        <input
-                          type="email"
-                          value={recipientEmail}
-                          onChange={(e) => setRecipientEmail(e.target.value)}
-                          placeholder="Owner Email"
-                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
-                        />
-                        <input
-                          type="text"
-                          value={sellerPhone}
-                          onChange={(e) => setSellerPhone(e.target.value)}
-                          placeholder="Owner Phone"
-                          style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
-                        Buyer Vesting Entity
-                      </span>
-                      <input
-                        type="text"
-                        value={acquisitionsCompany}
-                        onChange={(e) => setAcquisitionsCompany(e.target.value)}
-                        placeholder="Revzenta Capital"
-                        style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
-                      />
-                    </div>
-
-                    <div style={{ borderTop: "1px solid var(--border, #30363d)", paddingTop: "12px" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "8px", color: "var(--ink, #f8fafc)" }}>
-                        Include Purchase Options:
-                      </span>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {[
-                          { id: "cash" as const, label: "Immediate All-Cash ($" + cashMetrics.netWholesaleOffer.toLocaleString() + ")" },
-                          { id: "subto" as const, label: "Subject-To Mortgage Takeover" },
-                          { id: "creative" as const, label: "Seller Financing ($" + creativePrice.toLocaleString() + ")" },
-                        ].map((opt) => (
-                          <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer", color: "var(--ink, #f8fafc)" }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedProposalOptions.includes(opt.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedProposalOptions([...selectedProposalOptions, opt.id]);
-                                } else {
-                                  if (selectedProposalOptions.length > 1) {
-                                    setSelectedProposalOptions(selectedProposalOptions.filter((x) => x !== opt.id));
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {[
+                            { id: "cash" as const, label: "Immediate All-Cash ($" + cashMetrics.netWholesaleOffer.toLocaleString() + ")" },
+                            { id: "subto" as const, label: "Subject-To Mortgage Takeover" },
+                            { id: "creative" as const, label: "Seller Financing ($" + creativePrice.toLocaleString() + ")" },
+                          ].map((opt) => (
+                            <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer", color: "var(--ink, #f8fafc)" }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedProposalOptions.includes(opt.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedProposalOptions([...selectedProposalOptions, opt.id]);
+                                  } else {
+                                    if (selectedProposalOptions.length > 1) {
+                                      setSelectedProposalOptions(selectedProposalOptions.filter((x) => x !== opt.id));
+                                    }
                                   }
-                                }
-                              }}
-                            />
-                            <span style={{ fontWeight: 600 }}>{opt.label}</span>
-                          </label>
-                        ))}
+                                }}
+                              />
+                              <span style={{ fontWeight: 600 }}>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div>
+                        <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                          Property Address
+                        </span>
+                        <input
+                          type="text"
+                          value={propertyAddress}
+                          onChange={(e) => setPropertyAddress(e.target.value)}
+                          style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
+                        />
+                      </div>
+
+                      {/* Offer Letter Addressed To (Target Recipient) */}
+                      <div>
+                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", display: "block", marginBottom: "6px", letterSpacing: "0.04em" }}>
+                          Generate Offer Letter For:
+                        </span>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+                          <button
+                            type="button"
+                            onClick={() => setRecipientType("agent")}
+                            style={{
+                              padding: "8px 4px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              borderRadius: "6px",
+                              border: recipientType === "agent" ? "1.5px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                              backgroundColor: recipientType === "agent" ? "rgba(56, 189, 248, 0.18)" : "var(--panel, #121216)",
+                              color: recipientType === "agent" ? "#38bdf8" : "var(--muted, #94a3b8)",
+                              cursor: "pointer",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            👔 Agent
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRecipientType("owner")}
+                            style={{
+                              padding: "8px 4px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              borderRadius: "6px",
+                              border: recipientType === "owner" ? "1.5px solid var(--lime, #d6ff3f)" : "1px solid var(--border, #30363d)",
+                              backgroundColor: recipientType === "owner" ? "rgba(214, 255, 63, 0.18)" : "var(--panel, #121216)",
+                              color: recipientType === "owner" ? "var(--lime, #d6ff3f)" : "var(--muted, #94a3b8)",
+                              cursor: "pointer",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            👤 Owner
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRecipientType("both")}
+                            style={{
+                              padding: "8px 4px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              borderRadius: "6px",
+                              border: recipientType === "both" ? "1.5px solid #c084fc" : "1px solid var(--border, #30363d)",
+                              backgroundColor: recipientType === "both" ? "rgba(192, 132, 252, 0.18)" : "var(--panel, #121216)",
+                              color: recipientType === "both" ? "#c084fc" : "var(--muted, #94a3b8)",
+                              cursor: "pointer",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            👥 Both
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Listing Agent Contact Card */}
+                      <div style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid rgba(56, 189, 248, 0.25)", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.04em" }}>
+                            👔 Listing Agent Contact
+                          </span>
+                          {agentName && <span style={{ fontSize: "10px", color: "#38bdf8", fontWeight: 700 }}>✓ Auto-loaded</span>}
+                        </div>
+                        <input
+                          type="text"
+                          value={agentName}
+                          onChange={(e) => setAgentName(e.target.value)}
+                          placeholder="Listing Agent Name"
+                          style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                        />
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                          <input
+                            type="email"
+                            value={agentEmail}
+                            onChange={(e) => setAgentEmail(e.target.value)}
+                            placeholder="Agent Email"
+                            style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                          />
+                          <input
+                            type="text"
+                            value={agentPhone}
+                            onChange={(e) => setAgentPhone(e.target.value)}
+                            placeholder="Agent Phone"
+                            style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Property Owner / Seller Contact Card */}
+                      <div style={{ background: "rgba(214, 255, 63, 0.04)", border: "1px solid rgba(214, 255, 63, 0.25)", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "var(--lime, #d6ff3f)", letterSpacing: "0.04em" }}>
+                            👤 Property Owner Contact
+                          </span>
+                          {sellerName && <span style={{ fontSize: "10px", color: "var(--lime, #d6ff3f)", fontWeight: 700 }}>✓ Auto-loaded</span>}
+                        </div>
+                        <input
+                          type="text"
+                          value={sellerName}
+                          onChange={(e) => setSellerName(e.target.value)}
+                          placeholder="Owner / Seller Name"
+                          style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                        />
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                          <input
+                            type="email"
+                            value={recipientEmail}
+                            onChange={(e) => setRecipientEmail(e.target.value)}
+                            placeholder="Owner Email"
+                            style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                          />
+                          <input
+                            type="text"
+                            value={sellerPhone}
+                            onChange={(e) => setSellerPhone(e.target.value)}
+                            placeholder="Owner Phone"
+                            style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "5px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                          Buyer Vesting Entity
+                        </span>
+                        <input
+                          type="text"
+                          value={acquisitionsCompany}
+                          onChange={(e) => setAcquisitionsCompany(e.target.value)}
+                          placeholder="Revzenta Capital"
+                          style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
+                        />
+                      </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
                       <input
                         type="checkbox"
                         id="assignClause"
@@ -2495,6 +2575,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   )}
                 </div>
               </div>
+            </div>
             </div>
           )}
 

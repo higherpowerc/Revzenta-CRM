@@ -48,6 +48,31 @@ export default function ZillowImportModal({
   const [selectedStage, setSelectedStage] = useState<string>(stages[0] || "New Lead");
   const [estimatedRent, setEstimatedRent] = useState<number>(0);
   const [showComps, setShowComps] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(true);
+
+  // Common high-contrast theme-adaptive styles for preview inputs
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    height: "36px",
+    padding: "0 11px",
+    borderRadius: "6px",
+    border: "1px solid var(--border, #30363d)",
+    backgroundColor: "var(--bg-soft, #16161b)",
+    color: "var(--ink, #f8fafc)",
+    fontSize: "13px",
+    fontWeight: 500,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: "11.5px",
+    fontWeight: 700,
+    color: "var(--ink-dim, #94a3b8)",
+    marginBottom: "5px",
+    letterSpacing: "0.01em",
+  };
 
   const handleFetch = async (overrideUrl?: string) => {
     const raw = (overrideUrl ?? urlInput).trim();
@@ -394,7 +419,7 @@ export default function ZillowImportModal({
           )}
 
           {/* Property Form / Review Details */}
-          {(enriched || address) && (
+          {(enriched || address || showManualForm) && (
             <div
               style={{
                 backgroundColor: "var(--panel, #121216)",
@@ -406,12 +431,20 @@ export default function ZillowImportModal({
                 gap: "14px",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border, #242b35)", paddingBottom: "10px" }}>
-                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
-                  📋 Creative Hub Data Preview
-                </span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border, #30363d)", paddingBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>📋</span>
+                    <span>Creative Hub Data Preview</span>
+                  </span>
+                  {!enriched && !address && (
+                    <span style={{ fontSize: "11px", color: "var(--ink-dim, #94a3b8)", backgroundColor: "var(--panel-2, #16161b)", padding: "2px 8px", borderRadius: "4px", border: "1px solid var(--border, #30363d)" }}>
+                      Manual Entry / MLS Preview
+                    </span>
+                  )}
+                </div>
                 {enriched?.estimatedRent ? (
-                  <span style={{ fontSize: "12px", color: "var(--primary, #d6ff3f)", fontWeight: 700 }}>
+                  <span style={{ fontSize: "12px", color: "var(--lime, #d6ff3f)", fontWeight: 700, background: "rgba(214, 255, 63, 0.12)", border: "1px solid rgba(214, 255, 63, 0.25)", padding: "2px 8px", borderRadius: "4px" }}>
                     Market Rent: ${enriched.estimatedRent.toLocaleString()}/mo
                   </span>
                 ) : null}
@@ -420,47 +453,51 @@ export default function ZillowImportModal({
               {/* Address Fields */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
-                    Street Address *
+                  <label style={labelStyle}>
+                    Street Address <span style={{ color: "var(--danger, #ef4444)" }}>*</span>
                   </label>
                   <input
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    placeholder="e.g. 5500 Grand Lake Dr"
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     City
                   </label>
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    placeholder="City"
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     State
                   </label>
                   <input
                     type="text"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    placeholder="State"
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     ZIP Code
                   </label>
                   <input
                     type="text"
                     value={zip}
                     onChange={(e) => setZip(e.target.value)}
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    placeholder="ZIP Code"
+                    style={inputStyle}
                   />
                 </div>
               </div>
@@ -468,7 +505,7 @@ export default function ZillowImportModal({
               {/* Owner Names */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     Owner First Name
                   </label>
                   <input
@@ -476,11 +513,11 @@ export default function ZillowImportModal({
                     value={ownerFirstName}
                     onChange={(e) => setOwnerFirstName(e.target.value)}
                     placeholder="Owner First Name"
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     Owner Last Name
                   </label>
                   <input
@@ -488,7 +525,7 @@ export default function ZillowImportModal({
                     value={ownerLastName}
                     onChange={(e) => setOwnerLastName(e.target.value)}
                     placeholder="Owner Last Name"
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    style={inputStyle}
                   />
                 </div>
               </div>
@@ -496,11 +533,11 @@ export default function ZillowImportModal({
               {/* Valuation & Financial Metrics (Opportunities Table Columns) */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#38bdf8", marginBottom: "4px" }}>
-                    Estimated Value (AVM) <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--muted, #94a3b8)" }}>• Public Records</span>
+                  <label style={{ ...labelStyle, color: "var(--blue, #38bdf8)" }}>
+                    Estimated Value (AVM) <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--ink-dim, #94a3b8)" }}>• Public Records</span>
                   </label>
                   <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: "10px", top: "8px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>$</span>
+                    <span style={{ position: "absolute", left: "10px", top: "9px", fontSize: "12px", color: "var(--ink-dim, #94a3b8)" }}>$</span>
                     <input
                       type="number"
                       value={estimatedValue || ""}
@@ -510,16 +547,23 @@ export default function ZillowImportModal({
                         setEstimatedEquity(Math.max(0, val - (openMortgage || 0)));
                       }}
                       placeholder="0"
-                      style={{ width: "100%", height: "34px", padding: "0 10px 0 24px", borderRadius: "6px", border: "1px solid rgba(56, 189, 248, 0.4)", background: "var(--panel-2, #16161b)", color: "#38bdf8", fontWeight: 700, fontSize: "13px" }}
+                      style={{
+                        ...inputStyle,
+                        paddingLeft: "24px",
+                        borderColor: "rgba(56, 189, 248, 0.5)",
+                        color: "var(--blue, #38bdf8)",
+                        fontWeight: 700,
+                        fontSize: "13.5px",
+                      }}
                     />
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
-                    Open Mortgage Balance <span style={{ fontSize: "10px", fontWeight: 500, color: "#fbbf24" }}>• Private (Verify)</span>
+                  <label style={{ ...labelStyle, color: "var(--amber, #fbbf24)" }}>
+                    Open Mortgage Balance <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--ink-dim, #94a3b8)" }}>• Private (Verify)</span>
                   </label>
                   <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: "10px", top: "8px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>$</span>
+                    <span style={{ position: "absolute", left: "10px", top: "9px", fontSize: "12px", color: "var(--ink-dim, #94a3b8)" }}>$</span>
                     <input
                       type="number"
                       value={openMortgage || ""}
@@ -529,34 +573,47 @@ export default function ZillowImportModal({
                         setEstimatedEquity(Math.max(0, (estimatedValue || 0) - mortgage));
                       }}
                       placeholder="Ask homeowner on call"
-                      style={{ width: "100%", height: "34px", padding: "0 10px 0 24px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "13px" }}
+                      style={{
+                        ...inputStyle,
+                        paddingLeft: "24px",
+                        color: "var(--ink, #f8fafc)",
+                        fontWeight: 600,
+                        fontSize: "13.5px",
+                      }}
                     />
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#34d399", marginBottom: "4px" }}>
-                    Estimated Equity <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--muted, #94a3b8)" }}>• Value − Mortgage</span>
+                  <label style={{ ...labelStyle, color: "var(--green, #34d399)" }}>
+                    Estimated Equity <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--ink-dim, #94a3b8)" }}>• Value − Mortgage</span>
                   </label>
                   <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: "10px", top: "8px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>$</span>
+                    <span style={{ position: "absolute", left: "10px", top: "9px", fontSize: "12px", color: "var(--ink-dim, #94a3b8)" }}>$</span>
                     <input
                       type="number"
                       value={estimatedEquity || ""}
                       onChange={(e) => setEstimatedEquity(Number(e.target.value) || 0)}
                       placeholder="0"
-                      style={{ width: "100%", height: "34px", padding: "0 10px 0 24px", borderRadius: "6px", border: "1px solid rgba(52, 211, 153, 0.4)", background: "var(--panel-2, #16161b)", color: "#34d399", fontWeight: 700, fontSize: "13px" }}
+                      style={{
+                        ...inputStyle,
+                        paddingLeft: "24px",
+                        borderColor: "rgba(52, 211, 153, 0.5)",
+                        color: "var(--green, #34d399)",
+                        fontWeight: 700,
+                        fontSize: "13.5px",
+                      }}
                     />
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "-6px", lineHeight: "1.4" }}>
+              <div style={{ fontSize: "11px", color: "var(--ink-dim, #94a3b8)", marginTop: "-4px", lineHeight: "1.4" }}>
                 🔒 <em>Mortgage balances are private banking data protected by federal law (GLBA / FCRA). We pull public tax appraisals and comps. Enter the mortgage payoff once confirmed with the homeowner.</em>
               </div>
 
               {/* Physical Specifications (Opportunities Table Columns) */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1.2fr", gap: "10px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     Bedrooms
                   </label>
                   <input
@@ -564,11 +621,11 @@ export default function ZillowImportModal({
                     value={bedrooms}
                     onChange={(e) => setBedrooms(e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="3"
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     Bathrooms
                   </label>
                   <input
@@ -577,11 +634,11 @@ export default function ZillowImportModal({
                     value={bathrooms}
                     onChange={(e) => setBathrooms(e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="2"
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     Square Footage
                   </label>
                   <input
@@ -589,11 +646,11 @@ export default function ZillowImportModal({
                     value={squareFootage}
                     onChange={(e) => setSquareFootage(e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="1800"
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     Year Built
                   </label>
                   <input
@@ -601,17 +658,17 @@ export default function ZillowImportModal({
                     value={yearBuilt}
                     onChange={(e) => setYearBuilt(e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="1985"
-                    style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "4px" }}>
+                  <label style={labelStyle}>
                     Property Class
                   </label>
                   <select
                     value={propertyClass}
                     onChange={(e) => setPropertyClass(e.target.value)}
-                    style={{ width: "100%", height: "34px", padding: "0 8px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12px" }}
+                    style={{ ...inputStyle, cursor: "pointer" }}
                   >
                     <option value="single_family">Single Family</option>
                     <option value="multi_family">Multi Family</option>
@@ -621,14 +678,14 @@ export default function ZillowImportModal({
               </div>
 
               {/* Pipeline Stage Assignment */}
-              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ink-dim, #94a3b8)" }}>
                   Pipeline Stage:
                 </span>
                 <select
                   value={selectedStage}
                   onChange={(e) => setSelectedStage(e.target.value)}
-                  style={{ height: "32px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "#fff", fontSize: "12.5px" }}
+                  style={{ ...inputStyle, width: "auto", minWidth: "160px", cursor: "pointer" }}
                 >
                   {stages.map((st) => (
                     <option key={st} value={st}>
@@ -644,11 +701,12 @@ export default function ZillowImportModal({
                     style={{
                       background: "none",
                       border: "none",
-                      color: "#38bdf8",
+                      color: "var(--blue, #38bdf8)",
                       fontSize: "12px",
                       cursor: "pointer",
                       marginLeft: "auto",
                       textDecoration: "underline",
+                      fontWeight: 600,
                     }}
                   >
                     {showComps ? "Hide Nearby Comps" : `View ${enriched.comps.length} Nearby MLS Comps`}
@@ -658,14 +716,14 @@ export default function ZillowImportModal({
 
               {/* Comps List drawer */}
               {showComps && enriched?.comps && enriched.comps.length > 0 && (
-                <div style={{ marginTop: "6px", padding: "10px", borderRadius: "6px", background: "rgba(0,0,0,0.3)", border: "1px solid var(--border, #30363d)", maxHeight: "140px", overflowY: "auto" }}>
-                  <div style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--muted, #94a3b8)", marginBottom: "6px" }}>
+                <div style={{ marginTop: "8px", padding: "12px", borderRadius: "8px", background: "var(--bg-soft, #16161b)", border: "1px solid var(--border, #30363d)", maxHeight: "150px", overflowY: "auto" }}>
+                  <div style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ink-dim, #94a3b8)", marginBottom: "8px" }}>
                     Recent MLS Comparable Sales:
                   </div>
                   {enriched.comps.map((c, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px", padding: "3px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                      <span>{c.address} ({c.distanceMiles} mi)</span>
-                      <strong style={{ color: "var(--primary, #d6ff3f)" }}>${c.price.toLocaleString()} · {c.bedrooms}b/{c.bathrooms}ba · {c.squareFootage} sqft</strong>
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "4px 0", borderBottom: "1px solid var(--border, rgba(255,255,255,0.06))" }}>
+                      <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 500 }}>{c.address} ({c.distanceMiles} mi)</span>
+                      <strong style={{ color: "var(--lime, #d6ff3f)" }}>${c.price.toLocaleString()} · {c.bedrooms}b/{c.bathrooms}ba · {c.squareFootage} sqft</strong>
                     </div>
                   ))}
                 </div>
@@ -812,7 +870,10 @@ export default function ZillowImportModal({
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => setShowHardStopModal(false)}
+                onClick={() => {
+                  setShowHardStopModal(false);
+                  setShowManualForm(true);
+                }}
                 style={{ height: "36px", padding: "0 16px", borderRadius: "6px", fontSize: "13px" }}
               >
                 ✏️ Fill Details Manually
