@@ -607,37 +607,59 @@ export default function App() {
                 setMobileMenuOpen(false);
               }}
               aria-label="Go to dashboard"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                background: "none",
+                border: "none",
+                padding: "2px 6px",
+                cursor: "pointer",
+              }}
             >
               <img
                 src={revzentaLogo}
-                alt="Revzenta Logo"
+                alt="Revzenta"
                 className="brand-logo-img"
                 style={{
-                  height: "36px",
+                  height: "40px",
                   width: "auto",
-                  borderRadius: "6px",
                   objectFit: "contain",
-                  display: "inline-block",
-                  verticalAlign: "middle",
+                  display: "block",
                 }}
               />
-              <span className="brand-text">
-                {isOwner ? (
-                  <>
-                    Revzenta
-                    <span className="brand-sub">CRM</span>
-                  </>
-                ) : (
-                  <>
-                    {orgName}
-                    <span className="brand-sub">CRM</span>
-                  </>
-                )}
-              </span>
+              {!isOwner && orgName && orgName.toLowerCase() !== "revzenta" && (
+                <span className="brand-text">
+                  {orgName}
+                  <span className="brand-sub">CRM</span>
+                </span>
+              )}
             </button>
 
             {/* Mobile-only header controls (visible <= 960px) */}
             <div className="mobile-nav-tools">
+              {isOwnerCockpit && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setViewingWebsite(true);
+                    window.location.hash = "#/website";
+                    setMobileMenuOpen(false);
+                  }}
+                  title="View Revzenta Marketing Website"
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    padding: "6px 10px",
+                    gap: "4px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <span>🌐</span>
+                  <span>Website</span>
+                </button>
+              )}
               <ThemeToggle />
               <button
                 type="button"
@@ -801,6 +823,24 @@ export default function App() {
                 >
                   <span className="tab-icon">⚙️</span>
                   <span>Settings</span>
+                </button>
+
+                {/* 5. Marketing & Public Website (Owner Only) */}
+                <div className="nav-section-title">
+                  <span>Marketing Site</span>
+                </div>
+                <button
+                  type="button"
+                  className="tab"
+                  onClick={() => {
+                    setViewingWebsite(true);
+                    window.location.hash = "#/website";
+                    setMobileMenuOpen(false);
+                  }}
+                  title="View live Revzenta marketing website"
+                >
+                  <span className="tab-icon">🌐</span>
+                  <span>View Website</span>
                 </button>
               </>
             ) : isWholesale ? (
@@ -1115,6 +1155,33 @@ export default function App() {
             </div>
           </nav>
           <div className="nav-right">
+            {isOwnerCockpit && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm nav-website-btn"
+                onClick={() => {
+                  setViewingWebsite(true);
+                  window.location.hash = "#/website";
+                }}
+                title="View Revzenta Marketing Website"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  borderRadius: "8px",
+                  padding: "6px 12px",
+                  border: "1px solid var(--line-strong, #30363d)",
+                  background: "var(--surface, #16161b)",
+                  color: "var(--ink, #f8fafc)",
+                  cursor: "pointer",
+                }}
+              >
+                <span>🌐</span>
+                <span>View Website</span>
+              </button>
+            )}
             {/* Global theme toggle (Light / Dark mode) */}
             <ThemeToggle />
             {/* Global privacy eye (owner request 2026-08-14) — blurs names,
