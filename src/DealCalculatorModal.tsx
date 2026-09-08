@@ -650,6 +650,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const [sendSuccessMsg, setSendSuccessMsg] = useState<string | null>(null);
   const [sendErrorMsg, setSendErrorMsg] = useState<string | null>(null);
   const [previewTab, setPreviewTab] = useState<"formatted" | "plain">("formatted");
+  const [previewFullDoc, setPreviewFullDoc] = useState<boolean>(false);
 
   // ==========================================================================
   // PROPERTY LEAD AUTO-ENRICHMENT (RentCast MLS Specs, AVM & Comps)
@@ -2560,9 +2561,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     background: "var(--panel-2, #16161b)",
                     borderRadius: "10px",
                     border: "1px solid var(--border, #30363d)",
-                    padding: "20px",
-                    minHeight: "500px",
-                    maxHeight: "680px",
+                    padding: "24px",
+                    minHeight: "650px",
+                    maxHeight: "850px",
                     overflowY: "auto",
                   }}
                 >
@@ -3129,238 +3130,286 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             style={{
               backgroundColor: "var(--panel, #121216)",
               border: "1px solid var(--border, #30363d)",
-              borderRadius: "12px",
+              borderRadius: "14px",
               width: "100%",
-              maxWidth: "840px",
-              maxHeight: "92vh",
+              maxWidth: "min(1380px, 96vw)",
+              height: "94vh",
+              maxHeight: "96vh",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+              boxShadow: "0 25px 70px rgba(0,0,0,0.8)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div
               style={{
-                padding: "16px 22px",
+                padding: "16px 24px",
                 borderBottom: "1px solid var(--border, #30363d)",
                 backgroundColor: "var(--panel-2, #16161b)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                flexWrap: "wrap",
+                gap: "10px",
               }}
             >
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "20px" }}>👁️</span>
-                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Preview Offer & Letter of Intent
+                  <span style={{ fontSize: "22px" }}>👁️</span>
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    Preview Offer &amp; Letter of Intent
                   </h3>
+                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)" }}>
+                    Executive Document Preview
+                  </span>
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginTop: "3px" }}>
                   {propertyAddress || "Subject Property"} · Vesting: {acquisitionsCompany || "Revzenta Capital"} and/or assigns
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowPreviewModal(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--muted, #94a3b8)",
-                  fontSize: "20px",
-                  cursor: "pointer",
-                }}
-              >
-                ✕
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFullDoc(!previewFullDoc)}
+                  title={previewFullDoc ? "Show email & dispatch panel" : "Maximize Letter of Intent preview"}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    border: "1px solid var(--border, #30363d)",
+                    background: previewFullDoc ? "rgba(56, 189, 248, 0.18)" : "var(--panel, #121216)",
+                    color: previewFullDoc ? "#38bdf8" : "var(--ink-dim, #94a3b8)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <span>{previewFullDoc ? "⚙️ Show Dispatch Settings" : "⛶ Maximize Full Document"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(false)}
+                  style={{
+                    background: "var(--panel, #121216)",
+                    border: "1px solid var(--border, #30363d)",
+                    color: "var(--ink, #f8fafc)",
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    cursor: "pointer",
+                  }}
+                  aria-label="Close preview"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
-            <div style={{ padding: "20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Delivery Configuration */}
-              <div
-                style={{
-                  background: "var(--panel-2, #16161b)",
-                  border: "1px solid var(--border, #30363d)",
-                  borderRadius: "8px",
-                  padding: "14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.04em" }}>
-                    📬 Recipient & Email Dispatch Settings
-                  </span>
+            <div style={{ padding: "16px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Delivery Configuration & Key Metrics Row (Collapsible) */}
+              {!previewFullDoc && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "12px" }}>
+                  {/* Delivery Configuration */}
+                  <div
+                    style={{
+                      background: "var(--panel-2, #16161b)",
+                      border: "1px solid var(--border, #30363d)",
+                      borderRadius: "8px",
+                      padding: "12px 16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.04em" }}>
+                        📬 Recipient &amp; Email Dispatch
+                      </span>
 
-                  {/* Recipient Mode Selector */}
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRecipientType("agent");
-                        setPreviewRecipientEmail(agentEmail || recipientEmail || "");
-                      }}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: "5px",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        border: recipientType === "agent" ? "1.5px solid #38bdf8" : "1px solid var(--border, #30363d)",
-                        background: recipientType === "agent" ? "rgba(56, 189, 248, 0.15)" : "var(--panel, #121216)",
-                        color: recipientType === "agent" ? "#38bdf8" : "var(--muted, #94a3b8)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      👔 Agent {agentName ? `(${agentName})` : ""}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRecipientType("owner");
-                        setPreviewRecipientEmail(recipientEmail || "");
-                      }}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: "5px",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        border: recipientType === "owner" ? "1.5px solid var(--lime, #d6ff3f)" : "1px solid var(--border, #30363d)",
-                        background: recipientType === "owner" ? "rgba(214, 255, 63, 0.15)" : "var(--panel, #121216)",
-                        color: recipientType === "owner" ? "var(--lime, #d6ff3f)" : "var(--muted, #94a3b8)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      👤 Owner {sellerName ? `(${sellerName})` : ""}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRecipientType("both");
-                        setPreviewRecipientEmail(agentEmail ? `${agentEmail}, ${recipientEmail}` : recipientEmail);
-                      }}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: "5px",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        border: recipientType === "both" ? "1.5px solid #a855f7" : "1px solid var(--border, #30363d)",
-                        background: recipientType === "both" ? "rgba(168, 85, 247, 0.15)" : "var(--panel, #121216)",
-                        color: recipientType === "both" ? "#c084fc" : "var(--muted, #94a3b8)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      👥 Both
-                    </button>
+                      {/* Recipient Mode Selector */}
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecipientType("agent");
+                            setPreviewRecipientEmail(agentEmail || recipientEmail || "");
+                          }}
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: "5px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            border: recipientType === "agent" ? "1.5px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                            background: recipientType === "agent" ? "rgba(56, 189, 248, 0.15)" : "var(--panel, #121216)",
+                            color: recipientType === "agent" ? "#38bdf8" : "var(--muted, #94a3b8)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          👔 Agent {agentName ? `(${agentName})` : ""}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecipientType("owner");
+                            setPreviewRecipientEmail(recipientEmail || "");
+                          }}
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: "5px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            border: recipientType === "owner" ? "1.5px solid var(--lime, #d6ff3f)" : "1px solid var(--border, #30363d)",
+                            background: recipientType === "owner" ? "rgba(214, 255, 63, 0.15)" : "var(--panel, #121216)",
+                            color: recipientType === "owner" ? "var(--lime, #d6ff3f)" : "var(--muted, #94a3b8)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          👤 Owner {sellerName ? `(${sellerName})` : ""}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecipientType("both");
+                            setPreviewRecipientEmail(agentEmail ? `${agentEmail}, ${recipientEmail}` : recipientEmail);
+                          }}
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: "5px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            border: recipientType === "both" ? "1.5px solid #a855f7" : "1px solid var(--border, #30363d)",
+                            background: recipientType === "both" ? "rgba(168, 85, 247, 0.15)" : "var(--panel, #121216)",
+                            color: recipientType === "both" ? "#c084fc" : "var(--muted, #94a3b8)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          👥 Both
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: "10.5px", fontWeight: 700, color: "var(--ink-dim, #94a3b8)", marginBottom: "3px" }}>
+                          Send To Email
+                        </label>
+                        <input
+                          type="email"
+                          value={previewRecipientEmail}
+                          onChange={(e) => setPreviewRecipientEmail(e.target.value)}
+                          placeholder="recipient@example.com"
+                          style={{
+                            width: "100%",
+                            height: "32px",
+                            padding: "0 8px",
+                            borderRadius: "5px",
+                            border: "1px solid var(--border, #30363d)",
+                            background: "var(--panel, #121216)",
+                            color: "var(--ink, #f8fafc)",
+                            fontSize: "12px",
+                            outline: "none",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: "block", fontSize: "10.5px", fontWeight: 700, color: "var(--ink-dim, #94a3b8)", marginBottom: "3px" }}>
+                          Email Subject
+                        </label>
+                        <input
+                          type="text"
+                          value={previewSubject}
+                          onChange={(e) => setPreviewSubject(e.target.value)}
+                          placeholder="Formal Purchase Offer / Letter of Intent"
+                          style={{
+                            width: "100%",
+                            height: "32px",
+                            padding: "0 8px",
+                            borderRadius: "5px",
+                            border: "1px solid var(--border, #30363d)",
+                            background: "var(--panel, #121216)",
+                            color: "var(--ink, #f8fafc)",
+                            fontSize: "12px",
+                            outline: "none",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Offer Key Metrics Banner */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(4, 1fr)",
+                      gap: "8px",
+                    }}
+                  >
+                    <div style={{ background: "rgba(56, 189, 248, 0.08)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "8px", padding: "8px 10px" }}>
+                      <div style={{ fontSize: "10px", color: "#38bdf8", fontWeight: 800 }}>PRIMARY OFFER</div>
+                      <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                        ${Math.max(cashMetrics.netWholesaleOffer, subtoPrice, creativePrice).toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div style={{ background: "rgba(214, 255, 63, 0.08)", border: "1px solid rgba(214, 255, 63, 0.2)", borderRadius: "8px", padding: "8px 10px" }}>
+                      <div style={{ fontSize: "10px", color: "var(--lime, #d6ff3f)", fontWeight: 800 }}>TIMELINE</div>
+                      <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                        {closingDays} Days
+                      </div>
+                    </div>
+
+                    <div style={{ background: "rgba(168, 85, 247, 0.08)", border: "1px solid rgba(168, 85, 247, 0.2)", borderRadius: "8px", padding: "8px 10px" }}>
+                      <div style={{ fontSize: "10px", color: "#c084fc", fontWeight: 800 }}>EARNEST MONEY</div>
+                      <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                        $2,500
+                      </div>
+                    </div>
+
+                    <div style={{ background: "rgba(244, 63, 94, 0.08)", border: "1px solid rgba(244, 63, 94, 0.2)", borderRadius: "8px", padding: "8px 10px" }}>
+                      <div style={{ fontSize: "10px", color: "#fb7185", fontWeight: 800 }}>INSPECTION</div>
+                      <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
+                        10 Days
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--ink, #f8fafc)", marginBottom: "4px" }}>
-                      Send To (Recipient Email)
-                    </label>
-                    <input
-                      type="email"
-                      value={previewRecipientEmail}
-                      onChange={(e) => setPreviewRecipientEmail(e.target.value)}
-                      placeholder="recipient@example.com"
-                      style={{
-                        width: "100%",
-                        height: "36px",
-                        padding: "0 10px",
-                        borderRadius: "6px",
-                        border: "1px solid var(--border, #30363d)",
-                        background: "var(--panel, #121216)",
-                        color: "var(--ink, #f8fafc)",
-                        fontSize: "12px",
-                        outline: "none",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--ink, #f8fafc)", marginBottom: "4px" }}>
-                      Email Subject
-                    </label>
-                    <input
-                      type="text"
-                      value={previewSubject}
-                      onChange={(e) => setPreviewSubject(e.target.value)}
-                      placeholder="Formal Purchase Offer / Letter of Intent"
-                      style={{
-                        width: "100%",
-                        height: "36px",
-                        padding: "0 10px",
-                        borderRadius: "6px",
-                        border: "1px solid var(--border, #30363d)",
-                        background: "var(--panel, #121216)",
-                        color: "var(--ink, #f8fafc)",
-                        fontSize: "12px",
-                        outline: "none",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Offer Key Metrics Banner */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                  gap: "10px",
-                }}
-              >
-                <div style={{ background: "rgba(56, 189, 248, 0.08)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "8px", padding: "10px" }}>
-                  <div style={{ fontSize: "11px", color: "#38bdf8", fontWeight: 700 }}>PRIMARY OFFER</div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
-                    ${Math.max(cashMetrics.netWholesaleOffer, subtoPrice, creativePrice).toLocaleString()}
-                  </div>
-                </div>
-
-                <div style={{ background: "rgba(214, 255, 63, 0.08)", border: "1px solid rgba(214, 255, 63, 0.2)", borderRadius: "8px", padding: "10px" }}>
-                  <div style={{ fontSize: "11px", color: "var(--lime, #d6ff3f)", fontWeight: 700 }}>CLOSING TIMELINE</div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
-                    {closingDays} Days
-                  </div>
-                </div>
-
-                <div style={{ background: "rgba(168, 85, 247, 0.08)", border: "1px solid rgba(168, 85, 247, 0.2)", borderRadius: "8px", padding: "10px" }}>
-                  <div style={{ fontSize: "11px", color: "#c084fc", fontWeight: 700 }}>EARNEST MONEY</div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
-                    $2,500
-                  </div>
-                </div>
-
-                <div style={{ background: "rgba(244, 63, 94, 0.08)", border: "1px solid rgba(244, 63, 94, 0.2)", borderRadius: "8px", padding: "10px" }}>
-                  <div style={{ fontSize: "11px", color: "#fb7185", fontWeight: 700 }}>INSPECTION PERIOD</div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
-                    10 Business Days
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Letter Preview Window */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
-                    Letter of Intent Document Preview
-                  </span>
-                  <div style={{ display: "flex", gap: "6px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, minHeight: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                      📄 Letter of Intent Document Preview
+                    </span>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted, #94a3b8)", padding: "2px 8px", borderRadius: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border, #30363d)" }}>
+                      {selectedProposalOptions.length} Purchase Option{selectedProposalOptions.length > 1 ? "s" : ""} Included
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                     <button
                       type="button"
                       onClick={() => setPreviewTab("formatted")}
                       style={{
-                        padding: "4px 10px",
+                        padding: "5px 12px",
                         borderRadius: "5px",
-                        fontSize: "11px",
+                        fontSize: "11.5px",
                         fontWeight: 700,
                         border: previewTab === "formatted" ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
                         background: previewTab === "formatted" ? "var(--primary, #0284c7)" : "var(--panel-2, #16161b)",
@@ -3374,9 +3423,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       type="button"
                       onClick={() => setPreviewTab("plain")}
                       style={{
-                        padding: "4px 10px",
+                        padding: "5px 12px",
                         borderRadius: "5px",
-                        fontSize: "11px",
+                        fontSize: "11.5px",
                         fontWeight: 700,
                         border: previewTab === "plain" ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
                         background: previewTab === "plain" ? "var(--primary, #0284c7)" : "var(--panel-2, #16161b)",
@@ -3386,24 +3435,52 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     >
                       ✉️ Plain Text
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFullDoc(!previewFullDoc)}
+                      title={previewFullDoc ? "Show email dispatch panel" : "Maximize document preview"}
+                      style={{
+                        padding: "5px 10px",
+                        borderRadius: "5px",
+                        fontSize: "11.5px",
+                        fontWeight: 700,
+                        border: "1px solid var(--border, #30363d)",
+                        background: previewFullDoc ? "rgba(56, 189, 248, 0.18)" : "var(--panel-2, #16161b)",
+                        color: previewFullDoc ? "#38bdf8" : "var(--ink-dim, #94a3b8)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {previewFullDoc ? "⤓ Collapse View" : "⛶ Maximize Doc"}
+                    </button>
                   </div>
                 </div>
 
                 <div
                   style={{
-                    backgroundColor: previewTab === "formatted" ? "rgba(255,255,255,0.03)" : "var(--panel-2, #16161b)",
+                    backgroundColor: "var(--panel-2, #16161b)",
                     border: "1px solid var(--border, #30363d)",
-                    borderRadius: "8px",
-                    padding: "16px",
-                    maxHeight: "340px",
+                    borderRadius: "10px",
+                    padding: "20px",
+                    flex: 1,
+                    minHeight: previewFullDoc ? "680px" : "500px",
                     overflowY: "auto",
                     color: "var(--ink, #f8fafc)",
                   }}
                 >
                   {previewTab === "formatted" ? (
                     <div
+                      style={{
+                        maxWidth: "1000px",
+                        margin: "0 auto",
+                        backgroundColor: "var(--panel, #121216)",
+                        border: "1px solid var(--border, #30363d)",
+                        borderRadius: "8px",
+                        padding: "36px 44px",
+                        boxShadow: "0 6px 30px rgba(0,0,0,0.35)",
+                        fontSize: "13.5px",
+                        lineHeight: "1.7",
+                      }}
                       dangerouslySetInnerHTML={{ __html: proposalData.htmlMarkup }}
-                      style={{ fontSize: "13px", lineHeight: "1.6" }}
                     />
                   ) : (
                     <textarea
@@ -3411,13 +3488,14 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       onChange={(e) => setPreviewMessage(e.target.value)}
                       style={{
                         width: "100%",
-                        height: "280px",
+                        height: "100%",
+                        minHeight: previewFullDoc ? "640px" : "460px",
                         background: "transparent",
                         border: "none",
                         color: "var(--ink, #f8fafc)",
                         fontFamily: "monospace",
-                        fontSize: "12px",
-                        lineHeight: "1.6",
+                        fontSize: "13px",
+                        lineHeight: "1.65",
                         outline: "none",
                         resize: "vertical",
                         boxSizing: "border-box",
@@ -3443,7 +3521,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             {/* Modal Footer */}
             <div
               style={{
-                padding: "14px 22px",
+                padding: "14px 24px",
                 borderTop: "1px solid var(--border, #30363d)",
                 backgroundColor: "var(--panel-2, #16161b)",
                 display: "flex",
@@ -3453,7 +3531,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 gap: "10px",
               }}
             >
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                 {generatedOffer && (
                   <a
                     href={generatedOffer.pdfUrl || `/offer-pdf/${generatedOffer.pdfId}`}
@@ -3477,6 +3555,26 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     <span>View Official PDF</span>
                   </a>
                 )}
+                <button
+                  type="button"
+                  onClick={handleCopyText}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border, #30363d)",
+                    background: "var(--panel, #121216)",
+                    color: "var(--ink, #f8fafc)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>📋</span>
+                  <span>Copy Letter Text</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowPreviewModal(false)}

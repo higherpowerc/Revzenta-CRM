@@ -1115,17 +1115,19 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
               border: "1px solid var(--border)",
               borderRadius: "10px",
               width: "100%",
-              maxWidth: "700px",
-              maxHeight: "85vh",
+              maxWidth: "min(1280px, 96vw)",
+              height: "92vh",
+              maxHeight: "95vh",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
-                padding: "14px 20px",
+                padding: "16px 24px",
                 borderBottom: "1px solid var(--border)",
                 backgroundColor: "var(--card-bg, var(--panel))",
                 display: "flex",
@@ -1133,21 +1135,21 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                 alignItems: "center",
               }}
             >
-              <h3 style={{ margin: 0, fontSize: "16px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <h3 style={{ margin: 0, fontSize: "17px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px", fontWeight: 800 }}>
                 <span>👁️</span>
                 <span>Preview Offer: {viewingOffer.propertyAddress}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setViewingOffer(null)}
-                style={{ background: "none", border: "none", color: "var(--muted-2)", fontSize: "18px", cursor: "pointer" }}
+                style={{ background: "none", border: "none", color: "var(--muted-2)", fontSize: "20px", cursor: "pointer", padding: "4px" }}
               >
                 ✕
               </button>
             </div>
 
-            <div style={{ padding: "20px", overflowY: "auto", flex: 1 }}>
-              <div style={{ marginBottom: "14px", fontSize: "12px", color: "var(--muted)", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div style={{ fontSize: "12px", color: "var(--muted)", display: "flex", flexDirection: "column", gap: "8px", background: "var(--panel-2, rgba(255,255,255,0.03))", padding: "12px 16px", borderRadius: "8px", border: "1px solid var(--border)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <strong style={{ width: "80px", color: "var(--ink)" }}>Recipient:</strong>
                   <input
@@ -1157,7 +1159,7 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                     placeholder="recipient@example.com"
                     style={{
                       flex: 1,
-                      height: "32px",
+                      height: "34px",
                       padding: "0 10px",
                       borderRadius: "5px",
                       border: "1px solid var(--border)",
@@ -1168,8 +1170,11 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                     }}
                   />
                 </div>
-                <div><strong style={{ color: "var(--ink)" }}>Created:</strong> {new Date(viewingOffer.createdAt).toLocaleString()}</div>
-                <div><strong style={{ color: "var(--ink)" }}>Buyer Entity:</strong> {viewingOffer.businessName || "Revzenta Capital"} and/or assigns</div>
+                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+                  <div><strong style={{ color: "var(--ink)" }}>Created:</strong> {new Date(viewingOffer.createdAt).toLocaleString()}</div>
+                  <div><strong style={{ color: "var(--ink)" }}>Buyer Entity:</strong> {viewingOffer.businessName || "Revzenta Capital"} and/or assigns</div>
+                  <div><strong style={{ color: "var(--ink)" }}>Offer Type:</strong> <span style={{ textTransform: "uppercase", fontWeight: 700, color: "#38bdf8" }}>{viewingOffer.offerType || "All Options"}</span></div>
+                </div>
                 {sendResultMsg?.id === viewingOffer.id && (
                   <div
                     style={{
@@ -1190,14 +1195,18 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
               <div
                 style={{
                   backgroundColor: "var(--card-bg, var(--panel))",
-                  padding: "14px",
-                  borderRadius: "6px",
+                  padding: "24px 32px",
+                  borderRadius: "8px",
                   border: "1px solid var(--border)",
                   fontFamily: "monospace",
-                  fontSize: "12px",
+                  fontSize: "13px",
                   whiteSpace: "pre-wrap",
-                  color: "var(--ink-dim)",
-                  lineHeight: "1.6",
+                  color: "var(--ink)",
+                  lineHeight: "1.7",
+                  minHeight: "520px",
+                  flex: 1,
+                  overflowY: "auto",
+                  boxShadow: "inset 0 1px 4px rgba(0,0,0,0.1)",
                 }}
               >
                 {viewingOffer.notes || "No message transcript captured."}
