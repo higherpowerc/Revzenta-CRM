@@ -199,8 +199,8 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
             <button type="button" className="btn btn-ghost" onClick={onSignIn}>
               Sign In
             </button>
-            <button type="button" className="btn btn-primary" onClick={onLaunchApp}>
-              Launch CRM
+            <button type="button" className="btn btn-primary" onClick={() => onLaunchApp("pro")}>
+              Get Started
             </button>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
           </p>
 
           <div className="rw-hero-ctas">
-            <button type="button" className="rw-btn-lg rw-btn-primary" onClick={onLaunchApp}>
+            <button type="button" className="rw-btn-lg rw-btn-primary" onClick={() => onLaunchApp("pro")}>
               ⚡ Get Started Free
             </button>
             <button type="button" className="rw-btn-lg rw-btn-outline" onClick={onSignIn}>
@@ -608,7 +608,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 <strong style={{ color: "#10b981", fontSize: "16px" }}>~{hoursSaved} hrs/mo</strong>
               </div>
 
-              <button type="button" className="btn btn-primary" style={{ width: "100%", marginTop: "8px" }} onClick={onLaunchApp}>
+              <button type="button" className="btn btn-primary" style={{ width: "100%", marginTop: "8px" }} onClick={() => onLaunchApp("pro")}>
                 Scale This Pipeline Now →
               </button>
             </div>

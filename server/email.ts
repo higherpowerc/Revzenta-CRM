@@ -577,3 +577,149 @@ export function sendTicketReplyEmail(opts: {
     text,
   });
 }
+
+/**
+ * Client Checkout & Self-Serve Signup:
+ * Dispatches a comprehensive welcome email containing the new member's
+ * login credentials (URL, email, password), workspace details, package tier,
+ * and quick-start guide.
+ */
+export function sendSignupWelcomeEmail(opts: {
+  to: string;
+  workspaceName: string;
+  email: string;
+  password?: string;
+  tier: string;
+  appUrl: string;
+  businessName?: string;
+  replyTo?: string;
+}): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
+  const loginUrl = `${opts.appUrl}/#/login`;
+  const tierName =
+    opts.tier === "scale"
+      ? "Scale Empire Plan ($399/mo)"
+      : opts.tier === "starter"
+      ? "Starter Wholesaler Plan ($79/mo)"
+      : "Wholesale Pro Plan ($199/mo)";
+
+  const text = [
+    `Welcome to ${biz}!`,
+    "",
+    `Your wholesale real estate workspace has been provisioned and is ready for action.`,
+    "",
+    `========================================`,
+    `YOUR LOGIN CREDENTIALS & WORKSPACE ACCESS`,
+    `========================================`,
+    `Sign In URL: ${loginUrl}`,
+    `Workspace:   ${opts.workspaceName}`,
+    `Email:       ${opts.email}`,
+    ...(opts.password ? [`Password:    ${opts.password}`] : []),
+    `Active Plan: ${tierName}`,
+    "",
+    `========================================`,
+    `WHOLESALE REAL ESTATE QUICK START GUIDE`,
+    `========================================`,
+    `1. Launch your CRM: Log in at ${loginUrl} using your credentials above.`,
+    `2. Pipeline & Leads: Import or add distressed property sellers directly to your pipeline.`,
+    `3. Fast MAO Calculation: Use the built-in Wholesale Calculator (MAO = ARV * 70% - Repairs - Wholesale Fee) to formulate unbeatable offers.`,
+    `4. Instant Contracts: Generate legally binding Purchase and Assignment Agreements with 1-click PDF stamping and digital signatures.`,
+    `5. Transaction Hub & Title Coordination: Track Earnest Money Deposits (EMD) and coordinate closing seamlessly with your title company.`,
+    "",
+    `Need assistance or have questions? Simply reply to this email or submit a ticket in your CRM.`,
+    "",
+    `To your closing success,`,
+    `The ${biz} Team`,
+  ].join("\n");
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ${biz}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#090d16;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f1f5f9;">
+  <div style="max-width:600px;margin:30px auto;background:#0f172a;border-radius:16px;border:1px solid #1e293b;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.6);">
+    <div style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#06b6d4 100%);padding:32px 28px;text-align:center;">
+      <h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;text-shadow:0 2px 10px rgba(0,0,0,0.3);">
+        ⚡ Welcome to ${biz}
+      </h1>
+      <p style="margin:8px 0 0;font-size:15px;color:rgba(255,255,255,0.9);font-weight:500;">
+        Your Wholesale Real Estate Command Center is Live
+      </p>
+    </div>
+
+    <div style="padding:32px 28px;">
+      <p style="margin:0 0 20px;font-size:16px;line-height:1.6;color:#cbd5e1;">
+        Congratulations! Your account has been activated with the <strong style="color:#38bdf8;">${tierName}</strong>. You now have full access to our high-performance wholesaling CRM, automated contracts, and transaction coordination tools.
+      </p>
+
+      <div style="background:#131d33;border:1px solid #312e81;border-radius:12px;padding:22px;margin:24px 0;">
+        <h2 style="margin:0 0 16px;font-size:16px;text-transform:uppercase;letter-spacing:1px;color:#a5b4fc;">
+          🔑 Your Account Credentials
+        </h2>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#e2e8f0;">
+          <tr>
+            <td style="padding:6px 0;color:#94a3b8;width:120px;">Workspace:</td>
+            <td style="padding:6px 0;font-weight:600;color:#ffffff;">${opts.workspaceName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#94a3b8;">Login Email:</td>
+            <td style="padding:6px 0;font-weight:600;color:#38bdf8;">${opts.email}</td>
+          </tr>
+          ${
+            opts.password
+              ? `<tr>
+            <td style="padding:6px 0;color:#94a3b8;">Password:</td>
+            <td style="padding:6px 0;font-family:monospace;font-weight:700;color:#f43f5e;">${opts.password}</td>
+          </tr>`
+              : ""
+          }
+          <tr>
+            <td style="padding:6px 0;color:#94a3b8;">Package Tier:</td>
+            <td style="padding:6px 0;font-weight:600;color:#4ade80;">${tierName}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 34px;border-radius:10px;box-shadow:0 4px 20px rgba(99,102,241,0.4);">
+          Launch Your CRM Workspace &rarr;
+        </a>
+      </div>
+
+      <div style="border-top:1px solid #1e293b;padding-top:24px;margin-top:28px;">
+        <h3 style="margin:0 0 14px;font-size:15px;color:#f8fafc;font-weight:700;">
+          🚀 Wholesale Quick Start:
+        </h3>
+        <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.7;color:#94a3b8;">
+          <li><strong style="color:#e2e8f0;">Sign In:</strong> Log into your new workspace using the button above.</li>
+          <li><strong style="color:#e2e8f0;">Track Seller Leads:</strong> Add motivated sellers, track distress criteria, and follow pipeline stages.</li>
+          <li><strong style="color:#e2e8f0;">Run Deal Numbers:</strong> Calculate 70% rule MAO and maximum cash offers in seconds.</li>
+          <li><strong style="color:#e2e8f0;">Generate Agreements:</strong> Create purchase and assignment agreements with digital e-signatures.</li>
+          <li><strong style="color:#e2e8f0;">Coordinate Title:</strong> Keep title companies, earnest money deposits, and closing dates synchronized.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div style="background:#090d16;padding:20px 28px;text-align:center;font-size:12px;color:#64748b;border-top:1px solid #1e293b;">
+      <p style="margin:0;">&copy; ${new Date().getFullYear()} ${biz}. All rights reserved.</p>
+      <p style="margin:6px 0 0;">Questions? Reply directly to this email for priority support.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({
+    to: opts.to,
+    fromName: biz,
+    replyTo: opts.replyTo,
+    subject: `Welcome to ${biz} — Your Login Credentials & Wholesale Workspace Access`,
+    text,
+    html,
+  });
+}
+

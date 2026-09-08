@@ -166,6 +166,16 @@ export default function Login({
             >
               Forgot password?
             </button>
+            <button
+              type="button"
+              className="forgot-link"
+              style={{ marginTop: "4px", color: "var(--primary, #6366f1)" }}
+              onClick={() => {
+                window.location.hash = "#/signup?tier=pro";
+              }}
+            >
+              Don't have an account? <strong>Sign up free →</strong>
+            </button>
           </form>
         ) : (
           <form onSubmit={submitForgot} className="form">

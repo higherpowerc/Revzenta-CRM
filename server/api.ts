@@ -73,7 +73,7 @@ import {
   hashPassword,
   toUser,
 } from "./auth";
-import { sendEmail, sendIntakeEmail, sendWelcomeEmail, sendPasswordResetEmail, sendAgreementEmail, sendPaymentLinkEmail, sendInvoiceEmail, sendDemoCallEmail, sendAppointmentReminderEmail, sendTicketOwnerAlertEmail, sendTicketReplyEmail, appUrlFrom, RESEND_KEY_MISSING_ERROR, type SendEmailResult } from "./email";
+import { sendEmail, sendIntakeEmail, sendWelcomeEmail, sendSignupWelcomeEmail, sendPasswordResetEmail, sendAgreementEmail, sendPaymentLinkEmail, sendInvoiceEmail, sendDemoCallEmail, sendAppointmentReminderEmail, sendTicketOwnerAlertEmail, sendTicketReplyEmail, appUrlFrom, RESEND_KEY_MISSING_ERROR, type SendEmailResult } from "./email";
 import Stripe from "stripe";
 import { generateInvoicePdf } from "./invoices";
 import { generateOfferPdf, storeOfferPdf, newOfferPdfId, readOfferPdf } from "./offerPdf";
@@ -2902,6 +2902,151 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       ).run(org.id, "webhook", "failed", rawPayloadStr, null, errMsg);
       return err(`Webhook processing failed: ${errMsg}`, 500);
     }
+  }
+
+  /* ── Self-Serve Signup & Stripe Checkout Endpoints ── */
+  if (pathname === "/api/auth/stripe-config" && method === "GET") {
+    const s = stripeClient();
+    return json({
+      stripeConfigured: s !== null,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
+    });
+  }
+
+  if (pathname === "/api/auth/signup" && method === "POST") {
+    const body = await readBody(req);
+    if (!body) return err("Invalid JSON body.", 400);
+
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const workspaceName = typeof body.workspaceName === "string" ? body.workspaceName.trim() : "";
+    const tierRaw = typeof body.tier === "string" ? body.tier.trim().toLowerCase() : "pro";
+    const tier = tierRaw === "starter" || tierRaw === "scale" ? tierRaw : "pro";
+
+    if (!email || !EMAIL_RE.test(email)) return err("A valid email address is required.", 400);
+    if (!password || password.length < 8) return err("Password must be at least 8 characters.", 400);
+    if (!workspaceName) return err("Workspace / Company name is required.", 400);
+
+    const existing = db.query("SELECT id FROM users WHERE email = ?").get(email);
+    if (existing) {
+      return err("An account with this email address already exists. Please sign in instead.", 409);
+    }
+
+    const passwordHash = await hashPassword(password);
+    const s = stripeClient();
+    const returnUrl = appUrlFrom(req);
+
+    const planDetails = {
+      starter: { name: "Starter Wholesaler", price: 7900 },
+      pro: { name: "Wholesale Pro", price: 19900 },
+      scale: { name: "Scale Empire", price: 39900 },
+    }[tier];
+
+    let provisioned: { orgId: number; userId: number };
+    try {
+      provisioned = insertOrgWithMember({
+        name: workspaceName,
+        email,
+        passwordHash,
+        verticalKey: "wholesalebiz",
+        tier,
+      });
+    } catch (e) {
+      return err(e instanceof Error ? e.message : "Failed to provision workspace.", 400);
+    }
+
+    // Fire welcome email with full credentials & quickstart guide
+    void sendSignupWelcomeEmail({
+      to: email,
+      workspaceName,
+      email,
+      password,
+      tier,
+      appUrl: returnUrl,
+    });
+
+    if (s && body.skipStripe !== true) {
+      try {
+        const session = await s.checkout.sessions.create({
+          mode: "subscription",
+          payment_method_types: ["card"],
+          customer_email: email,
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: `Revzenta CRM — ${planDetails.name}`,
+                  description: `Revzenta Wholesaling Real Estate CRM (${planDetails.name}) - Includes 14-day risk-free trial`,
+                },
+                unit_amount: planDetails.price,
+                recurring: { interval: "month" },
+              },
+              quantity: 1,
+            },
+          ],
+          subscription_data: {
+            trial_period_days: 14,
+            metadata: { orgId: String(provisioned.orgId), email, tier },
+          },
+          metadata: { orgId: String(provisioned.orgId), email, tier },
+          success_url: `${returnUrl}/#/signup-success?session_id={CHECKOUT_SESSION_ID}&email=${encodeURIComponent(email)}`,
+          cancel_url: `${returnUrl}/#/signup?tier=${tier}`,
+        });
+
+        const token = createSession(provisioned.userId);
+        return json(
+          {
+            ok: true,
+            checkoutUrl: session.url,
+            stripeSessionId: session.id,
+            provisioned: true,
+            orgId: provisioned.orgId,
+          },
+          200,
+          { "Set-Cookie": sessionCookie(token) },
+        );
+      } catch (stripeErr) {
+        console.error("[signup] Stripe checkout session creation error:", stripeErr);
+      }
+    }
+
+    const token = createSession(provisioned.userId);
+    const user = getUserById(provisioned.userId);
+    return json(
+      {
+        ok: true,
+        checkoutUrl: null,
+        provisioned: true,
+        user: user ?? null,
+        tier,
+        message: "Account successfully created and 14-day trial activated!",
+      },
+      201,
+      { "Set-Cookie": sessionCookie(token) },
+    );
+  }
+
+  if (pathname === "/api/auth/signup-complete" && method === "POST") {
+    const body = await readBody(req);
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    const auth = requireAuth(req);
+    if (!(auth instanceof Response)) {
+      const user = getUserById(auth.userId);
+      if (user) return json({ ok: true, user });
+    }
+    if (email) {
+      const user = getUserByEmail(email);
+      if (user) {
+        const token = createSession(user.id);
+        return json(
+          { ok: true, user: toUser(user) },
+          200,
+          { "Set-Cookie": sessionCookie(token) },
+        );
+      }
+    }
+    return json({ ok: true });
   }
 
   /* Auth */

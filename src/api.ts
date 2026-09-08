@@ -49,6 +49,32 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+  signup: (data: {
+    workspaceName: string;
+    email: string;
+    password: string;
+    tier?: string;
+    skipStripe?: boolean;
+  }) =>
+    request<{
+      ok: boolean;
+      checkoutUrl?: string | null;
+      stripeSessionId?: string;
+      provisioned?: boolean;
+      user?: User | null;
+      tier?: string;
+      message?: string;
+    }>("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  stripeConfig: () =>
+    request<{ stripeConfigured: boolean; publishableKey: string }>("/api/auth/stripe-config"),
+  signupComplete: (data: { sessionId?: string; email?: string }) =>
+    request<{ ok: boolean; user?: User }>("/api/auth/signup-complete", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
 
   dashboard: () => request<DashboardData>("/api/dashboard"),

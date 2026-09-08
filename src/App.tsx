@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Login from "./Login";
 import ResetPassword from "./ResetPassword";
+import Signup from "./Signup";
 import Dashboard from "./Dashboard";
 import Clients, { type Filter } from "./Clients";
 import ClientsDirectory from "./ClientsDirectory";
@@ -82,19 +83,36 @@ export default function App() {
     const l = h.toLowerCase();
     return l.startsWith("#/website") || l.includes("privacy") || l.includes("terms") || l.includes("security") || l.includes("agreement");
   };
+  const isSignupHash = (h: string) => h.startsWith("#/signup");
 
   const [viewingWebsite, setViewingWebsite] = useState<boolean>(() => isWebsiteOrLegalHash(window.location.hash));
+  const [viewingSignup, setViewingSignup] = useState<boolean>(() => isSignupHash(window.location.hash));
+  const [signupTier, setSignupTier] = useState<string>(() => {
+    const h = window.location.hash;
+    const q = h.includes("?") ? h.slice(h.indexOf("?") + 1) : "";
+    return new URLSearchParams(q).get("tier") || "pro";
+  });
 
   useEffect(() => {
     const onHash = () => {
-      if (window.location.hash.startsWith("#/login")) {
+      if (isSignupHash(window.location.hash)) {
+        const q = window.location.hash.includes("?") ? window.location.hash.slice(window.location.hash.indexOf("?") + 1) : "";
+        const t = new URLSearchParams(q).get("tier") || "pro";
+        setSignupTier(t);
+        setViewingSignup(true);
+        setShowLogin(false);
+        setViewingWebsite(false);
+      } else if (window.location.hash.startsWith("#/login")) {
         setShowLogin(true);
+        setViewingSignup(false);
         setViewingWebsite(false);
       } else if (isWebsiteOrLegalHash(window.location.hash)) {
         setShowLogin(false);
+        setViewingSignup(false);
         setViewingWebsite(true);
       } else {
         setViewingWebsite(false);
+        setViewingSignup(false);
       }
     };
     window.addEventListener("hashchange", onHash);
@@ -550,6 +568,23 @@ export default function App() {
   }
 
   if (!user) {
+    if (viewingSignup) {
+      return (
+        <Signup
+          initialTier={signupTier}
+          onSuccess={(u) => {
+            setUser(u);
+            setViewingSignup(false);
+            window.location.hash = "";
+          }}
+          onSignIn={() => {
+            setViewingSignup(false);
+            setShowLogin(true);
+            window.location.hash = "#/login";
+          }}
+        />
+      );
+    }
     if (showLogin) {
       return (
         <Login
@@ -574,13 +609,10 @@ export default function App() {
           window.location.hash = "#/login";
         }}
         onLaunchApp={(selectedTier) => {
-          if (selectedTier) {
-            try {
-              localStorage.setItem("revzenta:selected-tier", selectedTier);
-            } catch {}
-          }
-          setShowLogin(true);
-          window.location.hash = "#/login";
+          const t = selectedTier || "pro";
+          setSignupTier(t);
+          setViewingSignup(true);
+          window.location.hash = `#/signup?tier=${t}`;
         }}
       />
     );
