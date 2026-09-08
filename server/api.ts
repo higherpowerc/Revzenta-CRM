@@ -3030,23 +3030,44 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
   if (pathname === "/api/auth/signup-complete" && method === "POST") {
     const body = await readBody(req);
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    const sessionId = typeof body?.sessionId === "string" ? body.sessionId.trim() : "";
     const auth = requireAuth(req);
     if (!(auth instanceof Response)) {
       const user = getUserById(auth.userId);
       if (user) return json({ ok: true, user });
     }
-    if (email) {
-      const user = getUserByEmail(email);
-      if (user) {
-        const token = createSession(user.id);
-        return json(
-          { ok: true, user: toUser(user) },
-          200,
-          { "Set-Cookie": sessionCookie(token) },
-        );
-      }
+    // SECURITY (2026-09-08): never mint a session for a bare email. When
+    // Stripe is configured, the caller must present the checkout session id:
+    // it is retrieved from Stripe and must be paid/complete with a customer
+    // email matching the account. When Stripe keys are absent (no-Stripe /
+    // local dev), signup already signs the account in directly, so there is
+    // nothing to complete — return ok without minting a session.
+    const stripe = stripeClient();
+    if (!stripe) return json({ ok: true });
+    if (!sessionId) return err("A Stripe checkout session is required.", 400);
+    let checkout: Stripe.Checkout.Session | null = null;
+    try {
+      checkout = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch {
+      return err("Could not verify the checkout session.", 400);
     }
-    return json({ ok: true });
+    const paid =
+      checkout?.payment_status === "paid" ||
+      checkout?.status === "complete" ||
+      checkout?.subscription != null;
+    const stripeEmail = (checkout?.customer_email ?? checkout?.customer_details?.email ?? "")
+      .trim()
+      .toLowerCase();
+    if (!paid) return err("Checkout is not complete yet.", 402);
+    const lookupEmail = email || stripeEmail;
+    if (!lookupEmail) return err("No account email found for this checkout session.", 400);
+    if (email && stripeEmail && email !== stripeEmail) {
+      return err("This checkout session does not belong to that email address.", 403);
+    }
+    const user = getUserByEmail(lookupEmail);
+    if (!user) return err("No account found for this checkout session.", 404);
+    const token = createSession(user.id);
+    return json({ ok: true, user: toUser(user) }, 200, { "Set-Cookie": sessionCookie(token) });
   }
 
   /* Auth */
