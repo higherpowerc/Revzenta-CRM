@@ -2188,6 +2188,80 @@ function insertOrgWithMember(input: {
   })();
 }
 
+/* ── Post-payment signup provisioning (owner decision 2026-09-08: no free
+   trial, no workspace before payment) ────────────────────────────────
+   provisionPendingSignup consumes one pending_signups row (by email, else by
+   Stripe session id) and creates the org + member via insertOrgWithMember.
+   Idempotent: if a user with that email already exists, the pending row is
+   deleted and the existing user is returned. Both the
+   checkout.session.completed webhook and the verified /api/auth/signup-complete
+   path call this, so whichever runs first wins and the second is a no-op.
+   The welcome email (with credentials) fires only from the signup-complete
+   path, where the plaintext password is NOT available post-hoc — the caller
+   passes it only when known. The webhook path sends no credentials email;
+   the customer signs in with the password they chose at signup. */
+async function provisionPendingSignup(input: {
+  lookupEmail: string;
+  sessionId?: string;
+  checkoutMeta?: Record<string, string>;
+  appUrl?: string;
+  password?: string;
+}): Promise<{ orgId: number; userId: number } | null> {
+  const email = input.lookupEmail.trim().toLowerCase();
+  if (!email) return null;
+  let pending = db
+    .query("SELECT * FROM pending_signups WHERE email = ?")
+    .get(email) as {
+    email: string;
+    workspace_name: string;
+    password_hash: string;
+    tier: string;
+    billing: string;
+    stripe_session_id: string;
+  } | null;
+  if (!pending && input.sessionId) {
+    pending = db
+      .query("SELECT * FROM pending_signups WHERE stripe_session_id = ?")
+      .get(input.sessionId) as typeof pending;
+  }
+  const existingUser = getUserByEmail(pending ? pending.email : email);
+  if (existingUser) {
+    db.query("DELETE FROM pending_signups WHERE email = ?").run(pending ? pending.email : email);
+    return { orgId: existingUser.org_id, userId: existingUser.id };
+  }
+  if (!pending) return null;
+  const tier = pending.tier === "starter" || pending.tier === "scale" ? pending.tier : "pro";
+  let provisioned: { orgId: number; userId: number };
+  try {
+    provisioned = insertOrgWithMember({
+      name: pending.workspace_name,
+      email: pending.email,
+      passwordHash: pending.password_hash,
+      verticalKey: "wholesalebiz",
+      tier,
+    });
+  } catch (e) {
+    console.error("[signup] post-payment provisioning failed for", pending.email + ":", e instanceof Error ? e.message : e);
+    return null;
+  }
+  db.query("DELETE FROM pending_signups WHERE email = ?").run(pending.email);
+  // Welcome email with credentials: only when the plaintext password is known
+  // (signup-complete path passes it through when available). Never from the
+  // webhook — the hash is not reversible.
+  if (input.appUrl && input.password) {
+    void sendSignupWelcomeEmail({
+      to: pending.email,
+      workspaceName: pending.workspace_name,
+      email: pending.email,
+      password: input.password,
+      tier,
+      appUrl: input.appUrl,
+    });
+  }
+  console.log(`[signup] workspace provisioned post-payment for ${pending.email} (tier ${tier}, billing ${pending.billing})`);
+  return provisioned;
+}
+
 /* ── 3g-3: sold-lead auto-provisioning ─────────────────────── */
 
 /** The owner orgs = exactly the platform owner's workspace (Revzenta,
@@ -2913,6 +2987,16 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     });
   }
 
+  /* Self-serve signup (owner decision 2026-09-08): NO free trial, payment
+     required at signup.
+     - Stripe configured (Branch A): stores the intent in pending_signups and
+       returns { checkoutUrl, stripeSessionId } with NO session cookie and NO
+       org/user row. The workspace is provisioned only after payment succeeds —
+       via the checkout.session.completed webhook or the verified
+       /api/auth/signup-complete path (both call provisionPendingSignup).
+     - No Stripe keys (Branch B, local/dev): provisions directly and signs in
+       (201 + user), unchanged. This path only triggers when Stripe is not
+       configured. */
   if (pathname === "/api/auth/signup" && method === "POST") {
     const body = await readBody(req);
     if (!body) return err("Invalid JSON body.", 400);
@@ -2922,6 +3006,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const workspaceName = typeof body.workspaceName === "string" ? body.workspaceName.trim() : "";
     const tierRaw = typeof body.tier === "string" ? body.tier.trim().toLowerCase() : "pro";
     const tier = tierRaw === "starter" || tierRaw === "scale" ? tierRaw : "pro";
+    const billingRaw = typeof body.billing === "string" ? body.billing.trim().toLowerCase() : "monthly";
+    const billing: "monthly" | "annual" = billingRaw === "annual" ? "annual" : "monthly";
 
     if (!email || !EMAIL_RE.test(email)) return err("A valid email address is required.", 400);
     if (!password || password.length < 8) return err("Password must be at least 8 characters.", 400);
@@ -2936,12 +3022,86 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const s = stripeClient();
     const returnUrl = appUrlFrom(req);
 
+    // Owner pricing 2026-09-08 (cents). Annual = monthly x 12 x 0.8.
     const planDetails = {
-      starter: { name: "Starter Wholesaler", price: 7900 },
-      pro: { name: "Wholesale Pro", price: 19900 },
-      scale: { name: "Scale Empire", price: 39900 },
+      starter: {
+        name: "Starter Wholesaler",
+        unitAmount: billing === "annual" ? 23990 : 2499,
+        interval: billing === "annual" ? ("year" as const) : ("month" as const),
+      },
+      pro: {
+        name: "Wholesale Pro",
+        unitAmount: billing === "annual" ? 57590 : 5999,
+        interval: billing === "annual" ? ("year" as const) : ("month" as const),
+      },
+      scale: {
+        name: "Scale Empire",
+        unitAmount: billing === "annual" ? 75840 : 7900,
+        interval: billing === "annual" ? ("year" as const) : ("month" as const),
+      },
     }[tier];
 
+    // Branch A — Stripe configured: stash the intent, create checkout (NO
+    // trial, NO pre-payment provisioning, NO session cookie).
+    if (s && body.skipStripe !== true) {
+      db.query(
+        `INSERT INTO pending_signups (email, workspace_name, password_hash, tier, billing, stripe_session_id)
+         VALUES (?, ?, ?, ?, ?, '')
+         ON CONFLICT(email) DO UPDATE SET
+           workspace_name = excluded.workspace_name,
+           password_hash = excluded.password_hash,
+           tier = excluded.tier,
+           billing = excluded.billing,
+           created_at = datetime('now')`,
+      ).run(email, workspaceName, passwordHash, tier, billing);
+      let session: Stripe.Checkout.Session;
+      try {
+        session = await s.checkout.sessions.create({
+          mode: "subscription",
+          payment_method_types: ["card"],
+          customer_email: email,
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: `Revzenta CRM — ${planDetails.name} (${billing === "annual" ? "Annual" : "Monthly"})`,
+                  description: `Revzenta Wholesaling Real Estate CRM — ${planDetails.name}, billed ${billing}.`,
+                },
+                unit_amount: planDetails.unitAmount,
+                recurring: { interval: planDetails.interval },
+              },
+              quantity: 1,
+            },
+          ],
+          // No trial_period_days / trial_settings: payment is due immediately.
+          subscription_data: {
+            metadata: { email, tier, billing },
+          },
+          metadata: { email, tier, billing },
+          success_url: `${returnUrl}/#/signup-success?session_id={CHECKOUT_SESSION_ID}&email=${encodeURIComponent(email)}`,
+          cancel_url: `${returnUrl}/#/signup?tier=${tier}`,
+        });
+      } catch (stripeErr) {
+        console.error("[signup] Stripe checkout session creation error:", stripeErr);
+        return err("Could not start checkout. Please try again in a moment.", 502);
+      }
+      db.query("UPDATE pending_signups SET stripe_session_id = ? WHERE email = ?").run(session.id, email);
+      return json(
+        {
+          ok: true,
+          checkoutUrl: session.url,
+          stripeSessionId: session.id,
+          provisioned: false,
+          tier,
+          billing,
+          message: "Complete payment to activate your workspace.",
+        },
+        200,
+      );
+    }
+
+    // Branch B — no Stripe keys (local/dev): direct provisioning, unchanged.
     let provisioned: { orgId: number; userId: number };
     try {
       provisioned = insertOrgWithMember({
@@ -2965,52 +3125,6 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       appUrl: returnUrl,
     });
 
-    if (s && body.skipStripe !== true) {
-      try {
-        const session = await s.checkout.sessions.create({
-          mode: "subscription",
-          payment_method_types: ["card"],
-          customer_email: email,
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `Revzenta CRM — ${planDetails.name}`,
-                  description: `Revzenta Wholesaling Real Estate CRM (${planDetails.name}) - Includes 14-day risk-free trial`,
-                },
-                unit_amount: planDetails.price,
-                recurring: { interval: "month" },
-              },
-              quantity: 1,
-            },
-          ],
-          subscription_data: {
-            trial_period_days: 14,
-            metadata: { orgId: String(provisioned.orgId), email, tier },
-          },
-          metadata: { orgId: String(provisioned.orgId), email, tier },
-          success_url: `${returnUrl}/#/signup-success?session_id={CHECKOUT_SESSION_ID}&email=${encodeURIComponent(email)}`,
-          cancel_url: `${returnUrl}/#/signup?tier=${tier}`,
-        });
-
-        const token = createSession(provisioned.userId);
-        return json(
-          {
-            ok: true,
-            checkoutUrl: session.url,
-            stripeSessionId: session.id,
-            provisioned: true,
-            orgId: provisioned.orgId,
-          },
-          200,
-          { "Set-Cookie": sessionCookie(token) },
-        );
-      } catch (stripeErr) {
-        console.error("[signup] Stripe checkout session creation error:", stripeErr);
-      }
-    }
-
     const token = createSession(provisioned.userId);
     const user = getUserById(provisioned.userId);
     return json(
@@ -3020,7 +3134,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         provisioned: true,
         user: user ?? null,
         tier,
-        message: "Account successfully created and 14-day trial activated!",
+        message: "Account successfully created! Welcome to Revzenta CRM.",
       },
       201,
       { "Set-Cookie": sessionCookie(token) },
@@ -3064,10 +3178,23 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     if (email && stripeEmail && email !== stripeEmail) {
       return err("This checkout session does not belong to that email address.", 403);
     }
-    const user = getUserByEmail(lookupEmail);
-    if (!user) return err("No account found for this checkout session.", 404);
-    const token = createSession(user.id);
-    return json({ ok: true, user: toUser(user) }, 200, { "Set-Cookie": sessionCookie(token) });
+    // Post-payment provisioning (2026-09-08): the workspace is created HERE
+    // (or was already created by the webhook — provisionPendingSignup is
+    // idempotent on email), then the new user is signed in.
+    let authed = getUserById((getUserByEmail(lookupEmail)?.id ?? -1));
+    if (!authed) {
+      const provisioned = await provisionPendingSignup({
+        lookupEmail,
+        sessionId,
+        checkoutMeta: (checkout?.metadata ?? {}) as Record<string, string>,
+        appUrl: appUrlFrom(req),
+      });
+      if (!provisioned) return err("No signup found for this checkout session.", 404);
+      authed = getUserById(provisioned.userId);
+      if (!authed) return err("Workspace setup failed. Please contact support.", 500);
+    }
+    const token = createSession(authed.id);
+    return json({ ok: true, user: authed }, 200, { "Set-Cookie": sessionCookie(token) });
   }
 
   /* Auth */
@@ -3326,6 +3453,23 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     }
     if (typeof event.type !== "string") return err("Missing event type.", 400);
     const obj = event.data?.object ?? {};
+    // Post-payment provisioning: a completed self-serve checkout provisions
+    // the workspace (idempotent on email) BEFORE the owner-client invoice
+    // bookkeeping below. Webhook needs no appUrl (no email credentials sent
+    // from here — the welcome email fires on the signup-complete path).
+    if (event.type === "checkout.session.completed") {
+      const meta = (obj.metadata ?? {}) as Record<string, unknown>;
+      const metaEmail =
+        typeof meta.email === "string" && meta.email.trim() !== ""
+          ? meta.email.trim().toLowerCase()
+          : ((obj.customer_email ?? (obj.customer_details as { email?: unknown } | null)?.email ?? "") as string)
+              .toString()
+              .trim()
+              .toLowerCase();
+      if (metaEmail) {
+        await provisionPendingSignup({ lookupEmail: metaEmail, sessionId: typeof obj.id === "string" ? obj.id : "" });
+      }
+    }
     if (
       event.type === "checkout.session.completed" ||
       event.type === "invoice.paid" ||

@@ -1850,7 +1850,7 @@ export default function Dashboard({
                     <div style={{ fontSize: "26px", marginBottom: "6px" }}>🎯</div>
                     <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Inbound Sales Leads Yet</p>
                     <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
-                      Website visitors requesting demos or starting trials will populate your inbound funnel.
+                      Website visitors requesting demos or signing up will populate your inbound funnel.
                     </p>
                     {onGoToLeads && (
                       <button

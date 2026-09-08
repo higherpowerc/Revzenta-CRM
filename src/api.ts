@@ -54,6 +54,7 @@ export const api = {
     email: string;
     password: string;
     tier?: string;
+    billing?: "monthly" | "annual";
     skipStripe?: boolean;
   }) =>
     request<{

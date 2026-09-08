@@ -35,7 +35,7 @@ export default function SignupSuccess({
           setMessage("Payment confirmed — your workspace is ready!");
         } else {
           setStatus("error");
-          setMessage("No checkout found to complete. Please sign in with the account you just created.");
+          setMessage("We could not find a completed payment for this signup. Your workspace is created only after payment — please complete checkout, then sign in.");
         }
       })
       .catch((err) => {

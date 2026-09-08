@@ -598,10 +598,10 @@ export function sendSignupWelcomeEmail(opts: {
   const loginUrl = `${opts.appUrl}/#/login`;
   const tierName =
     opts.tier === "scale"
-      ? "Scale Empire Plan ($399/mo)"
+      ? "Scale Empire Plan ($79/mo)"
       : opts.tier === "starter"
-      ? "Starter Wholesaler Plan ($79/mo)"
-      : "Wholesale Pro Plan ($199/mo)";
+      ? "Starter Wholesaler Plan ($24.99/mo)"
+      : "Wholesale Pro Plan ($59.99/mo)";
 
   const text = [
     `Welcome to ${biz}!`,

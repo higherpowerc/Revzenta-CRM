@@ -1347,7 +1347,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
     : scope === "middle"
     ? "Qualified wholesale CRM prospects currently in onboarding live here — send agreements, track signatures, and collect payments."
     : ownerOrg && scope === "first"
-    ? "Inbound website inquiries, trial signups, and demo requests for your Wholesale CRM will appear here."
+    ? "Inbound website inquiries, new signups, and demo requests for your Wholesale CRM will appear here."
     : ownerOrg
     ? "Inbound sales leads will appear here."
     : "Add your first client to start tracking the pipeline.";

@@ -2007,6 +2007,24 @@ CREATE TABLE IF NOT EXISTS privacy_suppression_registry (
 );
 
 CREATE INDEX IF NOT EXISTS idx_privacy_suppression_org_phone ON privacy_suppression_registry(org_id, phone);
+
+-- Pending self-serve signups (owner decision 2026-09-08: no free trial, no
+-- workspace access before payment). When Stripe is configured, POST
+-- /api/auth/signup stores the signup intent HERE and returns a checkout URL --
+-- no org/user row is created until payment completes (webhook
+-- checkout.session.completed or the verified /api/auth/signup-complete path
+-- provisions from this row). Idempotent per email; consumed rows are deleted.
+CREATE TABLE IF NOT EXISTS pending_signups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE,
+  workspace_name TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  tier TEXT NOT NULL DEFAULT 'pro',
+  billing TEXT NOT NULL DEFAULT 'monthly',
+  stripe_session_id TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_pending_signups_session ON pending_signups(stripe_session_id);
 `);
 
 export interface RentcastUsageInfo {
