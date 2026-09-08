@@ -3,6 +3,9 @@ import { api, ApiError } from "./api";
 import type { User } from "./types";
 import ThemeToggle from "./ThemeToggle";
 import revzentaLogo from "./assets/revzenta-logo.png";
+import revzentaLogoDark from "./assets/revzenta-logo-darkmode.png";
+import revzentaLogoTransparent from "./assets/revzenta-logo-transparent.png";
+import { useTheme } from "./theme";
 
 /**
  * Sign-in card with a "Forgot password?" link (3k) that swaps to a small
@@ -25,6 +28,9 @@ export default function Login({
   const [setupMsg, setSetupMsg] = useState<string | null>(null);
   const [forgotMsg, setForgotMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [theme] = useTheme();
+  const isLight = theme === "light";
+  const activeLogo = isLight ? revzentaLogoTransparent : revzentaLogoDark;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -88,16 +94,18 @@ export default function Login({
       </div>
       <div className="login-glow" aria-hidden="true" />
       <div className="login-card">
-        <div className="login-brand" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+        <div className="login-brand" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
           <img
-            src={revzentaLogo}
-            alt="Revzenta Logo"
+            src={activeLogo}
+            alt="Revzenta — Higher Power Consulting LLC"
             style={{
-              width: "110px",
+              width: "220px",
+              maxWidth: "85%",
               height: "auto",
-              borderRadius: "10px",
               objectFit: "contain",
-              filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.12))",
+              filter: isLight
+                ? "drop-shadow(0 4px 12px rgba(0,0,0,0.1))"
+                : "drop-shadow(0 4px 16px rgba(0, 168, 159, 0.35))",
             }}
           />
           <div style={{ textAlign: "center" }}>

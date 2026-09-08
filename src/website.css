@@ -108,13 +108,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 72px;
+  min-height: 76px;
 }
 
 .rw-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   text-decoration: none;
   color: var(--rw-text);
   font-weight: 700;
@@ -122,6 +122,29 @@
   letter-spacing: -0.02em;
   cursor: pointer;
   user-select: none;
+}
+
+.rw-brand-logo {
+  height: 52px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.rw-brand:hover .rw-brand-logo {
+  transform: scale(1.025);
+}
+
+@media (max-width: 768px) {
+  .rw-nav-inner {
+    min-height: 68px;
+  }
+  .rw-brand-logo {
+    height: 42px;
+    max-width: 190px;
+  }
 }
 
 .rw-brand-icon {
@@ -245,6 +268,41 @@
   background: var(--rw-hero-glow);
   pointer-events: none;
   z-index: 0;
+.rw-hero-brand-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  padding: 10px 28px;
+  border-radius: 18px;
+  background: var(--rw-surface);
+  border: 1px solid var(--rw-border);
+  box-shadow: 0 10px 36px var(--rw-primary-glow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rw-hero-brand-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 44px var(--rw-primary-glow);
+}
+
+.rw-hero-logo {
+  height: 64px;
+  width: auto;
+  max-width: 300px;
+  object-fit: contain;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .rw-hero-brand-card {
+    padding: 8px 20px;
+    margin-bottom: 18px;
+  }
+  .rw-hero-logo {
+    height: 48px;
+    max-width: 220px;
+  }
 }
 
 .rw-badge {
