@@ -165,18 +165,23 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
       {/* ── Navigation Bar ── */}
       <header className="rw-nav">
         <div className="rw-container rw-nav-inner">
-          <div className="rw-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+          <div
+            className="rw-brand"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            title="Revzenta — Return to Top"
+            style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+          >
             <img
               src={revzentaLogo}
-              alt="Revzenta Logo"
+              alt="Revzenta"
               style={{
-                height: "38px",
+                height: "46px",
                 width: "auto",
-                borderRadius: "6px",
+                borderRadius: "8px",
                 objectFit: "contain",
+                display: "block",
               }}
             />
-            <span style={{ fontSize: "19px", fontWeight: 800, letterSpacing: "-0.02em" }}>Revzenta</span>
           </div>
 
           <ul className="rw-nav-links">
