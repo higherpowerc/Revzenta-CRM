@@ -242,9 +242,9 @@ export default function Settings({
   const MEMBER_TAB_LABELS: { tab: TenantTab; label: string; icon: string }[] = isWholesaleEffective
     ? [
         { tab: "dashboard", label: "Dashboard", icon: "📊" },
-        { tab: "clients", label: "Opportunities", icon: "🏘️" },
-        { tab: "offers", label: "Offers Repository", icon: "📑" },
+        { tab: "clients", label: "Creative Hub", icon: "🏘️" },
         { tab: "documents", label: "Transaction Hub", icon: "🤝" },
+        { tab: "offers", label: "Offers Repository", icon: "📑" },
         { tab: "buybox", label: "Buy Box", icon: "🎯" },
         { tab: "investors", label: "Investors", icon: "💼" },
         { tab: "connections", label: "Connections", icon: "🔌" },

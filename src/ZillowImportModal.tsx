@@ -227,7 +227,7 @@ export default function ZillowImportModal({
         onClose();
       }
     } catch (e: any) {
-      setSaveError(e?.message || "Failed to save property to Opportunities.");
+      setSaveError(e?.message || "Failed to save property to Creative Hub.");
     } finally {
       setSaving(false);
     }
@@ -282,7 +282,7 @@ export default function ZillowImportModal({
               <span style={{ fontSize: "20px" }}>🔗</span> Property URL Link
             </h3>
             <p style={{ margin: "4px 0 0 0", fontSize: "12.5px", color: "var(--muted, #94a3b8)" }}>
-              Paste any Zillow, Redfin, or Realtor.com URL to automatically pull MLS specs, AVM valuation, and comps into Opportunities.
+              Paste any Zillow, Redfin, or Realtor.com URL to automatically pull MLS specs, AVM valuation, and comps into Creative Hub.
             </p>
           </div>
           <button
@@ -408,7 +408,7 @@ export default function ZillowImportModal({
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border, #242b35)", paddingBottom: "10px" }}>
                 <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
-                  📋 Opportunities Data Preview
+                  📋 Creative Hub Data Preview
                 </span>
                 {enriched?.estimatedRent ? (
                   <span style={{ fontSize: "12px", color: "var(--primary, #d6ff3f)", fontWeight: 700 }}>
@@ -743,7 +743,7 @@ export default function ZillowImportModal({
               }}
             >
               <span>{saving ? "⏳" : "💾"}</span>
-              <span>{saving ? "Saving..." : "Save to Opportunities"}</span>
+              <span>{saving ? "Saving..." : "Save to Creative Hub"}</span>
             </button>
           </div>
         </div>
@@ -805,7 +805,7 @@ export default function ZillowImportModal({
             </div>
 
             <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "20px" }}>
-              💡 <strong>Tip:</strong> You can still save this property opportunity by filling in the details manually below, or raise your monthly limit in <strong>Connections &gt; RentCast API Guard</strong>.
+              💡 <strong>Tip:</strong> You can still save this property to Creative Hub by filling in the details manually below, or raise your monthly limit in <strong>Connections &gt; RentCast API Guard</strong>.
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>

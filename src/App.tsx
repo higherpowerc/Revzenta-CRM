@@ -338,9 +338,9 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard";
-        case "leads": return "Opportunities";
-        case "offers": return "Offers Repository";
+        case "leads": return "Creative Hub";
         case "documents": return "Transaction Hub";
+        case "offers": return "Offers Repository";
         case "buybox": return "Buy Box";
         case "clients": return "Investors";
         case "connections": return "Connections";
@@ -881,7 +881,7 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 2. Opportunities */}
+                {/* 2. Creative Hub */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
@@ -892,29 +892,14 @@ export default function App() {
                       setView("leads");
                       setMobileMenuOpen(false);
                     }}
-                    title="Wholesale property pipeline and acquisition opportunities"
+                    title="Wholesale property pipeline and creative underwriting hub"
                   >
                     <span className="tab-icon">🏘️</span>
-                    <span>Opportunities</span>
+                    <span>Creative Hub</span>
                   </button>
                 )}
 
-                {/* 3. Offers Repository */}
-                {canSeeTab("offers") && (
-                  <button
-                    className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setView("offers");
-                      setMobileMenuOpen(false);
-                    }}
-                    title="Wholesale purchase proposals & dispatched offers repository"
-                  >
-                    <span className="tab-icon">📑</span>
-                    <span>Offers Repository</span>
-                  </button>
-                )}
-
-                {/* 4. Transaction Hub */}
+                {/* 3. Transaction Hub */}
                 {canSeeTab("documents") && (
                   <button
                     className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
@@ -926,6 +911,21 @@ export default function App() {
                   >
                     <span className="tab-icon">🤝</span>
                     <span>Transaction Hub</span>
+                  </button>
+                )}
+
+                {/* 4. Offers Repository */}
+                {canSeeTab("offers") && (
+                  <button
+                    className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setView("offers");
+                      setMobileMenuOpen(false);
+                    }}
+                    title="Wholesale purchase proposals & dispatched offers repository"
+                  >
+                    <span className="tab-icon">📑</span>
+                    <span>Offers Repository</span>
                   </button>
                 )}
 
