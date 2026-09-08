@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "r
 import Login from "./Login";
 import ResetPassword from "./ResetPassword";
 import Signup from "./Signup";
+import SignupSuccess from "./SignupSuccess";
 import Dashboard from "./Dashboard";
 import Clients, { type Filter } from "./Clients";
 import ClientsDirectory from "./ClientsDirectory";
@@ -83,10 +84,12 @@ export default function App() {
     const l = h.toLowerCase();
     return l.startsWith("#/website") || l.includes("privacy") || l.includes("terms") || l.includes("security") || l.includes("agreement");
   };
-  const isSignupHash = (h: string) => h.startsWith("#/signup");
+  const isSignupHash = (h: string) => h.startsWith("#/signup") && !h.startsWith("#/signup-success");
+  const isSignupSuccessHash = (h: string) => h.startsWith("#/signup-success");
 
   const [viewingWebsite, setViewingWebsite] = useState<boolean>(() => isWebsiteOrLegalHash(window.location.hash));
   const [viewingSignup, setViewingSignup] = useState<boolean>(() => isSignupHash(window.location.hash));
+  const [viewingSignupSuccess, setViewingSignupSuccess] = useState<boolean>(() => isSignupSuccessHash(window.location.hash));
   const [signupTier, setSignupTier] = useState<string>(() => {
     const h = window.location.hash;
     const q = h.includes("?") ? h.slice(h.indexOf("?") + 1) : "";
@@ -95,24 +98,33 @@ export default function App() {
 
   useEffect(() => {
     const onHash = () => {
-      if (isSignupHash(window.location.hash)) {
+      if (isSignupSuccessHash(window.location.hash)) {
+        setViewingSignupSuccess(true);
+        setViewingSignup(false);
+        setShowLogin(false);
+        setViewingWebsite(false);
+      } else if (isSignupHash(window.location.hash)) {
         const q = window.location.hash.includes("?") ? window.location.hash.slice(window.location.hash.indexOf("?") + 1) : "";
         const t = new URLSearchParams(q).get("tier") || "pro";
         setSignupTier(t);
         setViewingSignup(true);
+        setViewingSignupSuccess(false);
         setShowLogin(false);
         setViewingWebsite(false);
       } else if (window.location.hash.startsWith("#/login")) {
         setShowLogin(true);
         setViewingSignup(false);
+        setViewingSignupSuccess(false);
         setViewingWebsite(false);
       } else if (isWebsiteOrLegalHash(window.location.hash)) {
         setShowLogin(false);
         setViewingSignup(false);
+        setViewingSignupSuccess(false);
         setViewingWebsite(true);
       } else {
         setViewingWebsite(false);
         setViewingSignup(false);
+        if (!window.location.hash.startsWith("#/signup-success")) setViewingSignupSuccess(false);
       }
     };
     window.addEventListener("hashchange", onHash);
@@ -568,6 +580,22 @@ export default function App() {
   }
 
   if (!user) {
+    if (viewingSignupSuccess) {
+      return (
+        <SignupSuccess
+          onDone={(u) => {
+            setUser(u);
+            setViewingSignupSuccess(false);
+            window.location.hash = "";
+          }}
+          onSignIn={() => {
+            setViewingSignupSuccess(false);
+            setShowLogin(true);
+            window.location.hash = "#/login";
+          }}
+        />
+      );
+    }
     if (viewingSignup) {
       return (
         <Signup
@@ -579,6 +607,7 @@ export default function App() {
           }}
           onSignIn={() => {
             setViewingSignup(false);
+            setViewingSignupSuccess(false);
             setShowLogin(true);
             window.location.hash = "#/login";
           }}
