@@ -4,6 +4,7 @@ import PrivacyPolicy from "./PrivacyPolicy";
 import TermsOfService from "./TermsOfService";
 import SecurityPage from "./SecurityPage";
 import CustomerAgreement from "./CustomerAgreement";
+import revzentaLogo from "./assets/revzenta-logo.png";
 
 interface WebsiteProps {
   onSignIn: () => void;
@@ -164,9 +165,18 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
       {/* ── Navigation Bar ── */}
       <header className="rw-nav">
         <div className="rw-container rw-nav-inner">
-          <div className="rw-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <div className="rw-brand-icon">R</div>
-            <span>Revzenta</span>
+          <div className="rw-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+            <img
+              src={revzentaLogo}
+              alt="Revzenta Logo"
+              style={{
+                height: "38px",
+                width: "auto",
+                borderRadius: "6px",
+                objectFit: "contain",
+              }}
+            />
+            <span style={{ fontSize: "19px", fontWeight: 800, letterSpacing: "-0.02em" }}>Revzenta</span>
           </div>
 
           <ul className="rw-nav-links">

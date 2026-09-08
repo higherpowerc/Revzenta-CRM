@@ -353,79 +353,12 @@ export default function Finance({ canEdit = true, ownerOrg = false }: { canEdit?
     setError(null);
     try {
       await api.clientPaymentPaid(c.id);
-      /* Notice lands in the Stripe status window (where the action lives). */
-      setPendingNotice({ kind: "success", text: `Payment recorded for ${c.companyName} — column shows Paid.` });
+      setHubNotice({ kind: "success", text: `Payment recorded for ${c.companyName} — status updated to Paid.` });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not mark the payment as received.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  /** Owner-only list of billed clients (paymentStatus !== none) — the live
-   *  Stripe status readout on the Finance tab. */
-  const bills = useMemo(
-    () => (ownerOrg ? clients.filter((c) => c.paymentStatus && c.paymentStatus !== "none") : []),
-    [ownerOrg, clients],
-  );
-
-  /* Owner workflow views (2026-08-25) — "Pending payment": clients who signed
-     the agreement but have NOT paid yet (paymentStatus !== 'paid'), regardless
-     of whether a workspace has been built. This replaces the old "Signed ·
-     account pending" card (that one wrongly required an account to exist).
-     Per the owner's sales flow a signed agreement lands here immediately; the
-     Clients-tab "Paid but unbuilt" window handles account building. Lost
-     clients are excluded. Each row sends the client a Stripe payment link via
-     POST /api/clients/:id/payment-link (which returns 503 "Stripe not
-     configured" until the owner wires the Stripe keys). */
-  const pendingPayment = useMemo(
-    () =>
-      ownerOrg
-        ? clients.filter((c) => c.agreementStatus === "signed" && c.paymentStatus !== "paid" && !c.lost)
-        : [],
-    [ownerOrg, clients],
-  );
-  /* Per-row amount inputs for the "Pending payment" window. Default each to the
-     client's monthlyAmount when set; the row input is its own live value. */
-  const [pendingAmounts, setPendingAmounts] = useState<Record<number, string>>({});
-  const [sendingId, setSendingId] = useState<number | null>(null);
-  const [pendingNotice, setPendingNotice] = useState<{ kind: "success" | "warn"; text: string } | null>(null);
-  async function handleSendPaymentLink(c: Client) {
-    const raw = (pendingAmounts[c.id] ?? "").trim();
-    const a = Number(raw);
-    if (!raw || !Number.isFinite(a) || a <= 0) {
-      setPendingNotice({
-        kind: "warn",
-        text: `Enter an amount for ${c.companyName} before sending the payment link.`,
-      });
-      return;
-    }
-    setSendingId(c.id);
-    setPendingNotice(null);
-    try {
-      await api.clientPaymentLink(c.id, { amount: a, interval: "month" });
-      setPendingNotice({
-        kind: "success",
-        text: `Payment link sent to ${c.companyName} — Stripe portal emailed.`,
-      });
-      await load();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setPendingNotice({
-          kind: "warn",
-          text: "This client's agreement must be signed before sending a payment link.",
-        });
-      } else if (err instanceof ApiError && err.status === 503) {
-        setPendingNotice({
-          kind: "warn",
-          text: "Stripe is not connected yet. Once Stripe keys are added, this will email the client the payment link.",
-        });
-      } else {
-        setError(err instanceof Error ? err.message : "Could not send the payment link.");
-      }
-    } finally {
-      setSendingId(null);
     }
   }
   if (!invoices) {
@@ -466,286 +399,64 @@ export default function Finance({ canEdit = true, ownerOrg = false }: { canEdit?
       )}
 
       <div className="kpi-row kpi-row-4">
-        <div className="card kpi">
-          <span className="kpi-label">Total invoiced</span>
-          <span className="kpi-value lime">{money(totals.invoiced)}</span>
-          <span className="kpi-note">Draft + sent + paid amounts</span>
-        </div>
-        <div className="card kpi">
-          <span className="kpi-label">Paid</span>
-          <span className="kpi-value green">{money(totals.paid)}</span>
-          <span className="kpi-note">Marked paid — money in</span>
-        </div>
-        <div className="card kpi">
-          <span className="kpi-label">Outstanding</span>
-          <span className="kpi-value">{money(totals.outstanding)}</span>
-          <span className="kpi-note">Sent, not yet paid</span>
-        </div>
-        <div className="card kpi">
-          <span className="kpi-label">Overdue</span>
-          <span className="kpi-value red">{money(totals.overdue)}</span>
-          <span className="kpi-note">Sent, past due date</span>
-        </div>
-      </div>
-
-      <div className="toolbar">
-        <div className="seg">
-          {(["all", ...INVOICE_STATUSES] as Filter[]).map((f) => (
-            <button
-              key={f}
-              className={filter === f ? "seg-btn active" : "seg-btn"}
-              onClick={() => setFilter(f)}
-            >
-              {f === "all" ? "All" : invoiceStatusLabel(f)}
-              <span className="seg-count">{counts[f]}</span>
-            </button>
-          ))}
-        </div>
-        <input
-          className="search"
-          type="search"
-          placeholder="Search clients…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search clients"
-        />
-      </div>
-
-      {canEdit && (
-        <form className="card inv-add" onSubmit={handleQuickAdd}>
-          <SearchableSelect
-            piiBlur={pii}
-            className="inv-add-client"
-            value={clientId}
-            onChange={setClientId}
-            options={clients.map((c) => ({
-              value: String(c.id),
-              label: c.companyName + (c.archived ? " (archived)" : ""),
-            }))}
-            placeholder="Search clients…"
-            ariaLabel="Invoice client"
-            emptyLabel="No client"
-          />
-          <div className="inv-add-amount">
-            <span className="inv-dollar" aria-hidden="true">
-              $
-            </span>
-            <input
-              type="number"
-              ref={amountRef}
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              aria-label="Invoice amount"
-            />
-          </div>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            aria-label="Invoice due date"
-          />
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as InvoiceStatus)}
-            aria-label="Invoice status"
-          >
-            {INVOICE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {invoiceStatusLabel(s)}
-              </option>
-            ))}
-          </select>
-          <button className="btn btn-primary" disabled={busy}>
-            Add
-          </button>
-        </form>
-      )}
-
-      {/* Finance cockpit / reporting (backlog a8241fea) — OWNER-only analytics
-          over real product records. The revenue figures are "based on invoices
-          recorded" — the business is still in Stripe TEST mode, so nothing here
-          represents live charge revenue (no Stripe charge is ever created from
-          these figures). Tenants never render this section. */}
-      {ownerOrg && (
-        <section className="card cockpit" aria-label="Finance cockpit / reporting">
-          <div className="page-head" style={{ marginBottom: "var(--stack-gap)" }}>
-            <div>
-              <h2 className="h3">
-                Finance <em className="serif">cockpit</em>
-              </h2>
-              <p className="page-sub">
-                Reporting over what you've recorded — revenue below is{" "}
-                <strong>based on invoices recorded</strong>, not live charge revenue (Stripe is still in
-                test mode).
-              </p>
-            </div>
-          </div>
-
-          <h3 className="cockpit-sub">
-            Subscription MRR <span className="cockpit-sub-note">client monthlyAmount · active clients</span>
-          </h3>
-          <div className="kpi-row kpi-row-2">
-            <div className="card kpi" aria-label="Subscription MRR">
+        {ownerOrg ? (
+          <>
+            <div className="card kpi">
               <span className="kpi-label">Subscription MRR</span>
               <span className="kpi-value lime">{money(subscriptionMrr.mrr)}</span>
-              <span className="kpi-note">
-                Sum of {subscriptionMrr.activeCount} active client{subscriptionMrr.activeCount === 1 ? "" : "s"}'
-                monthlyAmount
-              </span>
+              <span className="kpi-note">{subscriptionMrr.activeCount} active recurring client{subscriptionMrr.activeCount === 1 ? "" : "s"}</span>
             </div>
-            <div className="card kpi" aria-label="Active subscription clients">
-              <span className="kpi-label">Active clients on a plan</span>
+            <div className="card kpi">
+              <span className="kpi-label">Total Collected</span>
+              <span className="kpi-value green">{money(totals.paid)}</span>
+              <span className="kpi-note">Paid invoices &amp; settlements</span>
+            </div>
+            <div className="card kpi">
+              <span className="kpi-label">Outstanding Invoices</span>
+              <span className="kpi-value">{money(totals.outstanding)}</span>
+              <span className="kpi-note">Sent, awaiting payment</span>
+            </div>
+            <div className="card kpi">
+              <span className="kpi-label">Active Subscriptions</span>
               <span className="kpi-value">{subscriptionMrr.activeCount}</span>
-              <span className="kpi-note">Sold · agreement signed · payment received</span>
+              <span className="kpi-note">Under contract &amp; active</span>
             </div>
-          </div>
-
-          <p className="inv-notes cockpit-foot">
-            Owner-only view over your own invoices and client records — figures are never fabricated and no
-            payment is charged from this screen.
-          </p>
-        </section>
-      )}
-
-      {ownerOrg && (
-        <div className="card pending-bills">
-          <div className="page-head" style={{ marginBottom: "var(--stack-gap)" }}>
-            <div>
-              <h2 className="h3">
-                Stripe <em className="serif">status</em>
-              </h2>
-              <p className="page-sub">
-                Payment tracker across your client accounts — who's signed but unpaid, and the live payment
-                status of every billed account. Set an amount and click "Send payment link" to email the
-                client the Stripe portal.
-              </p>
+          </>
+        ) : (
+          <>
+            <div className="card kpi">
+              <span className="kpi-label">Total invoiced</span>
+              <span className="kpi-value lime">{money(totals.invoiced)}</span>
+              <span className="kpi-note">Draft + sent + paid amounts</span>
             </div>
-          </div>
-          {pendingNotice && (
-            <div
-              className={pendingNotice.kind === "success" ? "alert alert-success" : "alert alert-warn"}
-              role={pendingNotice.kind === "success" ? "status" : "alert"}
-              style={{ marginBottom: "var(--stack-gap)" }}
-            >
-              {pendingNotice.text}
+            <div className="card kpi">
+              <span className="kpi-label">Paid</span>
+              <span className="kpi-value green">{money(totals.paid)}</span>
+              <span className="kpi-note">Marked paid — money in</span>
             </div>
-          )}
-          <h3 className="cockpit-sub">
-            Pending payment <span className="cockpit-sub-note">agreement signed, not yet paid</span>
-          </h3>
-          {pendingPayment.length === 0 ? (
-            <p className="cockpit-empty">No pending payments — every signed client has paid.</p>
-          ) : (
-            <ul className="inv-list" style={{ margin: 0 }}>
-              {pendingPayment.map((c) => (
-                <li key={c.id} className="inv">
-                  <div className="inv-body">
-                    <div className="inv-client">
-                      <span className={`chip${blurPii(pii)}`}>{c.companyName}</span>
-                      <span className="inv-notes">Signed · awaiting payment</span>
-                    </div>
-                  </div>
-                  <div className="row-actions pending-pay-actions">
-                    <div className="inv-add-amount">
-                      <span className="inv-dollar" aria-hidden="true">
-                        $
-                      </span>
-                      <input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        inputMode="decimal"
-                        aria-label={`Payment amount for ${c.companyName}`}
-                        placeholder="0.00"
-                        value={pendingAmounts[c.id] ?? (c.monthlyAmount ? String(c.monthlyAmount) : "")}
-                        onChange={(e) => setPendingAmounts((m) => ({ ...m, [c.id]: e.target.value }))}
-                      />
-                    </div>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => handleSendPaymentLink(c)}
-                      disabled={sendingId === c.id}
-                    >
-                      {sendingId === c.id ? "Sending…" : "Send payment link"}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {bills.length > 0 && (
-            <>
-              <h3 className="cockpit-sub" style={{ marginTop: "var(--stack-gap)" }}>
-                Billed accounts <span className="cockpit-sub-note">payment status</span>
-              </h3>
-              <ul className="inv-list" style={{ margin: 0 }}>
-                {bills.map((c) => (
-                  <li key={c.id} className="inv">
-                    <div className="inv-body">
-                      <div className="inv-client">
-                        <span className={`chip${blurPii(pii)}`}>{c.companyName}</span>
-                        <span className="inv-notes">
-                          {c.paymentAmountCents ? money(c.paymentAmountCents / 100) : "—"}
-                          {c.paymentStatus === "paid" && c.paidAt
-                            ? ` · paid ${new Date(c.paidAt).toLocaleString()}`
-                            : ""}
-                        </span>
-                      </div>
-                      <div className="inv-meta">
-                        <span
-                          className={
-                            c.paymentStatus === "paid" ? "badge tone-green" : "badge tone-amber"
-                          }
-                        >
-                          {c.paymentStatus === "paid"
-                            ? "Paid"
-                            : c.paymentStatus === "sent"
-                              ? "Sent"
-                              : c.paymentStatus}
-                        </span>
-                        {c.paymentLinkUrl && (
-                          <a
-                            className="inv-due"
-                            href={c.paymentLinkUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Stripe checkout link"
-                          >
-                            checkout ↗
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                    <div className="row-actions">
-                      {c.paymentStatus === "sent" && (
-                        <button className="icon-btn" onClick={() => handleMarkPaid(c)} disabled={busy}>
-                          Mark paid
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
+            <div className="card kpi">
+              <span className="kpi-label">Outstanding</span>
+              <span className="kpi-value">{money(totals.outstanding)}</span>
+              <span className="kpi-note">Sent, not yet paid</span>
+            </div>
+            <div className="card kpi">
+              <span className="kpi-label">Overdue</span>
+              <span className="kpi-value red">{money(totals.overdue)}</span>
+              <span className="kpi-note">Sent, past due date</span>
+            </div>
+          </>
+        )}
+      </div>
 
       {ownerOrg && canEdit && (
         <div className="card stripe-bill paying-hub" aria-label="Paying clients">
           <div className="page-head" style={{ marginBottom: "var(--stack-gap)" }}>
             <div>
               <h2 className="h3">
-                Paying <em className="serif">clients</em>
+                Paying <em className="serif">subscriptions &amp; accounts</em>
               </h2>
               <p className="page-sub">
-                Every client who completed the lead flow (Sold) in one place — edit the package tier,
-                subscription level, or deal value inline (saves on save/blur), and send each client's
-                Stripe payment link. Active on a plan = signed agreement + payment received.
+                Active recurring wholesale SaaS client subscriptions, monthly retainers, and 1-click Stripe billing.
               </p>
             </div>
           </div>
@@ -862,8 +573,19 @@ export default function Finance({ canEdit = true, ownerOrg = false }: { canEdit?
                               onClick={() => handleHubPaymentLink(c)}
                               disabled={hubLinkingId === c.id}
                             >
-                              {hubLinkingId === c.id ? "Sending…" : "Send payment link"}
+                              {hubLinkingId === c.id ? "Sending…" : "Send link"}
                             </button>
+                            {c.paymentStatus !== "paid" && (
+                              <button
+                                type="button"
+                                className="icon-btn"
+                                onClick={() => handleMarkPaid(c)}
+                                disabled={busy}
+                                title="Mark payment as received manually"
+                              >
+                                Mark paid
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -873,11 +595,84 @@ export default function Finance({ canEdit = true, ownerOrg = false }: { canEdit?
               </table>
             </div>
           )}
-          <p className="inv-notes cockpit-foot">
-            Edits save through the same org-scoped update path as the account hub; tenants never see
-            this window. No payment is charged from this screen — the client pays on Stripe's checkout.
-          </p>
         </div>
+      )}
+
+      <div className="toolbar">
+        <div className="seg">
+          {(["all", ...INVOICE_STATUSES] as Filter[]).map((f) => (
+            <button
+              key={f}
+              className={filter === f ? "seg-btn active" : "seg-btn"}
+              onClick={() => setFilter(f)}
+            >
+              {f === "all" ? "All" : invoiceStatusLabel(f)}
+              <span className="seg-count">{counts[f]}</span>
+            </button>
+          ))}
+        </div>
+        <input
+          className="search"
+          type="search"
+          placeholder="Search invoices & clients…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search clients"
+        />
+      </div>
+
+      {canEdit && (
+        <form className="card inv-add" onSubmit={handleQuickAdd}>
+          <SearchableSelect
+            piiBlur={pii}
+            className="inv-add-client"
+            value={clientId}
+            onChange={setClientId}
+            options={clients.map((c) => ({
+              value: String(c.id),
+              label: c.companyName + (c.archived ? " (archived)" : ""),
+            }))}
+            placeholder="Search clients…"
+            ariaLabel="Invoice client"
+            emptyLabel="No client"
+          />
+          <div className="inv-add-amount">
+            <span className="inv-dollar" aria-hidden="true">
+              $
+            </span>
+            <input
+              type="number"
+              ref={amountRef}
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              aria-label="Invoice amount"
+            />
+          </div>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            aria-label="Invoice due date"
+          />
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as InvoiceStatus)}
+            aria-label="Invoice status"
+          >
+            {INVOICE_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {invoiceStatusLabel(s)}
+              </option>
+            ))}
+          </select>
+          <button className="btn btn-primary" disabled={busy}>
+            Add Invoice
+          </button>
+        </form>
       )}
 
       {visible.length === 0 ? (

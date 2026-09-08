@@ -1892,18 +1892,16 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
         <div className="card table-wrap">
           <table className="table clients-table owner-leads sales-leads">
             <colgroup>
-              <col style={{ width: "26%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "24%" }} />
+              <col style={{ width: "36%" }} />
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "30%" }} />
               <col style={{ width: "20%" }} />
-              <col style={{ width: "22%" }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Business name or Individual name</th>
                 <th>Type</th>
                 <th>Contact information</th>
-                <th>Schedule Demo</th>
                 <th className="actions-th">Actions</th>
               </tr>
             </thead>
@@ -1976,22 +1974,6 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                         {c.email && <div className={`cell-sub${blurPii(pii)}`} title={c.email}>{c.email}</div>}
                         {c.phone && <div className={`cell-sub${blurPii(pii)}`} title={c.phone}>{c.phone}</div>}
                       </div>
-                    </td>
-                    <td data-label="Schedule Demo">
-                      <button
-                        type="button"
-                        className="schedule-demo-btn"
-                        title={
-                          c.demoScheduledAt
-                            ? `Demo scheduled for ${fmtDemoDateTime(c.demoScheduledAt)} — re-schedule or view it on the Calendar`
-                            : "Schedule a demo — pick a time + a meeting link; the lead is emailed an invite"
-                        }
-                        aria-label={`Schedule demo for ${primaryName(ownerOrg, c)}`}
-                        onClick={() => openDemoModal(c)}
-                        disabled={busy}
-                      >
-                        {c.demoScheduledAt ? "Re-schedule Demo" : "Schedule Demo"}
-                      </button>
                     </td>
                     <td data-label="Actions">
                       <OwnerActionsMenu

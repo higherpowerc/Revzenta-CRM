@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api, ApiError } from "./api";
 import type { User } from "./types";
 import ThemeToggle from "./ThemeToggle";
+import revzentaLogo from "./assets/revzenta-logo.png";
 
 /**
  * Sign-in card with a "Forgot password?" link (3k) that swaps to a small
@@ -87,13 +88,25 @@ export default function Login({
       </div>
       <div className="login-glow" aria-hidden="true" />
       <div className="login-card">
-        <div className="login-brand">
-          <span className="brand-mark lg">R</span>
-          <div>
-            <div className="login-name">
-              Revzenta
+        <div className="login-brand" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+          <img
+            src={revzentaLogo}
+            alt="Revzenta Logo"
+            style={{
+              width: "110px",
+              height: "auto",
+              borderRadius: "10px",
+              objectFit: "contain",
+              filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.12))",
+            }}
+          />
+          <div style={{ textAlign: "center" }}>
+            <div className="login-name" style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.02em" }}>
+              Revzenta CRM
             </div>
-            <div className="login-sub">Client pipeline CRM</div>
+            <div className="login-sub" style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "2px" }}>
+              Higher Power Consulting LLC
+            </div>
           </div>
         </div>
         <p className="login-tag">

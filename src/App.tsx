@@ -21,6 +21,7 @@ import Compliance from "./Compliance";
 import Website from "./Website";
 import { api } from "./api";
 import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User } from "./types";
+import revzentaLogo from "./assets/revzenta-logo.png";
 import { initials } from "./bits";
 import { PiiContext, PII_HIDDEN_KEY, blurPii, PiiEyeIcon, PiiEyeOffIcon } from "./pii";
 import ThemeToggle from "./ThemeToggle";
@@ -171,12 +172,11 @@ export default function App() {
      Dashboard KPI colors are driven by the theme (Light/Dark mode) to ensure
      complete legibility and contrast across all pages without manual adjustment. */
   const brandStyle = useMemo<CSSProperties | undefined>(
-    () =>
-      user?.accentColor
-        ? ({
-            "--accent": user.accentColor,
-          } as CSSProperties)
-        : undefined,
+    () => ({
+      "--accent": user?.accentColor && user.accentColor !== "#d6ff3f" ? user.accentColor : "#00a89f",
+      "--brand-teal": "#00a89f",
+      "--brand-navy": "#124690",
+    } as CSSProperties),
     [user?.accentColor],
   );
 
@@ -290,6 +290,8 @@ export default function App() {
       case "settings":
         return canSeeTab("settings");
       case "onboarding":
+      case "appointments":
+        return false;
       case "admin":
         return isOwnerCockpit;
       case "documents":
@@ -323,9 +325,7 @@ export default function App() {
         case "dashboard": return "Dashboard & ROI";
         case "finance": return "Revenue & Stripe";
         case "clients": return "Subscribers";
-        case "onboarding": return "Client Onboarding";
         case "leads": return "Sales Leads";
-        case "appointments": return "Demo Calls";
         case "tasks": return "Tasks";
         case "tickets": return "Support Tickets";
         case "documents": return "Signed Agreements";
@@ -608,7 +608,19 @@ export default function App() {
               }}
               aria-label="Go to dashboard"
             >
-              <span className="brand-mark">{brandMark}</span>
+              <img
+                src={revzentaLogo}
+                alt="Revzenta Logo"
+                className="brand-logo-img"
+                style={{
+                  height: "36px",
+                  width: "auto",
+                  borderRadius: "6px",
+                  objectFit: "contain",
+                  display: "inline-block",
+                  verticalAlign: "middle",
+                }}
+              />
               <span className="brand-text">
                 {isOwner ? (
                   <>
@@ -629,19 +641,6 @@ export default function App() {
               <ThemeToggle />
               <button
                 type="button"
-                className="icon-btn mobile-website-btn"
-                onClick={() => {
-                  setViewingWebsite(true);
-                  window.location.hash = "#/website";
-                  setMobileMenuOpen(false);
-                }}
-                title="View Revzenta Marketing Website"
-                aria-label="View Revzenta Marketing Website"
-              >
-                🌐
-              </button>
-              <button
-                type="button"
                 className={`mobile-menu-toggle ${mobileMenuOpen ? "active" : ""}`}
                 onClick={() => setMobileMenuOpen((o) => !o)}
                 aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -650,24 +649,6 @@ export default function App() {
                 <span className="mobile-menu-toggle-icon">{mobileMenuOpen ? "✕" : "☰"}</span>
                 <span className="mobile-menu-toggle-text">{mobileMenuOpen ? "Close" : "Menu"}</span>
               </button>
-            </div>
-          </div>
-
-          {/* Mobile active tab bar (visible only <= 960px): shows current tab name and opens menu on tap */}
-          <div
-            className="mobile-current-bar"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-            role="button"
-            tabIndex={0}
-            aria-label="Toggle navigation menu"
-          >
-            <div className="mobile-current-info">
-              <span className="mobile-current-icon">{activeTabIcon}</span>
-              <span className="mobile-current-label">{activeTabLabel}</span>
-            </div>
-            <div className="mobile-current-action">
-              <span className="mobile-current-hint">{mobileMenuOpen ? "Tap to close" : "All menus"}</span>
-              <span className="mobile-current-chevron">{mobileMenuOpen ? "▲" : "▼"}</span>
             </div>
           </div>
 
@@ -731,18 +712,6 @@ export default function App() {
                     + Build
                   </button>
                 </div>
-                <button
-                  className={effectiveViewFinal === "onboarding" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setOnboardingStage(null);
-                    setView("onboarding");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Track new subscribers moving through setup & onboarding"
-                >
-                  <span className="tab-icon">🚀</span>
-                  <span>Client Onboarding</span>
-                </button>
 
                 {/* 3. Sales & Growth Pipeline */}
                 <div className="nav-section-title">
@@ -761,17 +730,6 @@ export default function App() {
                 >
                   <span className="tab-icon">🎯</span>
                   <span>Sales Leads</span>
-                </button>
-                <button
-                  className={effectiveViewFinal === "appointments" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setView("appointments");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Sales demo calls & client onboarding sessions"
-                >
-                  <span className="tab-icon">📅</span>
-                  <span>Demo Calls</span>
                 </button>
                 <button
                   className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
@@ -796,24 +754,7 @@ export default function App() {
                   <span>Support Tickets</span>
                 </button>
 
-                {/* 4. Client CRM Live Preview */}
-                <div className="nav-section-title">
-                  <span>Client CRM Preview</span>
-                </div>
-                <button
-                  className={previewVertical === "wholesalebiz" ? "tab active tab-btype" : "tab tab-btype"}
-                  onClick={() => {
-                    setPreviewVertical("wholesalebiz");
-                    setView("dashboard");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Inspect and test drive the live Wholesale Real Estate workspace experience"
-                >
-                  <span className="tab-icon">🏠</span>
-                  <span>Wholesale Real Estate</span>
-                </button>
-
-                {/* 5. Legal & Platform Administration */}
+                {/* 4. Legal & Platform Administration */}
                 <div className="nav-section-title">
                   <span>Legal &amp; System</span>
                 </div>
@@ -1176,20 +1117,6 @@ export default function App() {
           <div className="nav-right">
             {/* Global theme toggle (Light / Dark mode) */}
             <ThemeToggle />
-            {/* View Marketing Website button */}
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => {
-                setViewingWebsite(true);
-                window.location.hash = "#/website";
-              }}
-              title="View Revzenta Marketing Website"
-              aria-label="View Revzenta Marketing Website"
-              style={{ fontSize: "14px", display: "inline-flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--surface)", cursor: "pointer" }}
-            >
-              🌐
-            </button>
             {/* Global privacy eye (owner request 2026-08-14) — blurs names,
                 phone, email, address everywhere while ON; "active" styling
                 (accent border/fill) marks the blurring state. */}
@@ -1232,41 +1159,6 @@ export default function App() {
             </button>
           </div>
         )}
-        {previewVertical && (
-          <div className="btype-preview-banner" role="status">
-            <div className="btype-preview-left">
-              <span className="btype-preview-icon">🏠</span>
-              <div className="btype-preview-text">
-                <div className="btype-preview-title">
-                  Viewing <strong>Wholesale Real Estate CRM</strong> (Client CRM Preview)
-                </div>
-                <div className="btype-preview-sub">
-                  Exploring the client-facing Wholesale Real Estate CRM pipeline, property leads, and deal modules.
-                </div>
-              </div>
-            </div>
-            <div className="btype-preview-actions">
-              <button
-                type="button"
-                className="btn btn-sm btn-primary btype-build-btn"
-                onClick={() => {
-                  setPreviewVertical(null);
-                  setCreateAccountOpen(true);
-                  setView("clients");
-                }}
-              >
-                + Build Client Account
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm btn-ghost btype-exit-btn"
-                onClick={() => setPreviewVertical(null)}
-              >
-                ✕ Exit to Owner CRM
-              </button>
-            </div>
-          </div>
-        )}
       <main className="main">
         {effectiveViewFinal === "dashboard" ? (
           <Dashboard
@@ -1284,15 +1176,7 @@ export default function App() {
               setLeadsFilter("active");
               setView("leads");
             }}
-            onGoToOnboarding={() => {
-              setOnboardingStage(null);
-              setView("onboarding");
-            }}
             onLaunchSubscriber={handleImpersonate}
-            onPreviewWholesale={() => {
-              setPreviewVertical("wholesalebiz");
-              setView("dashboard");
-            }}
             stages={stages}
             ownerOrg={isOwnerCockpit}
             isWholesale={isWholesale}
@@ -1328,21 +1212,6 @@ export default function App() {
           />
         ) : effectiveViewFinal === "buybox" ? (
           <BuyBoxMatcher canEdit={canEditTab("buybox")} />
-        ) : effectiveViewFinal === "onboarding" ? (
-          /* Owner request 2026-08-15 — OWNER ONLY: the Onboarding tab scopes
-             the pipeline to the MIDDLE stages (between first and terminal).
-             Client accounts never reach this view — no nav item, and the
-             dashboard routes middle stages to their single Leads tab. */
-          <Clients
-            stages={stages}
-            ownerOrg={isOwnerCockpit}
-            scope="middle"
-            initialStage={onboardingStage}
-            canEdit
-            isWholesale={isWholesale}
-            onGoToTransactions={() => setView("documents")}
-            verticalKey={verticalKey}
-          />
         ) : effectiveViewFinal === "clients" ? (
           /* Owner live-test reorg 2026-08-18 — the owner's Clients tab hosts
              the ACCOUNT management panel (create / view / reset / delete) via
@@ -1362,12 +1231,6 @@ export default function App() {
           /* Owner 2026-08-20 sales rework — the owner's Calendar view of
              demo-call appointments. Owner-workspace only. */
           <Calendar />
-        ) : effectiveViewFinal === "appointments" ? (
-          /* Appointments production (backlog 5a104eae): the general
-             appointments tab, in both workspaces. ownerOrg lets the component
-             pick the right API (owner /api/appointments vs tenant
-             /api/org/appointments) and controls the status-mutation actions. */
-          <Appointments ownerOrg={isOwnerCockpit} />
         ) : effectiveViewFinal === "tasks" ? (
           <Tasks canEdit={canEditTab("tasks")} />
         ) : effectiveViewFinal === "buyers" ? (

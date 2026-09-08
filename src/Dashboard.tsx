@@ -896,18 +896,6 @@ export default function Dashboard({
         </div>
         {ownerOrg && !isPropView && (
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            {onPreviewWholesale && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onPreviewWholesale}
-                title="Preview the Wholesale CRM interface used by your subscribers"
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <span>🏠</span>
-                <span>Preview Wholesale CRM</span>
-              </button>
-            )}
             {onGoToSubscribers && (
               <button
                 type="button"
@@ -1921,8 +1909,6 @@ export default function Dashboard({
                   badgeText={`${money(saas.platformAssignmentVolume)} Tracked`}
                   badgeTone="tone-lime"
                   subtitle="Aggregated wholesale inventory, assignment fees, and closed deals powered by Revzenta"
-                  onView={onPreviewWholesale}
-                  viewTitle="Preview Wholesale CRM"
                 />
 
                 <div className="window-stat-grid">
@@ -1972,16 +1958,9 @@ export default function Dashboard({
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      {onPreviewWholesale && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={onPreviewWholesale}
-                          style={{ fontSize: "11.5px", padding: "4px 8px" }}
-                        >
-                          🏠 Preview CRM
-                        </button>
-                      )}
+                      <span className="badge tone-purple" style={{ fontSize: "0.68rem" }}>
+                        Active
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1995,122 +1974,6 @@ export default function Dashboard({
           </div>
         </>
       ) : null}
-
-      {/* Owner revenue summary (owner 2026-08-20) — real invoice-based
-          revenue figures on the owner dashboard, mirroring the Finance tab
-          KPIs (Total billed / Paid / Outstanding / Overdue). Computed from
-          /api/invoices. Owner-only; client accounts render nothing here. */}
-      {ownerOrg && revenue && (
-        <section aria-label="Revenue summary" style={{ marginBottom: "20px" }}>
-          <h2 className="section-title">Revenue</h2>
-          <div className="kpi-row kpi-row-4">
-            <div className="card kpi revenue-card-billed">
-              <span className="kpi-label">Total billed</span>
-              <span className={`kpi-value lime${blur(moneyHidden)}`}>{money(revenue.invoiced)}</span>
-              <span className="kpi-note">All invoices — draft + sent + paid</span>
-            </div>
-            <div className="card kpi revenue-card-paid">
-              <span className="kpi-label">Paid</span>
-              <span className={`kpi-value green${blur(moneyHidden)}`}>{money(revenue.paid)}</span>
-              <span className="kpi-note">Marked paid — money in</span>
-            </div>
-            <div className="card kpi revenue-card-outstanding">
-              <span className="kpi-label">Outstanding</span>
-              <span className={`kpi-value${blur(moneyHidden)}`}>{money(revenue.outstanding)}</span>
-              <span className="kpi-note">Sent, not yet paid</span>
-            </div>
-            <div className="card kpi revenue-card-overdue">
-              <span className="kpi-label">Overdue</span>
-              <span className={`kpi-value red${blur(moneyHidden)}`}>{money(revenue.overdue)}</span>
-              <span className="kpi-note">Sent, past due date</span>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Row 3: Recently Updated Properties Window */}
-      <div className="card dashboard-window" style={{ marginTop: "20px" }}>
-        <div>
-          <WindowHead
-            icon="🕒"
-            title={ownerOrg && !isPropView ? "Recently Updated Sales Leads" : isWholesale ? "Recently Updated Properties" : "Recently Updated"}
-            badgeText={`${ownerOrg && !isPropView ? (saas.salesLeads.length > 0 ? saas.salesLeads.length : data.recentClients.length) : isWholesale ? recentProperties.length : data.recentClients.length} Recent`}
-            badgeTone="tone-blue"
-            subtitle={ownerOrg && !isPropView ? "Latest prospect inquiries, demo requests, and subscription onboarding updates" : isWholesale ? "Latest property activity, deal underwriting, and stage transitions" : "Latest activity and client updates"}
-            onView={() => (ownerOrg && !isPropView && onGoToLeads ? onGoToLeads() : onGoToStage())}
-            viewTitle={ownerOrg && !isPropView ? "View all sales leads" : "View all properties in pipeline"}
-          />
-
-          {hasClients ? (
-            <div className="table-wrap" style={{ margin: "0 -4px" }}>
-              <table className="table">
-                <colgroup>
-                  <col style={{ width: "22%" }} />
-                  <col style={{ width: "17%" }} />
-                  <col style={{ width: "17%" }} />
-                  <col style={{ width: "11%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "17%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Company / Prospect" : isWholesale ? "Property Address" : "Company"}</th>
-                    <th style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Contact Name" : isWholesale ? "Seller / Owner" : "Contact"}</th>
-                    <th style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Plan / Interest" : isWholesale ? "Deal Structure" : "Services"}</th>
-                    <th className="num" style={{ textAlign: "center" }}>{ownerOrg && !isPropView ? "Opportunity Value" : isWholesale ? "Est. Value / ARV" : "Deal"}</th>
-                    <th style={{ textAlign: "center" }}>Stage</th>
-                    <th style={{ textAlign: "center" }}>Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(isWholesale ? recentProperties : data.recentClients).map((c) => (
-                    <tr key={c.id}>
-                      <td className="cell-strong" style={{ textAlign: "center" }}>
-                        <span className={`cell-name${blurPii(pii)}`} title={c.address || c.companyName}>
-                          {c.address || c.companyName}
-                        </span>
-                        {isWholesale && (c.city || c.state) && (
-                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 400 }}>
-                            {[c.city, c.state, c.zip].filter(Boolean).join(", ")}
-                          </span>
-                        )}
-                      </td>
-                      <td className="cell-muted" style={{ textAlign: "center" }}>
-                        <span className={`cell-name${blurPii(pii)}`} title={c.contactName || c.companyName || undefined}>
-                          {c.contactName || c.companyName || "—"}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <ServiceChips services={c.services} />
-                      </td>
-                      <td className="num cell-strong" style={{ textAlign: "center" }}>
-                        <span className={blur(moneyHidden)}>{money(c.dealValue)}</span>
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <StageBadge stage={c.stage} index={Math.max(0, stages.indexOf(c.stage))} />
-                      </td>
-                      <td className="cell-muted" style={{ textAlign: "center" }}>{fmtDate(c.updatedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="card empty">
-              <p className="empty-title">{emptyTitle}</p>
-              <p className="empty-sub">Add your first prospect and the pipeline starts filling in.</p>
-              <button className="btn btn-primary" onClick={() => onGoToStage()}>
-                {emptyCta}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--muted)", marginTop: "14px", borderTop: "1px solid var(--line)", paddingTop: "8px" }}>
-          <span>Pipeline Activity</span>
-          <span>{ownerOrg && !isPropView ? `${data.totalClients} Total Sales Leads` : `${data.totalClients} Total ${isWholesale ? "Properties" : "Clients"}`}</span>
-        </div>
-      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   type MortgageLien,
 } from "./dealUnderwriting";
 import { extractAddressFromUrl } from "./urlAddressParser";
+import ZillowImportModal from "./ZillowImportModal";
 
 interface Props {
   property?: Client | null;
@@ -192,6 +193,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
   const [propertiesList, setPropertiesList] = useState<Client[]>(allProperties || []);
   const [activeProperty, setActiveProperty] = useState<Client | null>(property || null);
+  const [showUrlImport, setShowUrlImport] = useState(false);
   const enrichedPropertyIds = useRef<Set<number>>(new Set());
 
   const isAlreadyEnriched = (p?: Client | null): boolean => {
@@ -1442,6 +1444,31 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     outline: "none",
                   }}
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setShowUrlImport(true)}
+                  title="Import property specs and valuation by pasting a property listing URL"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    border: "1px solid rgba(56, 189, 248, 0.45)",
+                    color: "#38bdf8",
+                    background: "rgba(56, 189, 248, 0.1)",
+                    height: "38px",
+                    padding: "0 12px",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    borderRadius: "6px",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                    flex: "none",
+                  }}
+                >
+                  <span>🔗</span>
+                  <span>Property URL Link</span>
+                </button>
               </div>
             </div>
           </div>
@@ -3669,6 +3696,27 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             </div>
           </div>
         </div>
+      )}
+
+      {showUrlImport && (
+        <ZillowImportModal
+          stages={["New Lead", "Contacted", "Follow Up", "Offer Made", "Under Contract"]}
+          onClose={() => setShowUrlImport(false)}
+          onSaved={(created) => {
+            setPropertiesList((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
+            setActiveProperty(created);
+            loadPropertyData(created);
+            setShowUrlImport(false);
+            if (onUpdated) onUpdated(created);
+          }}
+          onSaveAndUnderwrite={(created) => {
+            setPropertiesList((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
+            setActiveProperty(created);
+            loadPropertyData(created);
+            setShowUrlImport(false);
+            if (onUpdated) onUpdated(created);
+          }}
+        />
       )}
     </div>
   );
