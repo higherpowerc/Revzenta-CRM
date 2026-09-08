@@ -5,9 +5,6 @@ import TermsOfService from "./TermsOfService";
 import SecurityPage from "./SecurityPage";
 import CustomerAgreement from "./CustomerAgreement";
 import revzentaLogo from "./assets/revzenta-logo.png";
-import revzentaLogoDark from "./assets/revzenta-logo-darkmode.png";
-import revzentaLogoTransparent from "./assets/revzenta-logo-transparent.png";
-import { useTheme } from "./theme";
 
 interface WebsiteProps {
   onSignIn: () => void;
@@ -15,10 +12,6 @@ interface WebsiteProps {
 }
 
 export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
-  const [theme] = useTheme();
-  const isLight = theme === "light";
-  const activeLogo = isLight ? revzentaLogoTransparent : revzentaLogoDark;
-
   // Active Legal Page state
   const [activeLegalPage, setActiveLegalPage] = useState<"privacy" | "terms" | "security" | "agreement" | null>(() => {
     const h = window.location.hash.toLowerCase();
@@ -172,16 +165,18 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
       {/* ── Navigation Bar ── */}
       <header className="rw-nav">
         <div className="rw-container rw-nav-inner">
-          <div
-            className="rw-brand"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            title="Revzenta — Return to Top"
-          >
+          <div className="rw-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
             <img
-              src={activeLogo}
-              alt="Revzenta"
-              className="rw-brand-logo"
+              src={revzentaLogo}
+              alt="Revzenta Logo"
+              style={{
+                height: "38px",
+                width: "auto",
+                borderRadius: "6px",
+                objectFit: "contain",
+              }}
             />
+            <span style={{ fontSize: "19px", fontWeight: 800, letterSpacing: "-0.02em" }}>Revzenta</span>
           </div>
 
           <ul className="rw-nav-links">
@@ -209,14 +204,6 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
       {/* ── Hero Section ── */}
       <section className="rw-hero">
         <div className="rw-container">
-          <div className="rw-hero-brand-card">
-            <img
-              src={activeLogo}
-              alt="Revzenta — Higher Power Consulting LLC"
-              className="rw-hero-logo"
-            />
-          </div>
-
           <div className="rw-badge">
             <span className="rw-badge-dot"></span>
             <span>Revzenta CRM 2.0 • The Real Estate Wholesaling Operating System</span>
@@ -799,27 +786,12 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
         <div className="rw-container">
           <div className="rw-footer-grid">
             <div className="rw-footer-col">
-              <div
-                className="rw-brand"
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                style={{ marginBottom: "14px", cursor: "pointer" }}
-                title="Revzenta — Return to Top"
-              >
-                <img
-                  src={activeLogo}
-                  alt="Revzenta"
-                  style={{
-                    height: "48px",
-                    width: "auto",
-                    maxWidth: "230px",
-                    objectFit: "contain",
-                    display: "block",
-                  }}
-                />
+              <div className="rw-brand" style={{ marginBottom: "14px" }}>
+                <div className="rw-brand-icon">R</div>
+                <span>Revzenta</span>
               </div>
-              <p style={{ fontSize: "13px", color: "var(--text-dim)", maxWidth: "300px", lineHeight: "1.6" }}>
-                Revzenta • Higher Power Consulting LLC.<br />
-                The modern CRM and operating system for real estate wholesalers and acquisitions teams.
+              <p style={{ fontSize: "13px", color: "var(--text-dim)", maxWidth: "300px" }}>
+                The modern CRM and operating system for real estate wholesalers, acquisitions teams, and growing businesses.
               </p>
             </div>
 

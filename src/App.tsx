@@ -637,29 +637,6 @@ export default function App() {
 
             {/* Mobile-only header controls (visible <= 960px) */}
             <div className="mobile-nav-tools">
-              {isOwnerCockpit && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    setViewingWebsite(true);
-                    window.location.hash = "#/website";
-                    setMobileMenuOpen(false);
-                  }}
-                  title="View Revzenta Marketing Website"
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    padding: "6px 10px",
-                    gap: "4px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>🌐</span>
-                  <span>Website</span>
-                </button>
-              )}
               <ThemeToggle />
               <button
                 type="button"
@@ -1155,33 +1132,6 @@ export default function App() {
             </div>
           </nav>
           <div className="nav-right">
-            {isOwnerCockpit && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm nav-website-btn"
-                onClick={() => {
-                  setViewingWebsite(true);
-                  window.location.hash = "#/website";
-                }}
-                title="View Revzenta Marketing Website"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  fontWeight: 600,
-                  fontSize: "13px",
-                  borderRadius: "8px",
-                  padding: "6px 12px",
-                  border: "1px solid var(--line-strong, #30363d)",
-                  background: "var(--surface, #16161b)",
-                  color: "var(--ink, #f8fafc)",
-                  cursor: "pointer",
-                }}
-              >
-                <span>🌐</span>
-                <span>View Website</span>
-              </button>
-            )}
             {/* Global theme toggle (Light / Dark mode) */}
             <ThemeToggle />
             {/* Global privacy eye (owner request 2026-08-14) — blurs names,
