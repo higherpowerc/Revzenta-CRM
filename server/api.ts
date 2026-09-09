@@ -3066,6 +3066,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
                 product_data: {
                   name: `Revzenta CRM — ${planDetails.name} (${billing === "annual" ? "Annual" : "Monthly"})`,
                   description: `Revzenta Wholesaling Real Estate CRM — ${planDetails.name}, billed ${billing}.`,
+                  tax_code: "txcd_10000000",
                 },
                 unit_amount: planDetails.unitAmount,
                 recurring: { interval: planDetails.interval },
