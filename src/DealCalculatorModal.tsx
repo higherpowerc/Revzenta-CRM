@@ -167,7 +167,7 @@ function NumberField({
  * set SHOW_SOURCE_TAGS = false to hide them -- nothing else changes.
  */
 const SHOW_SOURCE_TAGS = true;
-const UW_SPLIT_CSS = ".uw-split{display:grid;grid-template-columns:0.95fr 1.05fr;gap:24px;align-items:start}@media (max-width:900px){.uw-split{grid-template-columns:1fr}}";
+const UW_SPLIT_CSS = ".uw-split{display:grid;grid-template-columns:0.95fr 1.05fr;gap:24px;align-items:start}@media (max-width:900px){.uw-split{grid-template-columns:1fr}}/* Mobile (<640px): keep the 1440px underwriter modal inside the viewport. All multi-column grids stack to one column (beats inline styles via !important); min-width/flex-basis guards that force page-level horizontal scroll are neutralised. No logic changes. */@media (max-width:640px){div[role=dialog]{padding:8px !important;align-items:flex-start !important}div[role=dialog]>div{max-width:100vw !important;max-height:96vh !important;border-radius:10px !important}div[role=dialog] div[style*=grid-template-columns]{grid-template-columns:1fr !important}div[role=dialog] div[style*=min-width]{min-width:0 !important}div[role=dialog] div[style*=440px]{flex-basis:100% !important}div[role=dialog] div[style*='20px 24px']{padding:14px 12px !important}div[role=dialog] div[style*='16px 24px']{padding:12px !important}}";
 function SourceTag({ label }: { label: string }) {
   if (!SHOW_SOURCE_TAGS) return null;
   return (
