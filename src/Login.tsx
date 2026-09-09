@@ -83,13 +83,13 @@ export default function Login({
         <button
           type="button"
           onClick={onBackToWebsite}
-          className="btn btn-ghost btn-sm"
-          style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10, display: "flex", alignItems: "center", gap: "6px" }}
+          className="btn btn-ghost btn-sm login-back-btn"
+          style={{ position: "absolute", top: "max(12px, env(safe-area-inset-top, 0px))", left: "12px", zIndex: 10, display: "flex", alignItems: "center", gap: "6px" }}
         >
           ← Back to Revzenta Website
         </button>
       )}
-      <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
+      <div style={{ position: "absolute", top: "max(12px, env(safe-area-inset-top, 0px))", right: "12px", zIndex: 10 }}>
         <ThemeToggle />
       </div>
       <div className="login-glow" aria-hidden="true" />
