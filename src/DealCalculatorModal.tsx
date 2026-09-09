@@ -911,6 +911,134 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     includeAssignability,
   ]);
 
+  // ==========================================================================
+  // SUBJECT-TO LIVE OFFER PREVIEW (subto-only LOI, same data as offerPdf.ts)
+  // Bound to the same subto state as the editable deal — no PDF regen per
+  // keystroke. The "Download PDF" button (handleDownloadSubtoOfferPdf) calls POST /api/offers which
+  // generates the real offerPdf on demand with the same subto numbers.
+  // ==========================================================================
+  const subtoProposalData = useMemo(() => {
+    return generateMultiOptionProposal({
+      propertyAddress,
+      sellerName,
+      sellerEmail: recipientEmail,
+      sellerPhone,
+      agentName,
+      agentEmail,
+      agentPhone,
+      recipientType,
+      acquisitionsCompany,
+      selectedOptions: ["subto"],
+      closingDays,
+      earnestMoney: earnestMoneyDeposit,
+      cashMetrics,
+      subtoMetrics,
+      subtoInput: {
+        purchasePrice: subtoPrice,
+        cashToSeller: subtoCashToSeller,
+        arrearsReinstatement: subtoArrears,
+        rehabMakeReady: subtoRehab,
+        assignmentFee: subtoAssignmentFee,
+        closingEscrowCosts: subtoClosingCosts,
+        liens,
+        monthlyMarketRent: subtoRent,
+        monthlyTaxesAndInsurance: subtoTaxesIns,
+        monthlyHoa: subtoHoa,
+      },
+      creativeMetrics,
+      creativeInput: {
+        purchasePrice: creativePrice,
+        listedTargetPrice: creativeTargetList,
+        downPayment: creativeDown,
+        annualInterestRate: creativeInterestRate,
+        amortizationYears: creativeAmortYears,
+        balloonMaturityYears: creativeBalloonYears,
+        isInterestOnly: creativeIsIO,
+        rehabMakeReady: creativeRehab,
+        assignmentFee: creativeAssignmentFee,
+        closingEscrowCosts: creativeClosingCosts,
+        monthlyMarketRent: creativeRent,
+        monthlyTaxes: creativeTaxes,
+        monthlyInsurance: creativeInsurance,
+        monthlyHoa: creativeHoa,
+      },
+      includeAssignabilityClause: includeAssignability,
+    });
+  }, [
+    propertyAddress,
+    sellerName,
+    recipientEmail,
+    sellerPhone,
+    agentName,
+    agentEmail,
+    agentPhone,
+    recipientType,
+    acquisitionsCompany,
+    closingDays,
+    earnestMoneyDeposit,
+    cashMetrics,
+    subtoMetrics,
+    subtoPrice,
+    subtoCashToSeller,
+    subtoArrears,
+    subtoRehab,
+    subtoAssignmentFee,
+    subtoClosingCosts,
+    liens,
+    subtoRent,
+    subtoTaxesIns,
+    subtoHoa,
+    creativeMetrics,
+    creativePrice,
+    creativeTargetList,
+    creativeDown,
+    creativeInterestRate,
+    creativeAmortYears,
+    creativeBalloonYears,
+    creativeIsIO,
+    creativeRehab,
+    creativeAssignmentFee,
+    creativeClosingCosts,
+    creativeRent,
+    creativeTaxes,
+    creativeInsurance,
+    creativeHoa,
+    includeAssignability,
+  ]);
+  const [downloadingSubtoPdf, setDownloadingSubtoPdf] = useState<boolean>(false);
+  const handleDownloadSubtoOfferPdf = async () => {
+    setDownloadingSubtoPdf(true);
+    try {
+      const offer = await api.createOffer({
+        clientId: activeProperty?.id,
+        propertyAddress: propertyAddress.trim() || "Subject Property",
+        sellerName: sellerName.trim(),
+        sellerEmail: recipientEmail.trim(),
+        sellerPhone: sellerPhone.trim(),
+        agentName: agentName.trim(),
+        agentEmail: agentEmail.trim(),
+        agentPhone: agentPhone.trim(),
+        recipientType,
+        offerType: "Subject-To",
+        cashOfferAmount: 0,
+        subtoPurchasePrice: subtoPrice,
+        subtoDebt: subtoMetrics.totalExistingDebt,
+        subtoCashToSeller: subtoCashToSeller,
+        subtoMonthlyPayment: subtoMetrics.totalMonthlyDebtService,
+        creativePurchasePrice: 0,
+        closingDays,
+        earnestMoneyDeposit,
+        status: "Sent",
+        notes: subtoProposalData.plainText,
+      } as any);
+      if (offer?.ok && (offer as any).offer?.pdfUrl) {
+        window.open((offer as any).offer.pdfUrl, "_blank", "noopener");
+      }
+    } finally {
+      setDownloadingSubtoPdf(false);
+    }
+  };
+
   const handleCopyText = async () => {
     try {
       await navigator.clipboard.writeText(proposalData.plainText);
@@ -2938,8 +3066,40 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {/* TAB 4: SUBJECT-TO (SUBTO) MORTGAGE TAKEOVER */}
           {/* ================================================================ */}
           {tab === "subto" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
-              {/* Inputs */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <style>{`@media (max-width: 960px){.subto-live-grid{grid-template-columns:1fr !important;}}`}</style>
+              {/* Subject-To Proposal Settings — compact table at TOP under property/owner header.
+                  Bound to the same state as the editable deal; feeds both panes below. */}
+              <div style={{ background: "var(--panel-2, #16161b)", padding: "16px 20px", borderRadius: "10px", border: "1px solid #38bdf8" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    📋 Subject-To Proposal Settings
+                  </h3>
+                  <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: 700 }}>
+                    LIVE — edits update the deal &amp; offer letter instantly
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
+                  <CurrencyField label="Purchase Price" value={subtoPrice} onChange={setSubtoPrice} />
+                  <CurrencyField label="Cash to Seller" value={subtoCashToSeller} onChange={setSubtoCashToSeller} hint="Walkaway" />
+                  <CurrencyField label="Arrears / Reinstatement" value={subtoArrears} onChange={setSubtoArrears} />
+                  <CurrencyField label="Assignment Fee" value={subtoAssignmentFee} onChange={setSubtoAssignmentFee} />
+                  <CurrencyField label="Monthly Market Rent" value={subtoRent} onChange={setSubtoRent} />
+                  <NumberField label="Closing Days" value={closingDays} onChange={setClosingDays} />
+                  <CurrencyField label="Earnest Money" value={earnestMoneyDeposit} onChange={setEarnestMoneyDeposit} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", justifyContent: "flex-end", paddingBottom: "2px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>Debt Taken Over</span>
+                    <span style={{ fontSize: "15px", fontWeight: 800, color: "#38bdf8" }}>
+                      ${subtoMetrics.totalExistingDebt.toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 500 }}>
+                      ${Math.round(subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo serviced
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="subto-live-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+              {/* Inputs (LEFT: editable deal) */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
                   <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
@@ -3010,7 +3170,40 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 </div>
               </div>
 
-              {/* Viability & Summary Output */}
+              {/* RIGHT: live offer-letter preview (same subto data the PDF uses) */}
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "16px 20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                        📄 Live Offer Letter
+                      </h3>
+                      <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 8px", borderRadius: "10px", backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.4)" }}>
+                        LIVE PREVIEW
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadSubtoOfferPdf}
+                      disabled={downloadingSubtoPdf}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: downloadingSubtoPdf ? "var(--border, #30363d)" : "#0284c7",
+                        color: "#ffffff",
+                        fontSize: "12.5px",
+                        fontWeight: 700,
+                        cursor: downloadingSubtoPdf ? "wait" : "pointer",
+                      }}
+                    >
+                      {downloadingSubtoPdf ? "Generating…" : "⬇ Download PDF"}
+                    </button>
+                  </div>
+                  <div style={{ background: "#ffffff", borderRadius: "8px", padding: "16px", maxHeight: "640px", overflowY: "auto" }}>
+                    <div dangerouslySetInnerHTML={{ __html: subtoProposalData.htmlMarkup }} />
+                  </div>
+                </div>
+                {/* Viability & Summary Output (below live preview) */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {/* Scorecard */}
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
@@ -3105,6 +3298,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           )}
 
