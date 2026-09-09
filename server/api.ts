@@ -866,12 +866,12 @@ export type PackageTier = "" | "starter" | "pro" | "scale" | "tier1" | "tier2" |
 export const TIER_KEYS: readonly string[] = ["starter", "pro", "scale", "tier1", "tier2", "tier3", "tier4"];
 export const TIER_LABELS: Record<string, string> = {
   "": "— Unset —",
-  starter: "Starter Wholesaler — $79/mo",
-  pro: "Pro Dealmaker — $199/mo",
-  scale: "Scale & Brokerage — $399/mo",
-  tier1: "Starter Wholesaler — $79/mo",
-  tier2: "Pro Dealmaker — $199/mo",
-  tier3: "Scale & Brokerage — $399/mo",
+  starter: "Starter Wholesaler — $24.99/mo",
+  pro: "Pro Dealmaker — $59.99/mo",
+  scale: "Scale & Brokerage — $79/mo",
+  tier1: "Starter Wholesaler — $24.99/mo",
+  tier2: "Pro Dealmaker — $59.99/mo",
+  tier3: "Scale & Brokerage — $79/mo",
   tier4: "Custom Enterprise Package",
 };
 export const TIER_SERVICE_TAGS: Record<string, string[]> = {
@@ -2287,11 +2287,29 @@ async function provisionPendingSignup(input: {
   }
   const existingUser = getUserByEmail(pending ? pending.email : email);
   if (existingUser) {
+    // Owner pricing 2026-09-08 (PR #135, cents) as monthly-equivalent MRR
+    // (dollars): monthly at face value, annual amortized round(annual/12).
+    // Self-heals a $0-MRR org only — never overwrites an owner-set amount.
+    if (pending) {
+      const healMrr =
+        pending.billing === "annual"
+          ? pending.tier === "starter" ? 19.99 : pending.tier === "scale" ? 63.2 : 47.99
+          : pending.tier === "starter" ? 24.99 : pending.tier === "scale" ? 79 : 59.99;
+      db.query("UPDATE orgs SET monthly_subscription_amount = ? WHERE id = ? AND monthly_subscription_amount = 0")
+        .run(healMrr, (existingUser as { org_id: number }).org_id);
+    }
     db.query("DELETE FROM pending_signups WHERE email = ?").run(pending ? pending.email : email);
     return { orgId: existingUser.org_id, userId: existingUser.id };
   }
   if (!pending) return null;
   const tier = pending.tier === "starter" || pending.tier === "scale" ? pending.tier : "pro";
+  // Owner pricing 2026-09-08 (PR #135, cents) as monthly-equivalent MRR
+  // (dollars): monthly at face value, annual amortized round(annual/12)
+  // (starter 1999c / pro 4799c / scale 6320c).
+  const mrrDollars =
+    pending.billing === "annual"
+      ? tier === "starter" ? 19.99 : tier === "scale" ? 63.2 : 47.99
+      : tier === "starter" ? 24.99 : tier === "scale" ? 79 : 59.99;
   let provisioned: { orgId: number; userId: number };
   try {
     provisioned = insertOrgWithMember({
@@ -2301,6 +2319,8 @@ async function provisionPendingSignup(input: {
       verticalKey: "wholesalebiz",
       tier,
     });
+    db.query("UPDATE orgs SET monthly_subscription_amount = ? WHERE id = ?")
+      .run(mrrDollars, provisioned.orgId);
   } catch (e) {
     console.error("[signup] post-payment provisioning failed for", pending.email + ":", e instanceof Error ? e.message : e);
     return null;
@@ -3127,6 +3147,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
                 product_data: {
                   name: `Revzenta CRM — ${planDetails.name} (${billing === "annual" ? "Annual" : "Monthly"})`,
                   description: `Revzenta Wholesaling Real Estate CRM — ${planDetails.name}, billed ${billing}.`,
+                  tax_code: "txcd_10000000",
                 },
                 unit_amount: planDetails.unitAmount,
                 recurring: { interval: planDetails.interval },

@@ -13,7 +13,7 @@ interface UpgradeGateProps {
 const TIER_DESCRIPTIONS: Record<"pro" | "scale", { title: string; price: string; subtitle: string; highlights: string[] }> = {
   pro: {
     title: "Pro Dealmaker",
-    price: "$199/mo",
+    price: "$59.99/mo",
     subtitle: "Full Transaction Hub, Offers Repository, and Automated Buy Box matching.",
     highlights: [
       "Complete Transaction Hub & Closing Milestone Pipeline",
@@ -25,7 +25,7 @@ const TIER_DESCRIPTIONS: Record<"pro" | "scale", { title: string; price: string;
   },
   scale: {
     title: "Scale & Brokerage",
-    price: "$399/mo",
+    price: "$79/mo",
     subtitle: "Multi-seat brokerage engine with granular permission control and dedicated workflows.",
     highlights: [
       "Multi-seat team accounts with granular tab permissions",

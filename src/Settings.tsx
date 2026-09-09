@@ -1025,17 +1025,17 @@ export default function Settings({
               {isOwnerOrg
                 ? "Full unrestricted administrative access across the platform, client workspaces, and subscriber billing."
                 : tier === "starter"
-                ? "Starter Wholesaler tier ($79/mo) — Includes Creative Hub deal underwriting, cash buyers directory, pipeline leads, and compliance safeguards."
+                ? "Starter Wholesaler tier ($24.99/mo) — Includes Creative Hub deal underwriting, cash buyers directory, pipeline leads, and compliance safeguards."
                 : tier === "pro"
-                ? "Pro Dealmaker tier ($199/mo) — Full access to Transaction Hub escrow pipelines, Offers Repository, RentCast comps, and AI Buy Box Matcher."
-                : "Scale & Brokerage tier ($399/mo) — Complete unconstrained access with multi-seat team accounts, role-based tab controls, and priority platform bandwidth."}
+                ? "Pro Dealmaker tier ($59.99/mo) — Full access to Transaction Hub escrow pipelines, Offers Repository, RentCast comps, and AI Buy Box Matcher."
+                : "Scale & Brokerage tier ($79/mo) — Complete unconstrained access with multi-seat team accounts, role-based tab controls, and priority platform bandwidth."}
             </p>
           </div>
           {!isOwnerOrg && tier !== "scale" && (
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              onClick={() => alert(`To upgrade your subscription plan to ${tier === "starter" ? "Pro Dealmaker ($199/mo) or Scale & Brokerage ($399/mo)" : "Scale & Brokerage ($399/mo)"}, please contact your account administrator or sales at support@revzenta.com.`)}
+              onClick={() => alert(`To upgrade your subscription plan to ${tier === "starter" ? "Pro Dealmaker ($59.99/mo) or Scale & Brokerage ($79/mo)" : "Scale & Brokerage ($79/mo)"}, please contact your account administrator or sales at support@revzenta.com.`)}
             >
               Upgrade Plan
             </button>
@@ -1274,20 +1274,20 @@ export default function Settings({
                   <span style={{ fontSize: "18px" }}>👑</span>
                   <h2 className="admin-card-title" style={{ margin: 0 }}>Multi-Seat Team Accounts &amp; Roles</h2>
                   <span className="chip" style={{ fontSize: "11px", background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
-                    Scale &amp; Brokerage Plan ($399/mo)
+                    Scale &amp; Brokerage Plan ($79/mo)
                   </span>
                 </div>
                 <p className="admin-card-sub" style={{ maxWidth: "680px" }}>
-                  Your current plan (<strong>{TIER_SHORT_LABELS[tier] || tier}</strong>) includes 1 primary seat. Upgrade to <strong>Scale &amp; Brokerage ($399/mo)</strong> to invite unlimited acquisition managers, dispo reps, and transaction coordinators with granular per-tab permissions.
+                  Your current plan (<strong>{TIER_SHORT_LABELS[tier] || tier}</strong>) includes 1 primary seat. Upgrade to <strong>Scale &amp; Brokerage ($79/mo)</strong> to invite unlimited acquisition managers, dispo reps, and transaction coordinators with granular per-tab permissions.
                 </p>
               </div>
               <div style={{ marginTop: "12px" }}>
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  onClick={() => alert("To upgrade to Scale & Brokerage ($399/mo) for multi-seat team accounts, please contact your account administrator or sales at support@revzenta.com.")}
+                  onClick={() => alert("To upgrade to Scale & Brokerage ($79/mo) for multi-seat team accounts, please contact your account administrator or sales at support@revzenta.com.")}
                 >
-                  Upgrade to Scale & Brokerage ($399/mo)
+                  Upgrade to Scale & Brokerage ($79/mo)
                 </button>
               </div>
             </div>

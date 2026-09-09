@@ -697,9 +697,9 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
               <select value={tier} onChange={(e) => setTier(e.target.value as PackageTier)}>
                 {isWholesaleCreate ? (
                   <>
-                    <option value="starter">⚡ Starter Wholesaler ($79/mo)</option>
-                    <option value="pro">🔥 Pro Dealmaker ($199/mo)</option>
-                    <option value="scale">👑 Scale &amp; Brokerage ($399/mo)</option>
+                    <option value="starter">⚡ Starter Wholesaler ($24.99/mo)</option>
+                    <option value="pro">🔥 Pro Dealmaker ($59.99/mo)</option>
+                    <option value="scale">👑 Scale &amp; Brokerage ($79/mo)</option>
                   </>
                 ) : (
                   <>
@@ -714,7 +714,7 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
               </select>
               <span className="field-hint">
                 {isWholesaleCreate
-                  ? "Configures feature access: Starter ($79/mo), Pro ($199/mo), or Scale ($399/mo)."
+                  ? "Configures feature access: Starter ($24.99/mo), Pro ($59.99/mo), or Scale ($79/mo)."
                   : "The client's package tier. Drives Services tags + onboarding checklist."}
               </span>
             </label>
@@ -1454,12 +1454,12 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
                       onChange={(e) => setEditTier(e.target.value as PackageTier)}
                       aria-label="Package plan"
                     >
-                      <option value="starter">⚡ Starter Wholesaler ($79/mo)</option>
-                      <option value="pro">🔥 Pro Dealmaker ($199/mo)</option>
-                      <option value="scale">👑 Scale &amp; Brokerage ($399/mo)</option>
+                      <option value="starter">⚡ Starter Wholesaler ($24.99/mo)</option>
+                      <option value="pro">🔥 Pro Dealmaker ($59.99/mo)</option>
+                      <option value="scale">👑 Scale &amp; Brokerage ($79/mo)</option>
                     </select>
                     <span className="field-hint">
-                      Controls feature access: Starter ($79/mo), Pro ($199/mo with Transaction Hub, Offers &amp; Buy Box), or Scale ($399/mo with Team seats).
+                      Controls feature access: Starter ($24.99/mo), Pro ($59.99/mo with Transaction Hub, Offers &amp; Buy Box), or Scale ($79/mo with Team seats).
                     </span>
                   </label>
                   <p className="field-hint">
