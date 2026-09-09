@@ -16,8 +16,8 @@ const PLANS = {
   starter: {
     name: "Starter Wholesaler",
     badge: "⚡ Starter",
-    monthly: 79,
-    annual: 63,
+    monthly: 24.99,
+    annual: 19.99,
     color: "#06b6d4",
     borderColor: "rgba(6,182,212,0.35)",
     glowColor: "rgba(6,182,212,0.15)",
@@ -34,8 +34,8 @@ const PLANS = {
   pro: {
     name: "Wholesale Pro",
     badge: "🔥 Pro",
-    monthly: 199,
-    annual: 159,
+    monthly: 59.99,
+    annual: 47.99,
     color: "#8b5cf6",
     borderColor: "rgba(139,92,246,0.45)",
     glowColor: "rgba(139,92,246,0.18)",
@@ -52,8 +52,8 @@ const PLANS = {
   scale: {
     name: "Scale Empire",
     badge: "👑 Scale",
-    monthly: 399,
-    annual: 319,
+    monthly: 79,
+    annual: 63.2,
     color: "#f59e0b",
     borderColor: "rgba(245,158,11,0.45)",
     glowColor: "rgba(245,158,11,0.15)",
@@ -111,10 +111,11 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
         email: email.trim().toLowerCase(),
         password,
         tier: selectedTier,
+        billing,
         skipStripe: false,
       });
       if (res.checkoutUrl) {
-        setSuccess("Workspace created! Redirecting to secure checkout…");
+        setSuccess("Redirecting to secure checkout — your workspace activates after payment…");
         setTimeout(() => { window.location.href = res.checkoutUrl!; }, 800);
         return;
       }
@@ -127,7 +128,7 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
     } finally {
       setLoading(false);
     }
-  }, [agreed, workspaceName, email, password, selectedTier, onSuccess]);
+  }, [agreed, workspaceName, email, password, selectedTier, billing, onSuccess]);
 
   const inp: React.CSSProperties = {
     width: "100%", boxSizing: "border-box",
@@ -178,7 +179,7 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
             borderRadius: "20px", padding: "5px 14px", fontSize: "13px", color: "#a5b4fc", marginBottom: "16px",
           }}>
             <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80", display: "inline-block" }} />
-            14-Day Free Trial • No Credit Card Required to Start
+            Secure Checkout • Instant Access After Payment
           </div>
           <h1 style={{
             margin: "0 0 10px", fontSize: "clamp(26px, 4vw, 40px)", fontWeight: 800,
@@ -255,7 +256,7 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
               <span style={{ fontSize: "24px" }}>{plan.badge.split(" ")[0]}</span>
               <div>
                 <div style={{ fontWeight: 700, fontSize: "18px" }}>{plan.name}</div>
-                <div style={{ fontSize: "13px", color: "#64748b" }}>14-day risk-free trial included</div>
+                <div style={{ fontSize: "13px", color: "#64748b" }}>Billed {billing === "annual" ? "annually — save 20%" : "monthly"} • cancel anytime</div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
@@ -278,7 +279,7 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
               </ul>
             </div>
             <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginTop: "24px", paddingTop: "18px", display: "flex", flexDirection: "column", gap: "8px" }}>
-              {[["🔒","Powered by Stripe — bank-grade encryption"],["🛡️","Cancel anytime — no lock-in"],["⚡","14-day trial, no credit card required"]].map(([icon, text]) => (
+              {[["🔒","Powered by Stripe — bank-grade encryption"],["🛡️","Cancel anytime — no lock-in"],["⚡","Instant access — workspace activates after payment"]].map(([icon, text]) => (
                 <div key={String(text)} style={{ display: "flex", gap: "8px", fontSize: "12px", color: "#64748b" }}>
                   <span>{icon}</span><span>{text}</span>
                 </div>
@@ -345,11 +346,11 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
                 opacity: loading || success ? 0.7 : 1, transition: "all 0.2s", marginTop: "4px",
                 boxShadow: loading || success ? "none" : `0 4px 20px ${plan.glowColor}`,
               }}>
-                {loading ? "Creating your workspace…" : success ? "✓ Launching workspace…" : `Start 14-Day Free Trial — ${plan.name}`}
+                {loading ? "Redirecting to secure checkout…" : success ? "✓ Redirecting to checkout…" : `Subscribe — ${plan.name} $${price}/mo`}
               </button>
 
               <p style={{ margin: 0, textAlign: "center", fontSize: "12px", color: "#475569" }}>
-                No credit card required. Trial ends in 14 days. Login credentials will be emailed to you.
+                Payment due today — no free trial. Your workspace activates immediately after checkout.
               </p>
             </form>
           </div>

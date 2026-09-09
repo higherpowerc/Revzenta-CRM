@@ -805,7 +805,7 @@ export default function App() {
                     setView("leads");
                     setMobileMenuOpen(false);
                   }}
-                  title="Website inquiries, trial signups, and prospective subscriber leads"
+                  title="Website inquiries, new signups, and prospective subscriber leads"
                 >
                   <span className="tab-icon">🎯</span>
                   <span>Sales Leads</span>
