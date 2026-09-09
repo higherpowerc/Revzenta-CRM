@@ -655,6 +655,21 @@ legend.field-label {
   width: 100%;
 }
 
+/* Signup page title — gradient text where supported, solid near-white fallback
+   (light theme sets body ink near-black, which would show through as
+   dark-on-dark on the always-dark signup page). */
+.signup-title {
+  color: #f8fafc;
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .signup-title {
+    background: linear-gradient(135deg, #fff 0%, #a5b4fc 60%, #38bdf8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
 /* Deal Calculator inputs — solid black lettering on white boxes */
 .input,
 .calc-input,
