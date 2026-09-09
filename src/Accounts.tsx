@@ -14,8 +14,6 @@ interface Props {
    *  workspace (server-side impersonation). Throws on failure so the caller
    *  can surface the error. */
   onViewAccount: (orgId: number) => Promise<void>;
-  /** Optional: start with the Create Client Account form expanded */
-  initialCreateOpen?: boolean;
 }
 
 /** Random password (crypto-grade): one from each class + extras, 19 chars. */
@@ -57,7 +55,7 @@ function generatePassword(): string {
  *  their content and can never collide. The PR #102 money-at-a-glance
  *  subscription value keeps its own column (was stacked above the cycle
  *  date); the cycle date stays inline-editable. */
-export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen }: Props) {
+export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
   /* Global privacy eye (2026-08-14 owner request) — blur PII (client/company names, phone, email, address) here too. */
   const pii = usePii();
   const [orgs, setOrgs] = useState<Org[] | null>(null);
@@ -145,10 +143,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCreateOpen 
   /** Owner live-test 2026-08-28 (be3024e9): the create-account form is
    *  collapsible and starts COLLAPSED so the Clients tab account hub opens
    *  compact; the owner expands it to add a client account. */
-  const [createOpen, setCreateOpen] = useState(Boolean(initialCreateOpen));
-  useEffect(() => {
-    if (initialCreateOpen) setCreateOpen(true);
-  }, [initialCreateOpen]);
+  const [createOpen, setCreateOpen] = useState(false);
   /** Business type picker: Wholesale Real Estate is the primary business type. */
   const [vertical, setVertical] = useState("wholesalebiz");
   const isWholesaleCreate =

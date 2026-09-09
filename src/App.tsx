@@ -228,7 +228,6 @@ export default function App() {
   /** Business Type Preview mode (owner only) — allows the owner to view and explore
    *  each business type CRM (B2B, B2C, Wholesale Real Estate) directly from the side menu. */
   const [previewVertical, setPreviewVertical] = useState<string | null>(null);
-  const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   /** Whether the owner is in their cockpit vs previewing a business type CRM */
@@ -765,32 +764,17 @@ export default function App() {
                 <div className="nav-section-title">
                   <span>Subscribers &amp; Workspaces</span>
                 </div>
-                <div className="nav-accounts-row">
-                  <button
-                    className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setCreateAccountOpen(false);
-                      setView("clients");
-                      setMobileMenuOpen(false);
-                    }}
-                    title="Website subscribers, tenant workspaces, and 1-click CRM launch"
-                  >
-                    <span className="tab-icon">👥</span>
-                    <span>Subscribers</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm nav-build-btn"
-                    title="Provision a new subscriber workspace"
-                    onClick={() => {
-                      setCreateAccountOpen(true);
-                      setView("clients");
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    + Build
-                  </button>
-                </div>
+                <button
+                  className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("clients");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Website subscribers, tenant workspaces, and 1-click CRM launch"
+                >
+                  <span className="tab-icon">👥</span>
+                  <span>Subscribers</span>
+                </button>
 
                 {/* 3. Sales & Growth Pipeline */}
                 <div className="nav-section-title">
@@ -1457,7 +1441,6 @@ export default function App() {
             ownerOrgId={isOwnerOrg ? user.orgId : undefined}
             onViewAccount={isOwnerOrg ? handleImpersonate : undefined}
             isWholesale={isWholesale}
-            initialCreateOpen={createAccountOpen}
           />
         ) : effectiveViewFinal === "calendar" ? (
           /* Owner 2026-08-20 sales rework — the owner's Calendar view of
