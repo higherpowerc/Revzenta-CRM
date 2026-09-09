@@ -1743,6 +1743,14 @@ legend.field-label {
   }
 
   .nav {
+    /* Mobile drawer fix: the desktop sidebar sets flex:0 0 270px +
+       min/max-width:270px + align-self:flex-start. In the column .shell
+       those become a 270px-tall, 270px-wide box (the "small window").
+       Reset them so the bar spans the full viewport width. */
+    flex: none;
+    align-self: stretch;
+    min-width: 0;
+    max-width: none;
     height: auto;
     width: 100%;
     overflow: visible;
@@ -1752,6 +1760,17 @@ legend.field-label {
     top: 0;
     z-index: 50;
     background: var(--bg);
+  }
+
+  /* Open menu: cap at the viewport height and scroll internally, so the
+     full tab list is reachable without growing the page. Closed bar keeps
+     height:auto (brand row only). */
+  .nav.mobile-nav-open {
+    max-height: calc(100vh);
+    max-height: calc(100dvh);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   [data-theme="dark"] .nav {
