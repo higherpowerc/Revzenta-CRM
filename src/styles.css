@@ -4329,7 +4329,7 @@ p.inv-notes.cockpit-foot {
   }
 
   .accounts-table td[data-label="Account"],
-  .accounts-table td[data-label="Business Type"],
+  .accounts-table td[data-label="Plan"],
   .accounts-table td[data-label="Phone"],
   .accounts-table td[data-label="Email"],
   .accounts-table td[data-label="Members"],
@@ -5790,7 +5790,7 @@ input.accent-hex::placeholder,
   min-width: 150px;
   text-align: center;
 }
-.accounts-table td[data-label="Business Type"] {
+.accounts-table td[data-label="Plan"] {
   min-width: 130px;
   white-space: nowrap;
   text-align: center;
@@ -6078,7 +6078,7 @@ input.accent-hex::placeholder,
   }
 
   .accounts-table td[data-label="Account"],
-  .accounts-table td[data-label="Business Type"],
+  .accounts-table td[data-label="Plan"],
   .accounts-table td[data-label="Phone"],
   .accounts-table td[data-label="Email"],
   .accounts-table th:nth-child(4),
