@@ -3058,7 +3058,6 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       try {
         session = await s.checkout.sessions.create({
           mode: "subscription",
-          payment_method_types: ["card"],
           customer_email: email,
           line_items: [
             {
