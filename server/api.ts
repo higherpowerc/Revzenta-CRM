@@ -158,6 +158,67 @@ function resolveOwnerClientForStripeEvent(obj: Record<string, unknown>): ClientR
  * forget like every transactional email). Idempotent: an already-paid record
  * skips the invoice email but still acknowledges. Returns the ack payload.
  */
+/**
+ * Owner decision 2026-09-09 - self-serve purchases must appear in the
+ * Revenue/Stripe Ledger (GET /api/invoices on the owner org). The ledger only
+ * reads the local `invoices` table, so the Stripe success path writes a paid
+ * row there. Uses the SAME columns as the manual create-invoice endpoint
+ * (org_id, client_id, amount, status, due_date, notes) - amount is DOLLARS
+ * (matches Finance.tsx, which renders i.amount directly). The Stripe event id
+ * is embedded in notes as `[stripe:<id>]` and acts as the idempotency key:
+ * webhook retries match the LIKE pattern before inserting, so a retry never
+ * double-books revenue. No-op when the key is already present (returns the
+ * existing row id) or when no id/amount can be derived.
+ */
+function recordStripeLedgerInvoice(input: {
+  orgId: number;
+  clientId: number | null;
+  amountCents: number;
+  currency: string;
+  tier: string;
+  billing: string;
+  purchaser: string;
+  stripeEventId: string;
+}): number | null {
+  const key = input.stripeEventId.trim();
+  if (key === "") return null;
+  const existing = db
+    .query("SELECT id FROM invoices WHERE org_id = ? AND notes LIKE ? ORDER BY id ASC LIMIT 1")
+    .get(input.orgId, `%[stripe:${key}]%`) as { id: number } | null;
+  if (existing) {
+    console.log(`[stripe] ledger invoice already recorded for ${key} (invoice ${existing.id}) - skipped (idempotent)`);
+    return existing.id;
+  }
+  const cents = Math.round(input.amountCents);
+  if (!Number.isFinite(cents) || cents <= 0) return null;
+  const info = db
+    .query(
+      `INSERT INTO invoices (org_id, client_id, amount, status, due_date, notes)
+       VALUES (?, ?, ?, 'paid', '', ?)`,
+    )
+    .run(
+      input.orgId,
+      input.clientId,
+      cents / 100,
+      `Stripe ${input.billing} - ${input.tier} (${input.currency.toUpperCase()}) - ${input.purchaser} [stripe:${key}]`,
+    );
+  const id = Number(info.lastInsertRowid);
+  console.log(`[stripe] ledger invoice ${id} recorded for ${key} (${input.purchaser}, ${cents / 100} ${input.currency.toUpperCase()})`);
+  return id;
+}
+
+/** Owner pricing 2026-09-08 in cents (mirrors the signup checkout plan map). */
+const SELF_SERVE_PLAN_CENTS: Record<string, Record<string, number>> = {
+  starter: { monthly: 2499, annual: 23990 },
+  pro: { monthly: 5999, annual: 57590 },
+  scale: { monthly: 7900, annual: 75840 },
+};
+
+function stripeNum(v: unknown): number | null {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function recordStripePayment(
   eventType: string,
   obj: Record<string, unknown>,
@@ -3486,9 +3547,43 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
               .toString()
               .trim()
               .toLowerCase();
+      const sessionId = typeof obj.id === "string" ? obj.id : "";
       if (metaEmail) {
-        await provisionPendingSignup({ lookupEmail: metaEmail, sessionId: typeof obj.id === "string" ? obj.id : "" });
+        await provisionPendingSignup({ lookupEmail: metaEmail, sessionId });
       }
+      // Revenue/Stripe Ledger (owner decision 2026-09-09): self-serve checkout
+      // purchases write a paid `invoices` row into the OWNER org so they show
+      // in Finance.tsx. Idempotent on the Stripe session id (see
+      // recordStripeLedgerInvoice) - retries never double-book. Amount prefers
+      // the session's amount_total (cents); the tier/billing plan map is the
+      // fallback when Stripe omits it.
+      const ownerOrg = getOwnerOrgId();
+      const tierRaw = typeof meta.tier === "string" ? meta.tier.trim().toLowerCase() : "";
+      const tier = tierRaw === "starter" || tierRaw === "scale" ? tierRaw : "pro";
+      const billingRaw = typeof meta.billing === "string" ? meta.billing.trim().toLowerCase() : "";
+      const billing = billingRaw === "annual" ? "annual" : "monthly";
+      const amountTotal = stripeNum(obj.amount_total);
+      const planCents = SELF_SERVE_PLAN_CENTS[tier]?.[billing] ?? 0;
+      const purchaseCents = amountTotal !== null && amountTotal > 0 ? Math.round(amountTotal) : planCents;
+      const currency =
+        typeof obj.currency === "string" && obj.currency.trim() !== "" ? obj.currency.trim().toLowerCase() : "usd";
+      const purchaser =
+        metaEmail ||
+        (typeof obj.customer_email === "string" ? obj.customer_email.trim() : "") ||
+        (typeof obj.customer === "string" ? obj.customer.trim() : "");
+      const eventId = typeof event.id === "string" ? event.id : "";
+      // Idempotency key: the Stripe event id when present, else the checkout
+      // session id (both are unique per purchase; Stripe retries resend both).
+      recordStripeLedgerInvoice({
+        orgId: ownerOrg,
+        clientId: null,
+        amountCents: purchaseCents,
+        currency,
+        tier,
+        billing,
+        purchaser: purchaser || metaEmail || "self-serve signup",
+        stripeEventId: eventId || sessionId,
+      });
     }
     if (
       event.type === "checkout.session.completed" ||
