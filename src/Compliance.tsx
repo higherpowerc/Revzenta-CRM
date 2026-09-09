@@ -15,6 +15,16 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"dnc" | "wholesaling" | "privacy" | "api_guard" | "safeguards">("safeguards");
 
+  // Safeguard A–D collapse state (expanded by default to preserve current behavior)
+  const [safeguardOpen, setSafeguardOpen] = useState<Record<"a" | "b" | "c" | "d", boolean>>({
+    a: true,
+    b: true,
+    c: true,
+    d: true,
+  });
+  const toggleSafeguard = (key: "a" | "b" | "c" | "d") =>
+    setSafeguardOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+
   // DNC Scrub / Lookup search
   const [searchQuery, setSearchQuery] = useState("");
   const [actionInProgress, setActionInProgress] = useState<number | null>(null);
@@ -329,8 +339,8 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Safeguard A: Data Controller vs Data Processor Agreement */}
           <div className="card admin-form">
-            <div className="admin-card-head">
-              <div>
+            <div className="admin-card-head admin-card-head-toggle">
+              <div className="admin-card-head-text">
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                   <span style={{ fontSize: "20px" }}>📄</span>
                   <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", background: "#e0e7ff", color: "#4338ca", borderRadius: "10px" }}>SAFEGUARD A</span>
@@ -340,7 +350,17 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                   Defines liability boundaries between Revzenta (the Software Provider) and the Wholesale Subscriber (the Lead Data Controller).
                 </p>
               </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm admin-card-toggle"
+                aria-expanded={safeguardOpen.a}
+                aria-label={safeguardOpen.a ? "Collapse Safeguard A" : "Expand Safeguard A"}
+                onClick={() => toggleSafeguard("a")}
+              >
+                {safeguardOpen.a ? "Hide ▾" : "Show ▸"}
+              </button>
             </div>
+            {safeguardOpen.a && (
 
             <div style={{ fontSize: "13px", color: "#334155", lineHeight: 1.6, marginTop: "14px", background: "#f8fafc", padding: "16px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginBottom: "12px" }}>
@@ -365,12 +385,13 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                 ✓ Result: If a subscriber executes an unauthorized phone campaign, legal liability rests on the subscriber as Data Controller, protecting Revzenta LLC as the independent technology platform.
               </div>
             </div>
+            )}
           </div>
 
           {/* Safeguard B: FCRA & Financial Data Disclaimer */}
           <div className="card admin-form">
-            <div className="admin-card-head">
-              <div>
+            <div className="admin-card-head admin-card-head-toggle">
+              <div className="admin-card-head-text">
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                   <span style={{ fontSize: "20px" }}>⚖️</span>
                   <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", background: "#fef3c7", color: "#92400e", borderRadius: "10px" }}>SAFEGUARD B</span>
@@ -380,7 +401,17 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                   Mandatory statutory safe harbor under 15 U.S.C. § 1681a governing public property records, valuations, and debt estimates.
                 </p>
               </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm admin-card-toggle"
+                aria-expanded={safeguardOpen.b}
+                aria-label={safeguardOpen.b ? "Collapse Safeguard B" : "Expand Safeguard B"}
+                onClick={() => toggleSafeguard("b")}
+              >
+                {safeguardOpen.b ? "Hide ▾" : "Show ▸"}
+              </button>
             </div>
+            {safeguardOpen.b && (
 
             <div style={{ marginTop: "14px", padding: "16px", borderRadius: "8px", background: "#fffbeb", border: "1px solid #fde68a", fontSize: "13px", color: "#78350f", lineHeight: 1.6 }}>
               <div style={{ fontWeight: 700, color: "#92400e", marginBottom: "6px" }}>
@@ -393,22 +424,23 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                 ⚠️ Prohibited Use Notice: Data provided through Revzenta CRM may NOT be used in whole or in part as a factor in determining eligibility for personal consumer credit, insurance, employment, or residential tenant screening.
               </div>
             </div>
+            )}
           </div>
 
           {/* Safeguard C: CCPA/CPRA Data Purge & Right to be Forgotten */}
           <div className="card admin-form">
-            <div className="admin-card-head">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", flexWrap: "wrap", gap: "10px" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                    <span style={{ fontSize: "20px" }}>🗑️</span>
-                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", background: "#fee2e2", color: "#991b1b", borderRadius: "10px" }}>SAFEGUARD C</span>
-                  </div>
-                  <h2 className="admin-card-title" style={{ margin: 0 }}>CCPA / CPRA &quot;Right to be Forgotten&quot; Consumer Purge Protocol</h2>
-                  <p className="admin-card-sub" style={{ margin: "4px 0 0" }}>
-                    Permanently purge homeowner personal records upon request while maintaining their phone number on the Permanent Suppression Registry.
-                  </p>
+            <div className="admin-card-head admin-card-head-toggle">
+              <div className="admin-card-head-text">
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "20px" }}>🗑️</span>
+                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", background: "#fee2e2", color: "#991b1b", borderRadius: "10px" }}>SAFEGUARD C</span>
                 </div>
+                <h2 className="admin-card-title" style={{ margin: 0 }}>CCPA / CPRA &quot;Right to be Forgotten&quot; Consumer Purge Protocol</h2>
+                <p className="admin-card-sub" style={{ margin: "4px 0 0" }}>
+                  Permanently purge homeowner personal records upon request while maintaining their phone number on the Permanent Suppression Registry.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "center" }}>
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -417,8 +449,18 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                 >
                   🗑️ Execute CCPA Purge
                 </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm admin-card-toggle"
+                  aria-expanded={safeguardOpen.c}
+                  aria-label={safeguardOpen.c ? "Collapse Safeguard C" : "Expand Safeguard C"}
+                  onClick={() => toggleSafeguard("c")}
+                >
+                  {safeguardOpen.c ? "Hide ▾" : "Show ▸"}
+                </button>
               </div>
             </div>
+            {safeguardOpen.c && (
 
             <div style={{ marginTop: "14px", fontSize: "13px", color: "#334155", lineHeight: 1.6 }}>
               <p>
@@ -475,12 +517,13 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Safeguard D: Technical Storage, At-Rest & In-Transit Security Audit */}
           <div className="card admin-form">
-            <div className="admin-card-head">
-              <div>
+            <div className="admin-card-head admin-card-head-toggle">
+              <div className="admin-card-head-text">
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                   <span style={{ fontSize: "20px" }}>🔒</span>
                   <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", background: "#ecfdf5", color: "#047857", borderRadius: "10px" }}>SAFEGUARD D</span>
@@ -490,7 +533,17 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                   Technical specifications protecting confidential records against data interception, unauthorized access, and cross-tenant leakage.
                 </p>
               </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm admin-card-toggle"
+                aria-expanded={safeguardOpen.d}
+                aria-label={safeguardOpen.d ? "Collapse Safeguard D" : "Expand Safeguard D"}
+                onClick={() => toggleSafeguard("d")}
+              >
+                {safeguardOpen.d ? "Hide ▾" : "Show ▸"}
+              </button>
             </div>
+            {safeguardOpen.d && (
 
             <div style={{ marginTop: "14px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
               <div style={{ padding: "14px", borderRadius: "6px", background: "#f8fafc", border: "1px solid #cbd5e1" }}>
@@ -545,6 +598,7 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}

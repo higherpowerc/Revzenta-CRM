@@ -159,6 +159,34 @@ function NumberField({
   );
 }
 
+/** -- Two-pane underwriter layout --------------------------------------
+ * LEFT  = source-pulled data (read-only, with source tags).
+ * RIGHT = manual inputs + computed outputs (all existing fields, unchanged).
+ * Panes stack vertically on narrow screens via .uw-split media query.
+ * Source tags default ON (SHOW_SOURCE_TAGS) for trust in auto-filled numbers;
+ * set SHOW_SOURCE_TAGS = false to hide them -- nothing else changes.
+ */
+const SHOW_SOURCE_TAGS = true;
+const UW_SPLIT_CSS = ".uw-split{display:grid;grid-template-columns:0.95fr 1.05fr;gap:24px;align-items:start}@media (max-width:900px){.uw-split{grid-template-columns:1fr}}";
+function SourceTag({ label }: { label: string }) {
+  if (!SHOW_SOURCE_TAGS) return null;
+  return (
+    <span style={{ fontSize: "10px", fontWeight: 800, padding: "1px 7px", borderRadius: "4px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.35)", color: "#38bdf8", whiteSpace: "nowrap" }}>
+      {label}
+    </span>
+  );
+}
+function PulledRow({ label, value, source }: { label: string; value: string; source: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", fontSize: "12.5px" }}>
+      <span style={{ color: "var(--muted, #94a3b8)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.03em" }}>{label}</span>
+      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <strong style={{ color: "var(--ink, #f8fafc)" }}>{value}</strong>
+        <SourceTag label={source} />
+      </span>
+    </div>
+  );
+}
 /** Cleanly parses address components from a string */
 function parseAddressString(raw: string) {
   const trimmed = raw.trim();
@@ -911,6 +939,134 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     includeAssignability,
   ]);
 
+  // ==========================================================================
+  // SUBJECT-TO LIVE OFFER PREVIEW (subto-only LOI, same data as offerPdf.ts)
+  // Bound to the same subto state as the editable deal — no PDF regen per
+  // keystroke. The "Download PDF" button (handleDownloadSubtoOfferPdf) calls POST /api/offers which
+  // generates the real offerPdf on demand with the same subto numbers.
+  // ==========================================================================
+  const subtoProposalData = useMemo(() => {
+    return generateMultiOptionProposal({
+      propertyAddress,
+      sellerName,
+      sellerEmail: recipientEmail,
+      sellerPhone,
+      agentName,
+      agentEmail,
+      agentPhone,
+      recipientType,
+      acquisitionsCompany,
+      selectedOptions: ["subto"],
+      closingDays,
+      earnestMoney: earnestMoneyDeposit,
+      cashMetrics,
+      subtoMetrics,
+      subtoInput: {
+        purchasePrice: subtoPrice,
+        cashToSeller: subtoCashToSeller,
+        arrearsReinstatement: subtoArrears,
+        rehabMakeReady: subtoRehab,
+        assignmentFee: subtoAssignmentFee,
+        closingEscrowCosts: subtoClosingCosts,
+        liens,
+        monthlyMarketRent: subtoRent,
+        monthlyTaxesAndInsurance: subtoTaxesIns,
+        monthlyHoa: subtoHoa,
+      },
+      creativeMetrics,
+      creativeInput: {
+        purchasePrice: creativePrice,
+        listedTargetPrice: creativeTargetList,
+        downPayment: creativeDown,
+        annualInterestRate: creativeInterestRate,
+        amortizationYears: creativeAmortYears,
+        balloonMaturityYears: creativeBalloonYears,
+        isInterestOnly: creativeIsIO,
+        rehabMakeReady: creativeRehab,
+        assignmentFee: creativeAssignmentFee,
+        closingEscrowCosts: creativeClosingCosts,
+        monthlyMarketRent: creativeRent,
+        monthlyTaxes: creativeTaxes,
+        monthlyInsurance: creativeInsurance,
+        monthlyHoa: creativeHoa,
+      },
+      includeAssignabilityClause: includeAssignability,
+    });
+  }, [
+    propertyAddress,
+    sellerName,
+    recipientEmail,
+    sellerPhone,
+    agentName,
+    agentEmail,
+    agentPhone,
+    recipientType,
+    acquisitionsCompany,
+    closingDays,
+    earnestMoneyDeposit,
+    cashMetrics,
+    subtoMetrics,
+    subtoPrice,
+    subtoCashToSeller,
+    subtoArrears,
+    subtoRehab,
+    subtoAssignmentFee,
+    subtoClosingCosts,
+    liens,
+    subtoRent,
+    subtoTaxesIns,
+    subtoHoa,
+    creativeMetrics,
+    creativePrice,
+    creativeTargetList,
+    creativeDown,
+    creativeInterestRate,
+    creativeAmortYears,
+    creativeBalloonYears,
+    creativeIsIO,
+    creativeRehab,
+    creativeAssignmentFee,
+    creativeClosingCosts,
+    creativeRent,
+    creativeTaxes,
+    creativeInsurance,
+    creativeHoa,
+    includeAssignability,
+  ]);
+  const [downloadingSubtoPdf, setDownloadingSubtoPdf] = useState<boolean>(false);
+  const handleDownloadSubtoOfferPdf = async () => {
+    setDownloadingSubtoPdf(true);
+    try {
+      const offer = await api.createOffer({
+        clientId: activeProperty?.id,
+        propertyAddress: propertyAddress.trim() || "Subject Property",
+        sellerName: sellerName.trim(),
+        sellerEmail: recipientEmail.trim(),
+        sellerPhone: sellerPhone.trim(),
+        agentName: agentName.trim(),
+        agentEmail: agentEmail.trim(),
+        agentPhone: agentPhone.trim(),
+        recipientType,
+        offerType: "Subject-To",
+        cashOfferAmount: 0,
+        subtoPurchasePrice: subtoPrice,
+        subtoDebt: subtoMetrics.totalExistingDebt,
+        subtoCashToSeller: subtoCashToSeller,
+        subtoMonthlyPayment: subtoMetrics.totalMonthlyDebtService,
+        creativePurchasePrice: 0,
+        closingDays,
+        earnestMoneyDeposit,
+        status: "Sent",
+        notes: subtoProposalData.plainText,
+      } as any);
+      if (offer?.ok && (offer as any).offer?.pdfUrl) {
+        window.open((offer as any).offer.pdfUrl, "_blank", "noopener");
+      }
+    } finally {
+      setDownloadingSubtoPdf(false);
+    }
+  };
+
   const handleCopyText = async () => {
     try {
       await navigator.clipboard.writeText(proposalData.plainText);
@@ -1283,6 +1439,8 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   };
 
   return (
+    <>
+      <style>{UW_SPLIT_CSS}</style>
     <div
       role="dialog"
       aria-modal="true"
@@ -1303,7 +1461,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       <div
         style={{
           width: "100%",
-          maxWidth: "1250px",
+          maxWidth: "1440px",
           maxHeight: "94vh",
           backgroundColor: "var(--panel, #121216)",
           color: "var(--ink, #f8fafc)",
@@ -1913,123 +2071,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             </div>
           )}
 
-          {/* Enriched live metrics badge row */}
-          {enrichedData && (
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", paddingTop: "2px" }}>
-              {/* AVM Market Value */}
-              <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>AVM Value</span>
-                <strong style={{ fontSize: "13.5px", color: "var(--primary, #d6ff3f)" }}>
-                  {enrichedData.estimatedValue != null ? `$${enrichedData.estimatedValue.toLocaleString()}` : "N/A"}
-                </strong>
-                {enrichedData.estimatedValue != null && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCashArv(enrichedData.estimatedValue!);
-                      setSaveSuccessMsg(`Set Cash Underwriter ARV to AVM $${enrichedData.estimatedValue!.toLocaleString()}!`);
-                      setTimeout(() => setSaveSuccessMsg(null), 3500);
-                    }}
-                    title="Set Cash Wholesale ARV to this verified AVM value"
-                    style={{ fontSize: "10.5px", fontWeight: 700, padding: "2px 7px", borderRadius: "4px", background: "rgba(214, 255, 63, 0.15)", border: "1px solid rgba(214, 255, 63, 0.3)", color: "var(--primary, #d6ff3f)", cursor: "pointer" }}
-                  >
-                    Use as ARV
-                  </button>
-                )}
-              </div>
 
-              {/* Market Rent */}
-              {enrichedData.estimatedRent ? (
-                <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>Market Rent</span>
-                  <strong style={{ fontSize: "13.5px", color: "#38bdf8" }}>
-                    ${enrichedData.estimatedRent.toLocaleString()}/mo
-                  </strong>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSubtoRent(enrichedData.estimatedRent!);
-                      setCreativeRent(enrichedData.estimatedRent!);
-                      setSaveSuccessMsg(`Applied Market Rent $${enrichedData.estimatedRent!.toLocaleString()}/mo to SubTo & Seller Financing!`);
-                      setTimeout(() => setSaveSuccessMsg(null), 3500);
-                    }}
-                    title="Apply market rent to SubTo & Creative financing cash flow models"
-                    style={{ fontSize: "10.5px", fontWeight: 700, padding: "2px 7px", borderRadius: "4px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer" }}
-                  >
-                    Apply to Rent
-                  </button>
-                </div>
-              ) : null}
-
-              {/* Specs */}
-              <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>Specs</span>
-                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
-                  {enrichedData.bedrooms ?? "—"} beds / {enrichedData.bathrooms ?? "—"} baths • {enrichedData.squareFootage ? `${enrichedData.squareFootage.toLocaleString()} sqft` : "—"}
-                </span>
-              </div>
-
-              {/* Year Built & Asset Class */}
-              <div style={{ padding: "6px 12px", borderRadius: "7px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>Property</span>
-                <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
-                  {enrichedData.yearBuilt ? `Built ${enrichedData.yearBuilt}` : "Year N/A"} • {enrichedData.propertyType || "Single Family"}
-                </span>
-              </div>
-
-              {/* Comps Button */}
-              {enrichedData.comps && enrichedData.comps.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowComps(!showComps)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "7px",
-                    background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)",
-                    border: "1px solid rgba(168, 85, 247, 0.45)",
-                    color: "#c084fc",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
-                >
-                  <span>🏘️</span>
-                  <span>{enrichedData.comps.length} Comps {showComps ? "▲ Hide" : "▼ View"}</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Expandable Comps Drawer */}
-          {showComps && enrichedData?.comps && enrichedData.comps.length > 0 && (
-            <div style={{ marginTop: "4px", padding: "12px 14px", borderRadius: "8px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "#c084fc", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>Recent Comparable Sales (RentCast MLS Data)</span>
-                <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)" }}>
-                  Avg Comp: <strong style={{ color: "var(--primary, #d6ff3f)" }}>${Math.round(enrichedData.comps.reduce((s, c) => s + (c.price || 0), 0) / enrichedData.comps.length).toLocaleString()}</strong>
-                </span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "8px" }}>
-                {enrichedData.comps.slice(0, 6).map((c, i) => (
-                  <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel-2, #16161b)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
-                    <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
-                      <span>{c.bedrooms}b / {c.bathrooms}ba • {c.squareFootage ? `${c.squareFootage.toLocaleString()} sqft` : ""}</span>
-                      <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
-                    </div>
-                    {c.distanceMiles != null && (
-                      <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
-                        {c.distanceMiles.toFixed(2)} mi away
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Tab Navigation */}
@@ -2636,7 +2678,84 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {/* TAB 2: CASH WHOLESALE & MAO */}
           {/* ================================================================ */}
           {tab === "cash" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
+            <div className="uw-split">
+              {/* LEFT: pulled source data (read-only) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                      Pulled Property Data
+                    </h3>
+                    <SourceTag label="RentCast" />
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "12px" }}>Auto-filled by enrichment - read-only.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <PulledRow label="Subject Property" value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"} source={activeProperty ? "CRM" : "Manual"} />
+                    <PulledRow label="AVM Market Value" value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"} source="RentCast" />
+                    {enrichedData?.valueRangeLow != null && enrichedData?.valueRangeHigh != null && (
+                      <PulledRow label="AVM Range" value={"$" + enrichedData.valueRangeLow.toLocaleString() + " - $" + enrichedData.valueRangeHigh.toLocaleString()} source="RentCast" />
+                    )}
+                    {enrichedData?.estimatedValue != null && (
+                      <button type="button" onClick={() => { setCashArv(enrichedData.estimatedValue!); setSaveSuccessMsg("Set Cash Underwriter ARV to AVM $" + enrichedData.estimatedValue!.toLocaleString() + "!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Set Cash Wholesale ARV to this verified AVM value" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(214, 255, 63, 0.15)", border: "1px solid rgba(214, 255, 63, 0.3)", color: "var(--primary, #d6ff3f)", cursor: "pointer", alignSelf: "flex-start" }}>
+                        Use AVM as ARV
+                      </button>
+                    )}
+                    <PulledRow label="Beds / Baths" value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Living Area" value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Year Built" value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Property Type" value={enrichedData?.propertyType || "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Market Rent" value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"} source="RentCast" />
+                    {enrichedData?.estimatedRent != null && (
+                      <button type="button" onClick={() => { setSubtoRent(enrichedData.estimatedRent!); setCreativeRent(enrichedData.estimatedRent!); setSaveSuccessMsg("Applied Market Rent $" + enrichedData.estimatedRent!.toLocaleString() + "/mo to SubTo & Seller Financing!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Apply market rent to SubTo & Creative financing cash flow models" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer", alignSelf: "flex-start" }}>
+                        Apply to Rent Inputs
+                      </button>
+                    )}
+                    {enrichedData?.lastSalePrice != null && (
+                      <PulledRow label="Last Sale" value={"$" + enrichedData.lastSalePrice.toLocaleString() + (enrichedData.lastSaleDate ? " (" + enrichedData.lastSaleDate + ")" : "")} source="RentCast" />
+                    )}
+                    {enrichedData?.taxAssessedValue != null && (
+                      <PulledRow label="Tax Assessed" value={"$" + enrichedData.taxAssessedValue.toLocaleString()} source="RentCast" />
+                    )}
+                  </div>
+                  {!enrichedData && (
+                    <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                      No enrichment pulled yet. Use the Auto-Enrichment bar above to pull verified specs.
+                    </div>
+                  )}
+                  {enrichedData != null && enrichedData.comps != null && enrichedData.comps.length > 0 && (
+                    <div style={{ marginTop: "12px" }}>
+                      <button type="button" onClick={() => setShowComps(!showComps)} style={{ padding: "6px 12px", borderRadius: "7px", background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)", border: "1px solid rgba(168, 85, 247, 0.45)", color: "#c084fc", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>Comps</span>
+                        <span>{enrichedData.comps.length} Comps {showComps ? "Hide" : "View"}</span>
+                        <SourceTag label="RentCast" />
+                      </button>
+                      {showComps && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                          {enrichedData.comps.slice(0, 6).map((c, i) => (
+                            <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
+                              <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
+                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " - " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
+                                <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
+                              </div>
+                              {c.distanceMiles != null && (
+                                <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                                  {c.distanceMiles.toFixed(2)} mi away
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* RIGHT: manual inputs + computed outputs */}
+              <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Your Inputs & Outputs
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {/* Inputs */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
@@ -2787,6 +2906,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   </div>
                 </div>
               </div>
+              </div>
             </div>
           )}
 
@@ -2794,7 +2914,73 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {/* TAB 3: SELLER FINANCING (CREATIVE TERMS) */}
           {/* ================================================================ */}
           {tab === "creative" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
+            <div className="uw-split">
+              {/* LEFT: pulled source data (read-only) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                      Pulled Property Data
+                    </h3>
+                    <SourceTag label="RentCast" />
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "12px" }}>Auto-filled by enrichment - read-only.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <PulledRow label="Subject Property" value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"} source={activeProperty ? "CRM" : "Manual"} />
+                    <PulledRow label="Market Rent" value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"} source="RentCast" />
+                    {enrichedData?.estimatedRent != null && (
+                      <button type="button" onClick={() => { setSubtoRent(enrichedData.estimatedRent!); setCreativeRent(enrichedData.estimatedRent!); setSaveSuccessMsg("Applied Market Rent $" + enrichedData.estimatedRent!.toLocaleString() + "/mo to SubTo & Seller Financing!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Apply market rent to SubTo & Creative financing cash flow models" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer", alignSelf: "flex-start" }}>
+                        Apply to Rent Inputs
+                      </button>
+                    )}
+                    <PulledRow label="AVM Market Value" value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Beds / Baths" value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Living Area" value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Year Built" value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Property Type" value={enrichedData?.propertyType || "Not pulled yet"} source="RentCast" />
+                    {enrichedData?.taxAssessedValue != null && (
+                      <PulledRow label="Tax Assessed" value={"$" + enrichedData.taxAssessedValue.toLocaleString()} source="RentCast" />
+                    )}
+                  </div>
+                  {!enrichedData && (
+                    <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                      No enrichment pulled yet. Use the Auto-Enrichment bar above to pull verified specs.
+                    </div>
+                  )}
+                  {enrichedData != null && enrichedData.comps != null && enrichedData.comps.length > 0 && (
+                    <div style={{ marginTop: "12px" }}>
+                      <button type="button" onClick={() => setShowComps(!showComps)} style={{ padding: "6px 12px", borderRadius: "7px", background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)", border: "1px solid rgba(168, 85, 247, 0.45)", color: "#c084fc", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>Comps</span>
+                        <span>{enrichedData.comps.length} Comps {showComps ? "Hide" : "View"}</span>
+                        <SourceTag label="RentCast" />
+                      </button>
+                      {showComps && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                          {enrichedData.comps.slice(0, 6).map((c, i) => (
+                            <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
+                              <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
+                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " - " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
+                                <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
+                              </div>
+                              {c.distanceMiles != null && (
+                                <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                                  {c.distanceMiles.toFixed(2)} mi away
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* RIGHT: manual inputs + computed outputs */}
+              <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Your Inputs & Outputs
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {/* Inputs */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
@@ -2931,6 +3117,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   </div>
                 </div>
               </div>
+              </div>
             </div>
           )}
 
@@ -2938,7 +3125,104 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {/* TAB 4: SUBJECT-TO (SUBTO) MORTGAGE TAKEOVER */}
           {/* ================================================================ */}
           {tab === "subto" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Subject-To Proposal Settings — compact table at TOP under property/owner header.
+                  Bound to the same state as the editable deal; feeds both panes below. */}
+              <div style={{ background: "var(--panel-2, #16161b)", padding: "16px 20px", borderRadius: "10px", border: "1px solid #38bdf8" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                    📋 Subject-To Proposal Settings
+                  </h3>
+                  <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: 700 }}>
+                    LIVE — edits update the deal &amp; offer letter instantly
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
+                  <CurrencyField label="Purchase Price" value={subtoPrice} onChange={setSubtoPrice} />
+                  <CurrencyField label="Cash to Seller" value={subtoCashToSeller} onChange={setSubtoCashToSeller} hint="Walkaway" />
+                  <CurrencyField label="Arrears / Reinstatement" value={subtoArrears} onChange={setSubtoArrears} />
+                  <CurrencyField label="Assignment Fee" value={subtoAssignmentFee} onChange={setSubtoAssignmentFee} />
+                  <CurrencyField label="Monthly Market Rent" value={subtoRent} onChange={setSubtoRent} />
+                  <NumberField label="Closing Days" value={closingDays} onChange={setClosingDays} />
+                  <CurrencyField label="Earnest Money" value={earnestMoneyDeposit} onChange={setEarnestMoneyDeposit} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", justifyContent: "flex-end", paddingBottom: "2px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>Debt Taken Over</span>
+                    <span style={{ fontSize: "15px", fontWeight: 800, color: "#38bdf8" }}>
+                      ${subtoMetrics.totalExistingDebt.toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 500 }}>
+                      ${Math.round(subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo serviced
+                    </span>
+                  </div>
+                </div>
+              </div>
+            <div className="uw-split">
+              {/* LEFT: pulled source data (read-only) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                      Pulled Property Data
+                    </h3>
+                    <SourceTag label="RentCast" />
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "12px" }}>Auto-filled by enrichment - read-only.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <PulledRow label="Subject Property" value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"} source={activeProperty ? "CRM" : "Manual"} />
+                    <PulledRow label="Market Rent" value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"} source="RentCast" />
+                    {enrichedData?.estimatedRent != null && (
+                      <button type="button" onClick={() => { setSubtoRent(enrichedData.estimatedRent!); setCreativeRent(enrichedData.estimatedRent!); setSaveSuccessMsg("Applied Market Rent $" + enrichedData.estimatedRent!.toLocaleString() + "/mo to SubTo & Seller Financing!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Apply market rent to SubTo & Creative financing cash flow models" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer", alignSelf: "flex-start" }}>
+                        Apply to Rent Inputs
+                      </button>
+                    )}
+                    <PulledRow label="AVM Market Value" value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Beds / Baths" value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Living Area" value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Year Built" value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"} source="RentCast" />
+                    <PulledRow label="Property Type" value={enrichedData?.propertyType || "Not pulled yet"} source="RentCast" />
+                    {enrichedData?.taxAssessedValue != null && (
+                      <PulledRow label="Tax Assessed" value={"$" + enrichedData.taxAssessedValue.toLocaleString()} source="RentCast" />
+                    )}
+                  </div>
+                  {!enrichedData && (
+                    <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                      No enrichment pulled yet. Use the Auto-Enrichment bar above to pull verified specs.
+                    </div>
+                  )}
+                  {enrichedData != null && enrichedData.comps != null && enrichedData.comps.length > 0 && (
+                    <div style={{ marginTop: "12px" }}>
+                      <button type="button" onClick={() => setShowComps(!showComps)} style={{ padding: "6px 12px", borderRadius: "7px", background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)", border: "1px solid rgba(168, 85, 247, 0.45)", color: "#c084fc", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>Comps</span>
+                        <span>{enrichedData.comps.length} Comps {showComps ? "Hide" : "View"}</span>
+                        <SourceTag label="RentCast" />
+                      </button>
+                      {showComps && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                          {enrichedData.comps.slice(0, 6).map((c, i) => (
+                            <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
+                              <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
+                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " - " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
+                                <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
+                              </div>
+                              {c.distanceMiles != null && (
+                                <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                                  {c.distanceMiles.toFixed(2)} mi away
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* RIGHT: manual inputs + computed outputs */}
+              <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Your Inputs & Outputs
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {/* Inputs */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
@@ -3010,6 +3294,39 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 </div>
               </div>
 
+              {/* RIGHT: live offer-letter preview (same subto data the PDF uses) */}
+                <div style={{ background: "var(--panel-2, #16161b)", padding: "16px 20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                        📄 Live Offer Letter
+                      </h3>
+                      <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 8px", borderRadius: "10px", backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.4)" }}>
+                        LIVE PREVIEW
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadSubtoOfferPdf}
+                      disabled={downloadingSubtoPdf}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: downloadingSubtoPdf ? "var(--border, #30363d)" : "#0284c7",
+                        color: "#ffffff",
+                        fontSize: "12.5px",
+                        fontWeight: 700,
+                        cursor: downloadingSubtoPdf ? "wait" : "pointer",
+                      }}
+                    >
+                      {downloadingSubtoPdf ? "Generating…" : "⬇ Download PDF"}
+                    </button>
+                  </div>
+                  <div style={{ background: "#ffffff", borderRadius: "8px", padding: "16px", maxHeight: "640px", overflowY: "auto" }}>
+                    <div dangerouslySetInnerHTML={{ __html: subtoProposalData.htmlMarkup }} />
+                  </div>
+                </div>
               {/* Viability & Summary Output */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {/* Scorecard */}
@@ -3105,7 +3422,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   </div>
                 </div>
               </div>
+              </div>
             </div>
+          </div>
           )}
 
         </div>
@@ -3719,5 +4038,6 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         />
       )}
     </div>
+    </>
   );
 }

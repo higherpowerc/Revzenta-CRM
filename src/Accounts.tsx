@@ -32,6 +32,17 @@ function generatePassword(): string {
   };
   return sets.map((s) => pick(s, 4)).join("") + pick(all, 3);
 }
+/** Owner 2026-09-09 — Subscribers "Plan" column label: derived from the
+ *  shared TIER_SHORT_LABELS constant ("Starter · $24.99") and rendered as
+ *  "Starter — $24.99/mo". The org row payload carries no billing cycle, so
+ *  the monthly price is shown with no billing qualifier. No hardcoded prices
+ *  here — repricing flows through TIER_SHORT_LABELS in src/types.ts. */
+function planCellLabel(tier?: string | null): string {
+  if (!tier) return TIER_SHORT_LABELS[""] || "Standard";
+  const key = normalizeTier(tier);
+  const short = TIER_SHORT_LABELS[key] || tier;
+  return short.includes("·") ? `${short.replace("·", "—").trim()}/mo` : short;
+}
 
 /** Client-account management (owner 2026-08-18 live-test reorg): the OWNER's
  *  Clients tab is the single hub for account management, so the account panel
@@ -811,7 +822,7 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
               <thead>
                 <tr>
                   <th>Account</th>
-                  <th>Business Type</th>
+                  <th>Plan</th>
                   <th>Phone</th>
                   <th>Email</th>
                   <th className="num">Members</th>
@@ -843,7 +854,6 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
                   /* The linked owner-org client record (provisionedOrgId join)
                      — feeds the Phone column. */
                   const linked = clientByOrg[o.id];
-                  const bType = (o.verticalKey ? verticalLabel(o.verticalKey) : "") || o.industry || linked?.industry || "Wholesale Real Estate";
                   const isRevealed = subHidden ? !!revealedSubRows[o.id] : !revealedSubRows[o.id];
                   const isSubPrivate = !isRevealed;
                   const amt = o.monthlySubscriptionAmount ?? 0;
@@ -866,53 +876,39 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
                           </div>
                         ) : null}
                       </td>
-                      <td data-label="Business Type">
+                      <td data-label="Plan">
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                           <span
                             className="chip"
                             style={{
-                              fontWeight: 600,
                               fontSize: "12px",
-                              background: "var(--bg-soft)",
-                              border: "1px solid var(--line-strong)",
+                              fontWeight: 700,
+                              background:
+                                normalizeTier(o.tier) === "scale"
+                                  ? "rgba(245, 158, 11, 0.15)"
+                                  : normalizeTier(o.tier) === "pro"
+                                  ? "rgba(168, 85, 247, 0.15)"
+                                  : "rgba(6, 182, 212, 0.15)",
+                              color:
+                                normalizeTier(o.tier) === "scale"
+                                  ? "#fbbf24"
+                                  : normalizeTier(o.tier) === "pro"
+                                  ? "#c084fc"
+                                  : "#22d3ee",
+                              border:
+                                normalizeTier(o.tier) === "scale"
+                                  ? "1px solid rgba(245, 158, 11, 0.3)"
+                                  : normalizeTier(o.tier) === "pro"
+                                  ? "1px solid rgba(168, 85, 247, 0.3)"
+                                  : "1px solid rgba(6, 182, 212, 0.3)",
                               textTransform: "none",
                               letterSpacing: "normal"
                             }}
-                            title={`Business Type: ${bType}`}
+                            title={`Plan: ${planCellLabel(o.tier)}`}
                           >
-                            {bType}
+                            {TIER_BADGES[normalizeTier(o.tier)]?.icon || "⚡"}{" "}
+                            {planCellLabel(o.tier)}
                           </span>
-                          {o.tier && (
-                            <span
-                              className="chip"
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                background:
-                                  normalizeTier(o.tier) === "scale"
-                                    ? "rgba(245, 158, 11, 0.15)"
-                                    : normalizeTier(o.tier) === "pro"
-                                    ? "rgba(168, 85, 247, 0.15)"
-                                    : "rgba(6, 182, 212, 0.15)",
-                                color:
-                                  normalizeTier(o.tier) === "scale"
-                                    ? "#fbbf24"
-                                    : normalizeTier(o.tier) === "pro"
-                                    ? "#c084fc"
-                                    : "#22d3ee",
-                                border:
-                                  normalizeTier(o.tier) === "scale"
-                                    ? "1px solid rgba(245, 158, 11, 0.3)"
-                                    : normalizeTier(o.tier) === "pro"
-                                    ? "1px solid rgba(168, 85, 247, 0.3)"
-                                    : "1px solid rgba(6, 182, 212, 0.3)",
-                                textTransform: "uppercase"
-                              }}
-                            >
-                              {TIER_BADGES[normalizeTier(o.tier)]?.icon || "⚡"}{" "}
-                              {TIER_SHORT_LABELS[normalizeTier(o.tier)] || o.tier}
-                            </span>
-                          )}
                         </div>
                       </td>
                       <td className="acc-line" data-label="Phone">
@@ -1072,7 +1068,7 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
             <thead>
               <tr>
                 <th>Account</th>
-                <th>Business Type</th>
+                <th>Plan</th>
                 <th>Phone</th>
                 <th>Email</th>
                 <th className="num">Members</th>
@@ -1102,7 +1098,6 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
             <tbody>
               {inactiveOrgs.map((o) => {
                 const linked = clientByOrg[o.id];
-                const bType = (o.verticalKey ? verticalLabel(o.verticalKey) : "") || o.industry || linked?.industry || "Wholesale Real Estate";
                 const isRevealed = subHidden ? !!revealedSubRows[o.id] : !revealedSubRows[o.id];
                 const isSubPrivate = !isRevealed;
                 const amt = o.monthlySubscriptionAmount ?? 0;
@@ -1119,20 +1114,37 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
                         </span>
                       </div>
                     </td>
-                    <td data-label="Business Type">
+                    <td data-label="Plan">
                       <span
                         className="chip"
                         style={{
-                          fontWeight: 600,
                           fontSize: "12px",
-                          background: "var(--bg-soft)",
-                          border: "1px solid var(--line-strong)",
+                          fontWeight: 700,
+                          background:
+                            normalizeTier(o.tier) === "scale"
+                              ? "rgba(245, 158, 11, 0.15)"
+                              : normalizeTier(o.tier) === "pro"
+                              ? "rgba(168, 85, 247, 0.15)"
+                              : "rgba(6, 182, 212, 0.15)",
+                          color:
+                            normalizeTier(o.tier) === "scale"
+                              ? "#fbbf24"
+                              : normalizeTier(o.tier) === "pro"
+                              ? "#c084fc"
+                              : "#22d3ee",
+                          border:
+                            normalizeTier(o.tier) === "scale"
+                              ? "1px solid rgba(245, 158, 11, 0.3)"
+                              : normalizeTier(o.tier) === "pro"
+                              ? "1px solid rgba(168, 85, 247, 0.3)"
+                              : "1px solid rgba(6, 182, 212, 0.3)",
                           textTransform: "none",
                           letterSpacing: "normal"
                         }}
-                        title={`Business Type: ${bType}`}
+                        title={`Plan: ${planCellLabel(o.tier)}`}
                       >
-                        {bType}
+                        {TIER_BADGES[normalizeTier(o.tier)]?.icon || "⚡"}{" "}
+                        {planCellLabel(o.tier)}
                       </span>
                     </td>
                     <td className="acc-line" data-label="Phone">

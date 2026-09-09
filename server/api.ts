@@ -6171,6 +6171,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const cashOfferAmount = Number(body.cashOfferAmount) || 0;
     const creativePurchasePrice = Number(body.creativePurchasePrice) || 0;
     const subtoPurchasePrice = Number(body.subtoPurchasePrice) || 0;
+    const subtoDebt = Number(body.subtoDebt) || 0;
+    const subtoCashToSeller = Number(body.subtoCashToSeller) || 0;
+    const subtoMonthlyPayment = Number(body.subtoMonthlyPayment) || 0;
     const status = typeof body.status === "string" ? body.status.trim() : "Sent";
     const notes = typeof body.notes === "string" ? body.notes : "";
     const closingDays = Number(body.closingDays) || 14;
@@ -6228,6 +6231,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         offerType: (offerType === "Cash" ? "cash" : offerType === "Seller Financing" ? "creative" : offerType === "Subject-To" ? "subto" : offerType) as any,
         cashOfferAmount,
         subtoPurchasePrice,
+        subtoDebt,
+        subtoCashToSeller,
+        subtoMonthlyPayment,
         creativePurchasePrice,
         closingDays,
         earnestMoney: earnestMoneyDeposit,
@@ -6247,7 +6253,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, '["cash"]',
-        ?, ?, 0, 0, 0,
+        ?, ?, ?, ?, ?,
         ?, 0, 0, 0,
         0, 0, ?, 'sent', ?, ?, datetime('now'), datetime('now')
       )
@@ -6262,6 +6268,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       offerType,
       cashOfferAmount,
       subtoPurchasePrice,
+      subtoDebt,
+      subtoCashToSeller,
+      subtoMonthlyPayment,
       creativePurchasePrice,
       closingDays,
       status,
