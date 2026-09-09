@@ -254,7 +254,7 @@ export default function App() {
   /** Package tier preview toggle (allows owner to test Starter / Pro / Scale behavior) */
   const [previewTier, setPreviewTier] = useState<PackageTier | null>(null);
 
-  /** Package tier outfitting: starter ($79/mo), pro ($199/mo), scale ($399/mo).
+  /** Package tier outfitting: starter ($24.99/mo), pro ($59.99/mo), scale ($79/mo).
    *  Owner cockpit has unconstrained superadmin access (scale).
    *  Subscribers read their org's package tier from user.tier. */
   const effectiveTier: PackageTier =
