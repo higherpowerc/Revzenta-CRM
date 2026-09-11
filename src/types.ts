@@ -713,6 +713,7 @@ export interface ProvisionEvent {
  *  the current session is an owner impersonation. */
 export interface MeResponse {
   user: User;
+  token?: string;
   impersonating: boolean;
   impersonatedFrom?: number;
 }

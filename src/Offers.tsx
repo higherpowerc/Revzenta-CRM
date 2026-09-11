@@ -138,11 +138,17 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
       // Search
       if (search.trim()) {
         const q = search.toLowerCase();
-        const matchesAddress = o.propertyAddress?.toLowerCase().includes(q);
+        const cleanQ = q.replace(/\s+/g, "");
+        const matchesAddress = o.propertyAddress?.toLowerCase().includes(q) ||
+          (cleanQ.length > 2 && o.propertyAddress?.toLowerCase().replace(/\s+/g, "").includes(cleanQ));
+        const matchesClient = o.client?.companyName?.toLowerCase().includes(q) ||
+          (cleanQ.length > 2 && o.client?.companyName?.toLowerCase().replace(/\s+/g, "").includes(cleanQ)) ||
+          o.client?.address?.toLowerCase().includes(q) ||
+          (cleanQ.length > 2 && o.client?.address?.toLowerCase().replace(/\s+/g, "").includes(cleanQ));
         const matchesSeller = o.sellerName?.toLowerCase().includes(q);
         const matchesEmail = o.sellerEmail?.toLowerCase().includes(q);
         const matchesRef = o.pdfId?.toLowerCase().includes(q);
-        if (!matchesAddress && !matchesSeller && !matchesEmail && !matchesRef) return false;
+        if (!matchesAddress && !matchesClient && !matchesSeller && !matchesEmail && !matchesRef) return false;
       }
 
       // Status Filter

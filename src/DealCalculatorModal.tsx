@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import type { Client, WholesaleOffer, PropertyEnrichmentResult } from "./types";
+import type { Client, WholesaleOffer, PropertyEnrichmentResult, CustomField } from "./types";
 import { api, type ClientInput } from "./api";
 import {
   calculateCashWholesale,
@@ -16,7 +16,7 @@ import UnderwritingRecordsPanel from "./UnderwritingRecordsPanel";
 interface Props {
   property?: Client | null;
   allProperties?: Client[];
-  onClose: () => void;
+  onClose?: () => void;
   onUpdated?: (updated: Client) => void;
   crmBusinessName?: string;
   embedded?: boolean;
@@ -170,50 +170,26 @@ function NumberField({
  */
 const SHOW_SOURCE_TAGS = true;
 const UW_SPLIT_CSS = `
-.uw-split{display:grid;grid-template-columns:minmax(260px,.78fr) minmax(0,1.22fr);gap:28px;align-items:start}
-.uw-clean .uw-split{grid-template-columns:1fr;gap:18px}
-.uw-clean .uw-property-header{justify-content:center !important;text-align:center}
-.uw-clean .uw-property-header > div{justify-content:center !important}
-.uw-clean .uw-property-header input,.uw-clean .uw-property-header select{max-width:420px}
-.uw-awaiting-property .uw-tab-nav,.uw-awaiting-property .uw-calculator-body{display:none !important}
-.uw-clean .uw-source-panel{display:none !important;}
-.uw-clean,.uw-clean > div{width:100%;max-width:100%;min-width:0;box-sizing:border-box;}
-.uw-clean .uw-property-header > div{min-width:0 !important;}
-.uw-clean .uw-property-header > div:first-child{flex:1 1 100% !important;}
-.uw-clean .uw-property-header > div:last-child{width:100%;justify-content:center !important;}
-.uw-clean .uw-property-header > div:first-child > div > div:nth-child(2){flex-wrap:wrap;}
-.uw-clean .uw-property-header input,.uw-clean .uw-property-header select{min-width:0 !important;}
-.uw-clean > div{border:0 !important;border-radius:0 !important;box-shadow:none !important;background:transparent !important;}
-.uw-clean > div > div{border-radius:0 !important;box-shadow:none !important;}
-.uw-clean [style*="var(--panel-2"]{background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;}
-.uw-clean [style*="var(--panel, #121216)"]{background:transparent !important;}
-.uw-clean [style*="borderRadius"]{border-radius:0 !important;}
-.uw-clean [style*="border: 1px solid var(--border"]{border:0 !important;border-bottom:1px solid var(--border, #30363d) !important;}
-.uw-clean h3{font-size:13px !important;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border, #30363d);padding-bottom:10px;margin-bottom:12px !important;}
-.uw-clean h4{font-size:12px !important;text-transform:uppercase;letter-spacing:.06em;}
-.uw-clean [style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:14px !important;}
-.uw-clean [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:14px !important;}
-.uw-clean input,.uw-clean select,.uw-clean textarea{border-radius:4px !important;border-color:var(--border, #30363d) !important;}
-.uw-clean .uw-data-row{border-radius:0 !important;border:0 !important;border-bottom:1px solid var(--border, #30363d) !important;padding:10px 0 !important;}
-.uw-clean .uw-table{width:100%;border-collapse:collapse;}
-.uw-clean .uw-table th{color:var(--muted, #94a3b8);font-size:10px;text-align:left;text-transform:uppercase;letter-spacing:.06em;padding:8px 0;border-bottom:1px solid var(--border, #30363d);}
-.uw-clean .uw-table td{padding:10px 0;border-bottom:1px solid var(--border, #30363d);font-size:12px;}
-@media (max-width:900px){.uw-split{grid-template-columns:1fr}}
-@media (max-width:900px){
-  .uw-clean .uw-property-header{padding:12px !important;align-items:stretch !important;}
-  .uw-clean .uw-property-header > div:first-child > div > div:nth-child(2){display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;}
-  .uw-clean .uw-property-header > div:first-child > div > div:nth-child(2) button{grid-column:1 / -1;width:100%;}
-  .uw-clean .uw-property-header > div:last-child{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
-  .uw-clean .uw-property-header > div:last-child > div{width:100% !important;}
-  .uw-clean .uw-property-header > div:last-child > div:last-child{grid-column:1 / -1;}
-  .uw-clean [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+.uw-split{display:grid;grid-template-columns:minmax(280px,.75fr) minmax(0,1.25fr);gap:24px;align-items:start}
+.uw-dashboard-3col{display:grid;grid-template-columns:minmax(290px, 0.95fr) minmax(360px, 1.25fr) minmax(310px, 1.05fr);gap:20px;align-items:start;width:100%;box-sizing:border-box}
+.uw-dashboard-2col{display:grid;grid-template-columns:minmax(320px, 1fr) minmax(380px, 1.25fr);gap:20px;align-items:start;width:100%;box-sizing:border-box}
+.uw-section-card{background:var(--panel-2, #16161b);border:1px solid var(--border, #30363d);border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;box-shadow:0 2px 10px rgba(0,0,0,0.15)}
+.uw-section-card-accent{background:var(--panel-2, #16161b);border:1px solid rgba(56, 189, 248, 0.4);border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;box-shadow:0 2px 12px rgba(56, 189, 248, 0.08)}
+.uw-section-card-hero{background:rgba(16, 185, 129, 0.08);border:1.5px solid #10b981;border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;box-sizing:border-box}
+.uw-section-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--border, #30363d);gap:8px}
+.uw-section-title{margin:0;font-size:14.5px;font-weight:800;color:var(--ink, #f8fafc);display:flex;align-items:center;gap:8px;letter-spacing:-0.01em}
+.uw-waterfall-step{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-radius:6px;background:var(--panel, #121216);border:1px solid rgba(255,255,255,0.05);font-size:13px;color:var(--ink, #f8fafc)}
+.uw-clean{width:100%;max-width:100%;min-width:0;box-sizing:border-box;}
+.uw-clean > div{width:100%;max-width:100%;min-width:0;box-sizing:border-box;}
+@media (max-width:1300px){
+  .uw-dashboard-3col{grid-template-columns:1fr 1fr;gap:18px;}
 }
-@media (max-width:640px){
-  .uw-clean .uw-property-header > div:first-child > div > div:nth-child(2){grid-template-columns:1fr !important;}
-  .uw-clean .uw-property-header > div:last-child{grid-template-columns:1fr !important;}
-  .uw-clean .uw-property-header > div:last-child > div:last-child{grid-column:auto;}
-  .uw-clean [style*="grid-template-columns: 1fr 1fr"],.uw-clean [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:1fr !important;}
-  .uw-clean .uw-calculator-body{padding:12px !important;}
+@media (max-width:1024px){
+  .uw-split{grid-template-columns:1fr;gap:20px;}
+}
+@media (max-width:880px){
+  .uw-dashboard-3col{grid-template-columns:1fr;gap:16px;}
+  .uw-dashboard-2col{grid-template-columns:1fr;gap:16px;}
 }
 @media (max-width:640px){
   div[role=dialog]{padding:8px !important;align-items:flex-start !important}
@@ -385,7 +361,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         setSaveSuccessMsg("Deal marked as Cancelled and moved to Lost deals.");
         setShowCancelModal(false);
         setTimeout(() => {
-          onClose();
+          onClose?.();
         }, 1200);
       }
     } catch (e: any) {
@@ -662,6 +638,26 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       monthlyPaymentPITI: 1250,
     },
   ]);
+
+  const [showSubtoOfferPreview, setShowSubtoOfferPreview] = useState(false);
+
+  const handleAddLien = () => {
+    setLiens((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        label: `Junior Lien #${prev.length + 1}`,
+        unpaidPrincipalBalance: 0,
+        interestRate: 4.5,
+        monthlyPaymentPITI: 0,
+      },
+    ]);
+  };
+
+  const handleRemoveLien = (index: number) => {
+    if (liens.length <= 1) return;
+    setLiens((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const subtoMetrics = useMemo(() => {
     return calculateSubjectTo({
@@ -1154,8 +1150,18 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
       const targetEmail = (previewRecipientEmail || (recipientType === "agent" ? (agentEmail || recipientEmail) : recipientEmail)).trim();
 
+      // Ensure property lead exists in CRM and has current terms
+      let currentProp = activeProperty;
+      if (!currentProp?.id && propertyAddress.trim()) {
+        try {
+          currentProp = await handleSaveTermsToProperty();
+        } catch (e) {
+          console.warn("Auto-save property before offer creation:", e);
+        }
+      }
+
       const res = await api.createOffer({
-        clientId: activeProperty?.id,
+        clientId: currentProp?.id || activeProperty?.id,
         propertyAddress: propertyAddress.trim(),
         sellerName: sellerName.trim(),
         sellerEmail: targetEmail || recipientEmail.trim(),
@@ -1177,9 +1183,13 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       if (res.ok && res.offer) {
         setGeneratedOffer(res.offer);
         setSaveSuccessMsg("Official LOI generated and stored in Offers Repository!");
-        if (activeProperty?.id) {
-          await handleSaveTermsToProperty();
-        }
+        const todayStr = new Date().toISOString().split("T")[0];
+        await handleSaveTermsToProperty([
+          { name: "LOI Status", value: "Sent" },
+          { name: "LOI", value: "Sent" },
+          { name: "Offer Sent", value: todayStr },
+          { name: "Cash Offer", value: String(cashMetrics.netWholesaleOffer) },
+        ]);
         return res.offer;
       }
       return null;
@@ -1285,7 +1295,10 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     setSaveSuccessMsg(null);
   };
 
-  const handleSaveTermsToProperty = async () => {
+  const handleSaveTermsToProperty = async (
+    extraFields?: CustomField[] | unknown
+  ): Promise<Client | null> => {
+    const fieldsToAppend: CustomField[] | undefined = Array.isArray(extraFields) ? extraFields : undefined;
     setSavingToCrm(true);
     setSaveSuccessMsg(null);
     try {
@@ -1304,7 +1317,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           : subtoPrice;
 
       const parsedAddr = parseAddressString(propertyAddress);
-      const customFieldsUpdate = [
+      const customFieldsUpdate: CustomField[] = [
         ...(activeProperty?.customFields || []).filter(
           (c) =>
             !c.name.toLowerCase().includes("arv") &&
@@ -1322,31 +1335,31 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             !c.name.toLowerCase().includes("market rent") &&
             !c.name.toLowerCase().includes("rent estimate") &&
             !c.name.toLowerCase().includes("avm market value") &&
-            !c.name.toLowerCase().includes("estimated value")
+            !c.name.toLowerCase().includes("estimated value") &&
+            !(fieldsToAppend && fieldsToAppend.some((ef) => ef.name.toLowerCase() === c.name.toLowerCase()))
         ),
-        { id: "cf_arv", name: "ARV", type: "currency", value: String(cashArv) },
-        { id: "cf_repairs", name: "Repairs", type: "currency", value: String(cashRepairs) },
-        { id: "cf_fee", name: "Assignment Value", type: "currency", value: String(activeFee) },
-        { id: "cf_offer", name: "Underwritten Purchase Price", type: "currency", value: String(activeOffer) },
-        { id: "cf_earnest", name: "Earnest Money", type: "currency", value: String(earnestMoneyDeposit) },
+        { name: "ARV", value: String(cashArv) },
+        { name: "Repairs", value: String(cashRepairs) },
+        { name: "Assignment Value", value: String(activeFee) },
+        { name: "Underwritten Purchase Price", value: String(activeOffer) },
+        { name: "Earnest Money", value: String(earnestMoneyDeposit) },
+        ...(fieldsToAppend || []),
       ];
 
       if (parsedAddr.address) {
         customFieldsUpdate.push({
-          id: "cf_prop_address",
           name: "Property address",
-          type: "text",
           value: propertyAddress,
         });
       }
 
       if (enrichedData) {
-        if (enrichedData.bedrooms != null) customFieldsUpdate.push({ id: "cf_beds", name: "Bedrooms", type: "number", value: String(enrichedData.bedrooms) });
-        if (enrichedData.bathrooms != null) customFieldsUpdate.push({ id: "cf_baths", name: "Bathrooms", type: "number", value: String(enrichedData.bathrooms) });
-        if (enrichedData.squareFootage != null) customFieldsUpdate.push({ id: "cf_sqft", name: "Square Footage", type: "number", value: String(enrichedData.squareFootage) });
-        if (enrichedData.yearBuilt != null) customFieldsUpdate.push({ id: "cf_year", name: "Year Built", type: "number", value: String(enrichedData.yearBuilt) });
-        if (enrichedData.estimatedRent != null) customFieldsUpdate.push({ id: "cf_rent", name: "Market Rent", type: "currency", value: String(enrichedData.estimatedRent) });
-        if (enrichedData.estimatedValue != null) customFieldsUpdate.push({ id: "cf_avm", name: "AVM Market Value", type: "currency", value: String(enrichedData.estimatedValue) });
+        if (enrichedData.bedrooms != null) customFieldsUpdate.push({ name: "Bedrooms", value: String(enrichedData.bedrooms) });
+        if (enrichedData.bathrooms != null) customFieldsUpdate.push({ name: "Bathrooms", value: String(enrichedData.bathrooms) });
+        if (enrichedData.squareFootage != null) customFieldsUpdate.push({ name: "Square Footage", value: String(enrichedData.squareFootage) });
+        if (enrichedData.yearBuilt != null) customFieldsUpdate.push({ name: "Year Built", value: String(enrichedData.yearBuilt) });
+        if (enrichedData.estimatedRent != null) customFieldsUpdate.push({ name: "Market Rent", value: String(enrichedData.estimatedRent) });
+        if (enrichedData.estimatedValue != null) customFieldsUpdate.push({ name: "AVM Market Value", value: String(enrichedData.estimatedValue) });
       }
 
       if (activeProperty?.id) {
@@ -1374,14 +1387,10 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         const res = await api.updateClient(activeProperty.id, updatePayload);
         if (res.client) {
           onUpdated?.(res.client);
-          if (embedded) {
-            resetDealWorkspace();
-            setSaveSuccessMsg("Saved to the lead file. Creative Hub is ready for the next property.");
-          } else {
-            setActiveProperty(res.client);
-            setSaveSuccessMsg("Saved underwritten terms & address directly to property lead!");
-            setTimeout(() => setSaveSuccessMsg(null), 5000);
-          }
+          setActiveProperty(res.client);
+          setSaveSuccessMsg("Saved underwritten terms & address directly to property lead!");
+          setTimeout(() => setSaveSuccessMsg(null), 5000);
+          return res.client;
         }
       } else {
         const createPayload: ClientInput = {
@@ -1405,18 +1414,16 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         const res = await api.createClient(createPayload);
         if (res.client) {
           onUpdated?.(res.client);
-          if (embedded) {
-            resetDealWorkspace();
-            setSaveSuccessMsg("Saved to the lead file. Creative Hub is ready for the next property.");
-          } else {
-            setActiveProperty(res.client);
-            setSaveSuccessMsg("Created new underwritten property lead in your pipeline!");
-            setTimeout(() => setSaveSuccessMsg(null), 5000);
-          }
+          setActiveProperty(res.client);
+          setSaveSuccessMsg("Created new underwritten property lead in your pipeline!");
+          setTimeout(() => setSaveSuccessMsg(null), 5000);
+          return res.client;
         }
       }
+      return null;
     } catch (err: any) {
       setSaveSuccessMsg("Error saving: " + (err.message || String(err)));
+      return null;
     } finally {
       setSavingToCrm(false);
     }
@@ -1554,7 +1561,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     <>
       <style>{UW_SPLIT_CSS}</style>
     <div
-      className={embedded ? `uw-clean${!activeProperty && !propertyAddress.trim() ? " uw-awaiting-property" : ""}` : undefined}
+      className={embedded ? "uw-clean" : undefined}
       role={embedded ? undefined : "dialog"}
       aria-modal={embedded ? undefined : "true"}
       style={{
@@ -1610,32 +1617,58 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             <span style={{ fontSize: "24px" }}>📐</span>
             <div>
               <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", letterSpacing: "-0.01em" }}>
-                {embedded ? "Build Deal" : "Revzenta Deal Underwriter™"}
+                Revzenta Deal Underwriter™
               </h2>
               <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-                {embedded ? "Add a property URL or select a property to begin" : "Proprietary Acquisitions Modeling • Cash Wholesale MAO • Seller Financing • Subject-To"}
+                Proprietary Acquisitions Modeling • Cash Wholesale MAO • Seller Financing • Subject-To
               </p>
             </div>
           </div>
-          {!embedded && <button
-            onClick={onClose}
-            style={{
-              fontSize: "16px",
-              cursor: "pointer",
-              background: "var(--panel, #121216)",
-              border: "1px solid var(--border, #30363d)",
-              color: "var(--ink, #f8fafc)",
-              width: "32px",
-              height: "32px",
-              borderRadius: "6px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            aria-label="Close modal"
-          >
-            ✕
-          </button>}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {embedded && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn btn-sm btn-ghost"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                  borderColor: "var(--border, #30363d)",
+                  color: "var(--ink, #f8fafc)",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+                title="View the wholesale properties pipeline table"
+              >
+                <span>📋</span>
+                <span>Property Pipeline ({propertiesList.length})</span>
+              </button>
+            )}
+            {!embedded && (
+              <button
+                onClick={onClose}
+                style={{
+                  fontSize: "16px",
+                  cursor: "pointer",
+                  background: "var(--panel, #121216)",
+                  border: "1px solid var(--border, #30363d)",
+                  color: "var(--ink, #f8fafc)",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Persistent Property & Deal Header */}
@@ -1670,60 +1703,32 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 )}
               </div>
 
-              {/* Selector pulling all properties from Properties Menu/Table */}
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <select
-                  value={activeProperty ? String(activeProperty.id) : ""}
-                  onChange={(e) => handleSelectProperty(e.target.value)}
-                  style={{
-                    flex: "1 1 50%",
-                    height: "38px",
-                    padding: "0 10px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    borderRadius: "6px",
-                    border: "1px solid var(--border, #30363d)",
-                    backgroundColor: "var(--panel, #121216)",
-                    color: "var(--ink, #f8fafc)",
-                    outline: "none",
-                    cursor: "pointer",
-                  }}
-                  aria-label="Select property from table"
-                >
-                  <option value="">-- Select a property ({propertiesList.length}) --</option>
-                  {propertiesList.map((p) => {
-                    const addr = p.address || p.companyName || `Property #${p.id}`;
-                    const loc = [p.city, p.state].filter(Boolean).join(", ");
-                    const val = p.dealValue ? ` · $${Number(p.dealValue).toLocaleString()}` : "";
-                    const stg = p.stage ? ` [${p.stage}]` : "";
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {addr}{loc ? ` (${loc})` : ""}{val}{stg}
-                      </option>
-                    );
-                  })}
-                  <option value="__custom__">➕ Enter Custom / Unlisted Address</option>
-                </select>
-
-                <input
-                  type="text"
-                  value={propertyAddress}
-                  onChange={(e) => setPropertyAddress(e.target.value)}
-                  placeholder="Enter Property Address"
-                  style={{
-                    flex: "1 1 50%",
-                    height: "38px",
-                    padding: "0 12px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    borderRadius: "6px",
-                    border: "1px solid var(--border, #30363d)",
-                    backgroundColor: "var(--panel, #121216)",
-                    color: "var(--ink, #f8fafc)",
-                    boxSizing: "border-box",
-                    outline: "none",
-                  }}
-                />
+              {/* Address display & Upload Property URL */}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                {propertyAddress ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      flex: "1 1 auto",
+                      minWidth: "200px",
+                      height: "38px",
+                      padding: "0 12px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border, #30363d)",
+                      backgroundColor: "var(--panel, #121216)",
+                      color: "var(--ink, #f8fafc)",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span style={{ color: "#38bdf8" }}>📍</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {propertyAddress}
+                    </span>
+                  </div>
+                ) : null}
 
                 <button
                   type="button"
@@ -1735,9 +1740,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     gap: "6px",
                     border: "1px solid rgba(56, 189, 248, 0.45)",
                     color: "#38bdf8",
-                    background: "rgba(56, 189, 248, 0.1)",
+                    background: "rgba(56, 189, 248, 0.12)",
                     height: "38px",
-                    padding: "0 12px",
+                    padding: "0 14px",
                     fontSize: "12.5px",
                     fontWeight: 700,
                     borderRadius: "6px",
@@ -1836,6 +1841,32 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             <div style={{ display: "flex", gap: "8px", alignItems: "flex-end", alignSelf: "flex-end", flexWrap: "wrap" }}>
               <button
                 type="button"
+                onClick={() => handleAutoEnrich(undefined, activeProperty)}
+                disabled={enriching || !propertyAddress.trim()}
+                title="Automatically pull verified MLS specs, valuations, and comps for this property address"
+                style={{
+                  height: "38px",
+                  padding: "0 14px",
+                  fontWeight: 700,
+                  fontSize: "12.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  whiteSpace: "nowrap",
+                  borderRadius: "6px",
+                  border: "1px solid var(--primary, #d6ff3f)",
+                  backgroundColor: "rgba(214, 255, 63, 0.15)",
+                  color: "var(--primary, #d6ff3f)",
+                  cursor: enriching || !propertyAddress.trim() ? "not-allowed" : "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>{enriching ? "🔍" : "⚡"}</span>
+                <span>{enriching ? "Enriching..." : "Auto-Enrich Data"}</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleOpenPreviewOffer}
                 title="Preview formal purchase offer & LOI package"
                 style={{
@@ -1860,33 +1891,6 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
               <button
                 type="button"
-                onClick={handleSendOffer}
-                disabled={sendingOffer}
-                title="Manually send offer with PDF to recipient"
-                style={{
-                  height: "38px",
-                  padding: "0 14px",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  whiteSpace: "nowrap",
-                  borderRadius: "6px",
-                  border: "none",
-                  backgroundColor: "#2563eb",
-                  color: "#ffffff",
-                  cursor: sendingOffer ? "not-allowed" : "pointer",
-                  boxShadow: "0 2px 8px rgba(37, 99, 235, 0.35)",
-                  opacity: sendingOffer ? 0.7 : 1,
-                }}
-              >
-                <span>📤</span>
-                <span>{sendingOffer ? "Sending..." : "Send Offer"}</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={handleSaveTermsToProperty}
                 disabled={savingToCrm}
                 style={{
@@ -1907,35 +1911,8 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 }}
               >
                 <span>💾</span>
-                <span>{savingToCrm ? "Saving…" : embedded ? "Save Deal" : activeProperty ? "Save to Property" : "Save as New Property"}</span>
+                <span>{savingToCrm ? "Saving…" : activeProperty ? "Save to Property" : "Save as New Property"}</span>
               </button>
-
-              {activeProperty && (
-                <button
-                  type="button"
-                  onClick={() => setShowCancelModal(true)}
-                  disabled={savingToCrm || cancellingDeal}
-                  title="Cancel this deal and mark it as lost / fell through"
-                  style={{
-                    height: "38px",
-                    padding: "0 12px",
-                    fontWeight: 600,
-                    fontSize: "12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    whiteSpace: "nowrap",
-                    borderRadius: "6px",
-                    border: "1px solid rgba(239, 68, 68, 0.4)",
-                    backgroundColor: "rgba(239, 68, 68, 0.12)",
-                    color: "#f87171",
-                    cursor: "pointer",
-                  }}
-                >
-                  <span>🚫</span>
-                  <span>Cancel Deal</span>
-                </button>
-              )}
             </div>
           </div>
           {saveSuccessMsg && (
@@ -1943,258 +1920,59 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
               {saveSuccessMsg}
             </div>
           )}
-
-          {showCancelModal && (
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                backgroundColor: "rgba(0,0,0,0.75)",
-                zIndex: 10000,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "16px",
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: "var(--panel, #121216)",
-                  border: "1px solid var(--border, #30363d)",
-                  borderRadius: "12px",
-                  padding: "24px",
-                  maxWidth: "480px",
-                  width: "100%",
-                  boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
-                  <span style={{ fontSize: "24px" }}>🚫</span>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                      Cancel Wholesale Deal
-                    </h3>
-                    <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-                      {propertyAddress || property?.companyName || "Current Deal"}
-                    </p>
-                  </div>
-                </div>
-                <p style={{ fontSize: "13px", color: "var(--text-dim, #cbd5e1)", lineHeight: 1.5, marginBottom: "16px" }}>
-                  Cancelling this deal removes it from your active wholesale pipeline and updates projected assignment fees. The deal record will be preserved in your <strong>Lost Deals</strong> section for audit history.
-                </p>
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #94a3b8)", marginBottom: "6px" }}>
-                    Reason for Cancellation *
-                  </label>
-                  <select
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "38px",
-                      padding: "0 10px",
-                      fontSize: "13px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--border, #30363d)",
-                      backgroundColor: "var(--panel-2, #16161b)",
-                      color: "var(--ink, #f8fafc)",
-                      boxSizing: "border-box",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="Inspection / repair costs too high">Inspection / repair costs too high</option>
-                    <option value="Buyer backed out / Couldn't find cash buyer">Buyer backed out / Couldn't find cash buyer</option>
-                    <option value="Seller backed out / Uncooperative seller">Seller backed out / Uncooperative seller</option>
-                    <option value="Title defects / clouded title / liens">Title defects / clouded title / liens</option>
-                    <option value="Numbers don't work / Overpriced">Numbers don't work / Overpriced</option>
-                    <option value="EMD not deposited in time">EMD not deposited in time</option>
-                    <option value="Mutual termination">Mutual termination</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #94a3b8)", marginBottom: "6px" }}>
-                    Additional Notes (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={cancelNotes}
-                    onChange={(e) => setCancelNotes(e.target.value)}
-                    placeholder="e.g. Foundation cracked on inspection day 4..."
-                    style={{
-                      width: "100%",
-                      height: "38px",
-                      padding: "0 12px",
-                      fontSize: "13px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--border, #30363d)",
-                      backgroundColor: "var(--panel-2, #16161b)",
-                      color: "var(--ink, #f8fafc)",
-                      boxSizing: "border-box",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowCancelModal(false)}
-                    disabled={cancellingDeal}
-                    style={{
-                      padding: "8px 16px",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      borderRadius: "6px",
-                      border: "1px solid var(--border, #30363d)",
-                      backgroundColor: "transparent",
-                      color: "var(--ink, #f8fafc)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Keep Active
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelDeal}
-                    disabled={cancellingDeal}
-                    style={{
-                      padding: "8px 18px",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      borderRadius: "6px",
-                      border: "none",
-                      backgroundColor: "#ef4444",
-                      color: "#ffffff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {cancellingDeal ? "Cancelling…" : "Confirm Cancel Deal"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* ── Property Lead Auto-Enrichment (RentCast MLS Specs, AVM & Comps) ── */}
-        <div
-          style={{
-            padding: "12px 24px",
-            backgroundColor: "rgba(214, 255, 63, 0.04)",
-            borderBottom: "1px solid var(--border, #30363d)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "20px" }}>⚡</span>
-              <div>
-                <strong style={{ fontSize: "13.5px", color: "var(--ink, #f8fafc)", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>Property Lead Auto-Enrichment</span>
-                  <span style={{ fontSize: "10px", fontWeight: 800, padding: "1px 7px", borderRadius: "4px", backgroundColor: "rgba(214, 255, 63, 0.15)", color: "var(--primary, #d6ff3f)", border: "1px solid rgba(214, 255, 63, 0.3)" }}>
-                    RentCast MLS Data
-                  </span>
-                </strong>
-                <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", display: "block", marginTop: "1px" }}>
-                  Pull beds, baths, sqft, year built, AVM market value &amp; comps automatically.
-                </span>
+        {/* ── Active Property Lead Auto-Enrichment Status / Notifications ── */}
+        {(enriching || enrichError || enrichSuccess || showApiKeyInput) && (
+          <div
+            style={{
+              padding: "10px 24px",
+              backgroundColor: "rgba(214, 255, 63, 0.04)",
+              borderBottom: "1px solid var(--border, #30363d)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
+            {enriching && (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 14px", borderRadius: "6px", background: "rgba(56, 189, 248, 0.12)", border: "1px solid rgba(56, 189, 248, 0.35)", fontSize: "12.5px", color: "#38bdf8" }}>
+                <span style={{ fontSize: "16px" }}>🔄</span>
+                <span><strong>Connecting to RentCast MLS API...</strong> Fetching verified MLS specs, public county tax appraisal, AVM valuation, and comps for <em>{propertyAddress || "selected property"}</em>...</span>
               </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <button
-                type="button"
-                onClick={() => handleAutoEnrich(undefined, activeProperty)}
-                disabled={enriching || !propertyAddress.trim()}
-                title="Automatically pull verified MLS specs, valuations, and comps for this property address"
-                style={{
-                  height: "34px",
-                  padding: "0 16px",
-                  fontWeight: 700,
-                  fontSize: "12.5px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  whiteSpace: "nowrap",
-                  borderRadius: "6px",
-                  border: "1px solid var(--primary, #d6ff3f)",
-                  backgroundColor: "rgba(214, 255, 63, 0.15)",
-                  color: "var(--primary, #d6ff3f)",
-                  cursor: enriching || !propertyAddress.trim() ? "not-allowed" : "pointer",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <span>{enriching ? "🔍" : "⚡"}</span>
-                <span>{enriching ? "Enriching..." : "Auto-Enrich Data"}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Feedback banners */}
-          {enrichError && (
-            <div style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", fontSize: "12px" }}>
-              {enrichError}
-            </div>
-          )}
-          {enrichSuccess && (
-            <div style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#34d399", fontSize: "12px" }}>
-              {enrichSuccess}
-            </div>
-          )}
-
-          {/* Inline RentCast API key entry if not yet configured */}
-          {showApiKeyInput && (
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "10px 14px", borderRadius: "8px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>RentCast API Key:</span>
-              <input
-                type="text"
-                value={apiKeyDraft}
-                onChange={(e) => setApiKeyDraft(e.target.value)}
-                placeholder="Paste your RentCast API Key..."
-                style={{ flex: "1 1 240px", height: "32px", padding: "0 10px", fontSize: "12.5px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "var(--ink, #f8fafc)", outline: "none" }}
-              />
-              <button
-                type="button"
-                onClick={handleSaveApiKey}
-                disabled={savingApiKey || !apiKeyDraft.trim()}
-                style={{ height: "32px", padding: "0 14px", fontSize: "12px", fontWeight: 700, borderRadius: "6px", background: "var(--primary, #d6ff3f)", color: "#000", border: "none", cursor: "pointer" }}
-              >
-                {savingApiKey ? "Saving..." : "Save Key & Auto-Enrich"}
-              </button>
-              {apiKeyMsg && <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)" }}>{apiKeyMsg}</span>}
-            </div>
-          )}
-
-          {/* Enriching progress banner */}
-          {enriching && (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderRadius: "8px", background: "rgba(56, 189, 248, 0.12)", border: "1px solid rgba(56, 189, 248, 0.35)", fontSize: "12.5px", color: "#38bdf8" }}>
-              <span style={{ fontSize: "16px" }}>🔄</span>
-              <span><strong>Connecting to RentCast API...</strong> Fetching verified MLS specs, public county tax appraisal, AVM valuation, and comps for <em>{propertyAddress || "selected property"}</em>...</span>
-            </div>
-          )}
-
-          {/* Prompt when not yet enriched */}
-          {!enrichedData && !enriching && !enrichError && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.02)", border: "1px dashed var(--border, #30363d)", fontSize: "12px", color: "var(--muted, #94a3b8)", flexWrap: "wrap" }}>
-              <span>
-                💡 {propertyAddress.trim() ? `Click "⚡ Auto-Enrich Data" to query RentCast for MLS specs, AVM valuation & comps for "${propertyAddress}".` : "Select a property above or enter an address to pull verified MLS specs & valuations."}
-              </span>
-              {propertyAddress.trim() && (
+            )}
+            {enrichError && (
+              <div style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", fontSize: "12px" }}>
+                {enrichError}
+              </div>
+            )}
+            {enrichSuccess && (
+              <div style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#34d399", fontSize: "12px" }}>
+                {enrichSuccess}
+              </div>
+            )}
+            {showApiKeyInput && (
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>RentCast API Key:</span>
+                <input
+                  type="text"
+                  value={apiKeyDraft}
+                  onChange={(e) => setApiKeyDraft(e.target.value)}
+                  placeholder="Paste your RentCast API Key..."
+                  style={{ flex: "1 1 240px", height: "32px", padding: "0 10px", fontSize: "12.5px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "var(--ink, #f8fafc)", outline: "none" }}
+                />
                 <button
                   type="button"
-                  onClick={() => handleAutoEnrich(undefined, activeProperty)}
-                  style={{ background: "none", border: "none", color: "var(--primary, #d6ff3f)", fontSize: "12px", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}
+                  onClick={handleSaveApiKey}
+                  disabled={savingApiKey || !apiKeyDraft.trim()}
+                  style={{ height: "32px", padding: "0 14px", fontSize: "12px", fontWeight: 700, borderRadius: "6px", background: "var(--primary, #d6ff3f)", color: "#000", border: "none", cursor: "pointer" }}
                 >
-                  ⚡ Run Auto-Enrich Now →
+                  {savingApiKey ? "Saving..." : "Save Key & Auto-Enrich"}
                 </button>
-              )}
-            </div>
-          )}
-
-
-        </div>
+                {apiKeyMsg && <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)" }}>{apiKeyMsg}</span>}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div
@@ -2806,68 +2584,147 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {/* TAB 2: CASH WHOLESALE & MAO */}
           {/* ================================================================ */}
           {tab === "cash" && (
-            <div className="uw-split">
-              {/* LEFT: pulled source data (read-only) */}
-              <div className="uw-source-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                      Pulled Property Data
+            <div className="uw-dashboard-3col">
+              {/* COLUMN 1: Property Benchmark & Market Intelligence */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>📊</span>
+                      <span>Property Benchmark</span>
                     </h3>
-                    <SourceTag label="RentCast" />
+                    <SourceTag label="RentCast MLS" />
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "12px" }}>Auto-filled by enrichment - read-only.</div>
+                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", lineHeight: 1.4 }}>
+                    Automated appraisal records and valuation comps.
+                  </div>
+
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <PulledRow label="Subject Property" value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"} source={activeProperty ? "CRM" : "Manual"} />
-                    <PulledRow label="AVM Market Value" value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"} source="RentCast" />
+                    <PulledRow
+                      label="Subject Property"
+                      value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"}
+                      source={activeProperty ? "CRM" : "Manual"}
+                    />
+                    <PulledRow
+                      label="AVM Market Value"
+                      value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"}
+                      source="RentCast"
+                    />
                     {enrichedData?.valueRangeLow != null && enrichedData?.valueRangeHigh != null && (
-                      <PulledRow label="AVM Range" value={"$" + enrichedData.valueRangeLow.toLocaleString() + " - $" + enrichedData.valueRangeHigh.toLocaleString()} source="RentCast" />
+                      <PulledRow
+                        label="AVM Range"
+                        value={"$" + enrichedData.valueRangeLow.toLocaleString() + " - $" + enrichedData.valueRangeHigh.toLocaleString()}
+                        source="RentCast"
+                      />
                     )}
                     {enrichedData?.estimatedValue != null && (
-                      <button type="button" onClick={() => { setCashArv(enrichedData.estimatedValue!); setSaveSuccessMsg("Set Cash Underwriter ARV to AVM $" + enrichedData.estimatedValue!.toLocaleString() + "!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Set Cash Wholesale ARV to this verified AVM value" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(214, 255, 63, 0.15)", border: "1px solid rgba(214, 255, 63, 0.3)", color: "var(--primary, #d6ff3f)", cursor: "pointer", alignSelf: "flex-start" }}>
-                        Use AVM as ARV
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCashArv(enrichedData.estimatedValue!);
+                          setSaveSuccessMsg("Applied AVM $" + enrichedData.estimatedValue!.toLocaleString() + " to Cash ARV!");
+                          setTimeout(() => setSaveSuccessMsg(null), 3500);
+                        }}
+                        title="Set Cash Wholesale ARV to this verified AVM value"
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "5px 12px",
+                          borderRadius: "6px",
+                          background: "rgba(214, 255, 63, 0.15)",
+                          border: "1px solid rgba(214, 255, 63, 0.3)",
+                          color: "var(--primary, #d6ff3f)",
+                          cursor: "pointer",
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        ⚡ Apply AVM as ARV
                       </button>
                     )}
-                    <PulledRow label="Beds / Baths" value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Living Area" value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Year Built" value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Property Type" value={enrichedData?.propertyType || "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Market Rent" value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"} source="RentCast" />
-                    {enrichedData?.estimatedRent != null && (
-                      <button type="button" onClick={() => { setSubtoRent(enrichedData.estimatedRent!); setCreativeRent(enrichedData.estimatedRent!); setSaveSuccessMsg("Applied Market Rent $" + enrichedData.estimatedRent!.toLocaleString() + "/mo to SubTo & Seller Financing!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Apply market rent to SubTo & Creative financing cash flow models" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer", alignSelf: "flex-start" }}>
-                        Apply to Rent Inputs
-                      </button>
-                    )}
+                    <PulledRow
+                      label="Beds / Baths"
+                      value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Living Area"
+                      value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Year Built"
+                      value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Property Type"
+                      value={enrichedData?.propertyType || "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Market Rent"
+                      value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"}
+                      source="RentCast"
+                    />
                     {enrichedData?.lastSalePrice != null && (
-                      <PulledRow label="Last Sale" value={"$" + enrichedData.lastSalePrice.toLocaleString() + (enrichedData.lastSaleDate ? " (" + enrichedData.lastSaleDate + ")" : "")} source="RentCast" />
+                      <PulledRow
+                        label="Last Recorded Sale"
+                        value={"$" + enrichedData.lastSalePrice.toLocaleString() + (enrichedData.lastSaleDate ? " (" + enrichedData.lastSaleDate + ")" : "")}
+                        source="RentCast"
+                      />
                     )}
                     {enrichedData?.taxAssessedValue != null && (
-                      <PulledRow label="Tax Assessed" value={"$" + enrichedData.taxAssessedValue.toLocaleString()} source="RentCast" />
+                      <PulledRow
+                        label="Tax Assessed Value"
+                        value={"$" + enrichedData.taxAssessedValue.toLocaleString()}
+                        source="RentCast"
+                      />
                     )}
                   </div>
+
                   {!enrichedData && (
-                    <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-                      No enrichment pulled yet. Use the Auto-Enrichment bar above to pull verified specs.
+                    <div style={{ padding: "10px", borderRadius: "6px", background: "rgba(255,255,255,0.03)", border: "1px dashed var(--border, #30363d)", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                      💡 Click "Auto-Enrich Data" in the top bar to pull verified specs & comps.
                     </div>
                   )}
+
                   {enrichedData != null && enrichedData.comps != null && enrichedData.comps.length > 0 && (
-                    <div style={{ marginTop: "12px" }}>
-                      <button type="button" onClick={() => setShowComps(!showComps)} style={{ padding: "6px 12px", borderRadius: "7px", background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)", border: "1px solid rgba(168, 85, 247, 0.45)", color: "#c084fc", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span>Comps</span>
-                        <span>{enrichedData.comps.length} Comps {showComps ? "Hide" : "View"}</span>
-                        <SourceTag label="RentCast" />
+                    <div style={{ marginTop: "4px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowComps(!showComps)}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          borderRadius: "7px",
+                          background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)",
+                          border: "1px solid rgba(168, 85, 247, 0.45)",
+                          color: "#c084fc",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span>🏡</span>
+                          <span>{enrichedData.comps.length} MLS Comps</span>
+                        </span>
+                        <span style={{ fontSize: "11px" }}>{showComps ? "Hide ▲" : "View Comps ▼"}</span>
                       </button>
                       {showComps && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
                           {enrichedData.comps.slice(0, 6).map((c, i) => (
-                            <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
+                            <div key={i} style={{ padding: "10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "12px" }}>
                               <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
                               <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
-                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " - " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
+                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " • " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
                                 <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
                               </div>
                               {c.distanceMiles != null && (
-                                <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                                <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
                                   {c.distanceMiles.toFixed(2)} mi away
                                 </div>
                               )}
@@ -2879,52 +2736,88 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   )}
                 </div>
               </div>
-              {/* RIGHT: manual inputs + computed outputs */}
-              <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Your Inputs & Outputs
-              </div>
+
+              {/* COLUMN 2: Acquisition Scope & Wholesale MAO Waterfall */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Inputs */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Property Valuation & Rehab Scope
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                {/* Inputs Card */}
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>🏷️</span>
+                      <span>Acquisition Scope & Inputs</span>
+                    </h3>
+                    <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                      Adjustable Deal Values
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
                     <CurrencyField label="After-Repair Value (ARV)" value={cashArv} onChange={setCashArv} hint="Appraised retail" />
                     <CurrencyField label="Estimated Repairs" value={cashRepairs} onChange={setCashRepairs} hint="Scope of rehab" />
-                    <NumberField label="Target Investor Rule" value={cashInvestorRule} onChange={setCashInvestorRule} suffix="%" hint="Usually 70% or 75%" />
-                    <CurrencyField label="Wholesale Assignment Fee" value={cashAssignmentFee} onChange={setCashAssignmentFee} hint="Your net fee" />
+                    <div>
+                      <NumberField label="Target Investor Rule" value={cashInvestorRule} onChange={setCashInvestorRule} suffix="%" hint="Investor margin rule" />
+                      <div style={{ display: "flex", gap: "4px", marginTop: "6px" }}>
+                        {[65, 70, 75, 80].map((rule) => (
+                          <button
+                            key={rule}
+                            type="button"
+                            onClick={() => setCashInvestorRule(rule)}
+                            style={{
+                              padding: "2px 8px",
+                              fontSize: "10.5px",
+                              fontWeight: 700,
+                              borderRadius: "4px",
+                              border: cashInvestorRule === rule ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                              background: cashInvestorRule === rule ? "rgba(56, 189, 248, 0.2)" : "var(--panel, #121216)",
+                              color: cashInvestorRule === rule ? "#38bdf8" : "var(--muted, #94a3b8)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {rule}%
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <CurrencyField label="Wholesale Assignment Fee" value={cashAssignmentFee} onChange={setCashAssignmentFee} hint="Your net spread" />
                   </div>
                 </div>
 
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Wholesale MAO Breakdown
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
-                      <span>1. ARV × Investor Target ({cashInvestorRule}%):</span>
-                      <strong style={{ fontSize: "15px", color: "var(--ink, #f8fafc)" }}>
+                {/* MAO Waterfall Calculation Card */}
+                <div className="uw-section-card-accent">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>🌊</span>
+                      <span>Wholesale MAO Waterfall</span>
+                    </h3>
+                    <span style={{ fontSize: "11px", fontWeight: 800, padding: "2px 8px", borderRadius: "6px", background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
+                      FORMULA ENGINE
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div className="uw-waterfall-step">
+                      <span style={{ color: "var(--muted, #94a3b8)" }}>1. ARV × Investor Target ({cashInvestorRule}%):</span>
+                      <strong style={{ fontSize: "14.5px" }}>
                         ${Math.round(cashArv * (cashInvestorRule / 100)).toLocaleString()}
                       </strong>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
-                      <span>2. Less Estimated Rehab:</span>
-                      <span style={{ color: "#f87171", fontWeight: 700, fontSize: "14px" }}>
+
+                    <div className="uw-waterfall-step">
+                      <span style={{ color: "var(--muted, #94a3b8)" }}>2. Less Estimated Rehab (-):</span>
+                      <strong style={{ color: "#f87171", fontSize: "14px" }}>
                         -${cashRepairs.toLocaleString()}
-                      </span>
+                      </strong>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
-                      <span>3. Less Buyer Closing Friction (1.5%):</span>
-                      <span style={{ color: "#f87171", fontWeight: 700, fontSize: "14px" }}>
+
+                    <div className="uw-waterfall-step">
+                      <span style={{ color: "var(--muted, #94a3b8)" }}>3. Less Buyer Closing Friction (1.5%) (-):</span>
+                      <strong style={{ color: "#f87171", fontSize: "14px" }}>
                         -${cashMetrics.buyerClosingCostAmount.toLocaleString()}
-                      </span>
+                      </strong>
                     </div>
-                    
-                    {/* Highlight MAO Row */}
+
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderRadius: "8px", background: "rgba(56, 189, 248, 0.1)", border: "1px solid rgba(56, 189, 248, 0.3)" }}>
-                      <span style={{ fontWeight: 800, color: "#38bdf8", fontSize: "14px" }}>
+                      <span style={{ fontWeight: 800, color: "#38bdf8", fontSize: "13.5px" }}>
                         Gross Max Allowable Offer (MAO):
                       </span>
                       <span style={{ color: "#38bdf8", fontWeight: 900, fontSize: "17px" }}>
@@ -2932,56 +2825,110 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </span>
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border, #30363d)", color: "var(--ink, #f8fafc)" }}>
-                      <span>4. Less Wholesale Assignment Fee:</span>
-                      <span style={{ color: "#34d399", fontWeight: 800, fontSize: "15px" }}>
+                    <div className="uw-waterfall-step">
+                      <span style={{ color: "var(--muted, #94a3b8)" }}>4. Less Wholesale Assignment Fee (-):</span>
+                      <strong style={{ color: "#34d399", fontSize: "14px" }}>
                         -${cashAssignmentFee.toLocaleString()}
-                      </span>
+                      </strong>
                     </div>
 
-                    {/* Prominent Offer Box */}
-                    <div style={{ marginTop: "8px", padding: "16px 18px", borderRadius: "10px", background: "rgba(16, 185, 129, 0.12)", border: "2px solid #10b981", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                          YOUR NET PURCHASE OFFER TO SELLER
+                    {/* Prominent Hero Offer Box */}
+                    <div className="uw-section-card-hero" style={{ marginTop: "6px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                        <div>
+                          <div style={{ fontSize: "12px", fontWeight: 800, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            YOUR NET PURCHASE OFFER TO SELLER
+                          </div>
+                          <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                            Exact contract purchase price written on state PSA agreement
+                          </div>
                         </div>
-                        <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
-                          Contract purchase price written on state PSA
+                        <div style={{ fontSize: "26px", fontWeight: 900, color: "#10b981" }}>
+                          ${cashMetrics.netWholesaleOffer.toLocaleString()}
                         </div>
-                      </div>
-                      <div style={{ fontSize: "24px", fontWeight: 900, color: "#10b981" }}>
-                        ${cashMetrics.netWholesaleOffer.toLocaleString()}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Viability & End Buyer Output */}
+              {/* COLUMN 3: Cash Buyer Pitch Deck & Viability */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {/* Viability Card */}
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                {/* Investor Pitch Deck Card */}
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>💼</span>
+                      <span>Cash Buyer Pitch Metrics</span>
+                    </h3>
+                    <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "4px", background: "rgba(34, 197, 94, 0.15)", color: "#4ade80" }}>
+                      DISPO DECK
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Buyer Purchase Price
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${(cashMetrics.netWholesaleOffer + cashAssignmentFee).toLocaleString()}
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Projected Flip Profit
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                        ${cashMetrics.investorGrossProfit.toLocaleString()}
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Buyer Target ROI
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                        {cashMetrics.investorROI.toFixed(1)}%
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Your Assignment Fee
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "#c084fc", marginTop: "4px", display: "block" }}>
+                        ${cashAssignmentFee.toLocaleString()}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Revzenta Viability Index Card */}
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
                     <div>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                        Revzenta Deal Viability Index
+                      <h3 className="uw-section-title">
+                        <span>🛡️</span>
+                        <span>Revzenta Viability Index</span>
                       </h3>
-                      <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                      <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
                         {currentViability.verdict}
                       </span>
                     </div>
-                    <span style={{ fontSize: "22px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
+                    <span style={{ fontSize: "18px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
                       {currentViability.score}/100 ({currentViability.grade})
                     </span>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     {currentViability.checks.map((c, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "7px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
                         <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 600 }}>{c.title}</span>
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)" }}>{c.metricValue}</span>
-                          <span style={{ fontWeight: 800, color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", fontSize: "11.5px" }}>{c.metricValue}</span>
+                          <span style={{ fontWeight: 800, fontSize: "13px", color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
                             {c.status === "passed" ? "✓" : c.status === "warning" ? "!" : "✕"}
                           </span>
                         </div>
@@ -2989,51 +2936,6 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     ))}
                   </div>
                 </div>
-
-                {/* Cash Buyer Pitch Box */}
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 14px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Cash Buyer Metrics (Pitch Deck)
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Buyer Purchase Price
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
-                        ${(cashMetrics.netWholesaleOffer + cashAssignmentFee).toLocaleString()}
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Projected Flip Profit
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
-                        ${cashMetrics.investorGrossProfit.toLocaleString()}
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Buyer Target ROI
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
-                        {cashMetrics.investorROI.toFixed(1)}%
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Your Assignment Fee
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#a855f7", marginTop: "4px", display: "block" }}>
-                        ${cashAssignmentFee.toLocaleString()}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
               </div>
             </div>
           )}
@@ -3042,57 +2944,133 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {/* TAB 3: SELLER FINANCING (CREATIVE TERMS) */}
           {/* ================================================================ */}
           {tab === "creative" && (
-            <div className="uw-split">
-              {/* LEFT: pulled source data (read-only) */}
-              <div className="uw-source-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                      Pulled Property Data
+            <div className="uw-dashboard-3col">
+              {/* COLUMN 1: Property Benchmark & Rental Intelligence */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>📊</span>
+                      <span>Property & Rental Comps</span>
                     </h3>
-                    <SourceTag label="RentCast" />
+                    <SourceTag label="RentCast MLS" />
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "12px" }}>Auto-filled by enrichment - read-only.</div>
+                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", lineHeight: 1.4 }}>
+                    Automated rental appraisal & baseline specs.
+                  </div>
+
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <PulledRow label="Subject Property" value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"} source={activeProperty ? "CRM" : "Manual"} />
-                    <PulledRow label="Market Rent" value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"} source="RentCast" />
+                    <PulledRow
+                      label="Subject Property"
+                      value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"}
+                      source={activeProperty ? "CRM" : "Manual"}
+                    />
+                    <PulledRow
+                      label="Market Rent"
+                      value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"}
+                      source="RentCast"
+                    />
                     {enrichedData?.estimatedRent != null && (
-                      <button type="button" onClick={() => { setSubtoRent(enrichedData.estimatedRent!); setCreativeRent(enrichedData.estimatedRent!); setSaveSuccessMsg("Applied Market Rent $" + enrichedData.estimatedRent!.toLocaleString() + "/mo to SubTo & Seller Financing!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Apply market rent to SubTo & Creative financing cash flow models" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer", alignSelf: "flex-start" }}>
-                        Apply to Rent Inputs
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreativeRent(enrichedData.estimatedRent!);
+                          setSaveSuccessMsg("Applied Market Rent $" + enrichedData.estimatedRent!.toLocaleString() + "/mo to Seller Financing!");
+                          setTimeout(() => setSaveSuccessMsg(null), 3500);
+                        }}
+                        title="Apply market rent to expected monthly rent input"
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "5px 12px",
+                          borderRadius: "6px",
+                          background: "rgba(56, 189, 248, 0.15)",
+                          border: "1px solid rgba(56, 189, 248, 0.3)",
+                          color: "#38bdf8",
+                          cursor: "pointer",
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        ⚡ Apply Market Rent
                       </button>
                     )}
-                    <PulledRow label="AVM Market Value" value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Beds / Baths" value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Living Area" value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Year Built" value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Property Type" value={enrichedData?.propertyType || "Not pulled yet"} source="RentCast" />
+                    <PulledRow
+                      label="AVM Market Value"
+                      value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Beds / Baths"
+                      value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Living Area"
+                      value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Year Built"
+                      value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"}
+                      source="RentCast"
+                    />
+                    <PulledRow
+                      label="Property Type"
+                      value={enrichedData?.propertyType || "Not pulled yet"}
+                      source="RentCast"
+                    />
                     {enrichedData?.taxAssessedValue != null && (
-                      <PulledRow label="Tax Assessed" value={"$" + enrichedData.taxAssessedValue.toLocaleString()} source="RentCast" />
+                      <PulledRow
+                        label="Tax Assessed"
+                        value={"$" + enrichedData.taxAssessedValue.toLocaleString()}
+                        source="RentCast"
+                      />
                     )}
                   </div>
+
                   {!enrichedData && (
-                    <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-                      No enrichment pulled yet. Use the Auto-Enrichment bar above to pull verified specs.
+                    <div style={{ padding: "10px", borderRadius: "6px", background: "rgba(255,255,255,0.03)", border: "1px dashed var(--border, #30363d)", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                      💡 Click "Auto-Enrich Data" in the top bar to pull verified specs & rental comps.
                     </div>
                   )}
+
                   {enrichedData != null && enrichedData.comps != null && enrichedData.comps.length > 0 && (
-                    <div style={{ marginTop: "12px" }}>
-                      <button type="button" onClick={() => setShowComps(!showComps)} style={{ padding: "6px 12px", borderRadius: "7px", background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)", border: "1px solid rgba(168, 85, 247, 0.45)", color: "#c084fc", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span>Comps</span>
-                        <span>{enrichedData.comps.length} Comps {showComps ? "Hide" : "View"}</span>
-                        <SourceTag label="RentCast" />
+                    <div style={{ marginTop: "4px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowComps(!showComps)}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          borderRadius: "7px",
+                          background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)",
+                          border: "1px solid rgba(168, 85, 247, 0.45)",
+                          color: "#c084fc",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span>🏡</span>
+                          <span>{enrichedData.comps.length} MLS Comps</span>
+                        </span>
+                        <span style={{ fontSize: "11px" }}>{showComps ? "Hide ▲" : "View Comps ▼"}</span>
                       </button>
                       {showComps && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
                           {enrichedData.comps.slice(0, 6).map((c, i) => (
-                            <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
+                            <div key={i} style={{ padding: "10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "12px" }}>
                               <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
                               <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
-                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " - " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
+                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " • " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
                                 <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
                               </div>
                               {c.distanceMiles != null && (
-                                <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                                <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
                                   {c.distanceMiles.toFixed(2)} mi away
                                 </div>
                               )}
@@ -3104,18 +3082,22 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   )}
                 </div>
               </div>
-              {/* RIGHT: manual inputs + computed outputs */}
-              <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Your Inputs & Outputs
-              </div>
+
+              {/* COLUMN 2: Note Terms & Revenue Holding Costs */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Inputs */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Note Terms & Purchase Price
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                {/* Note Terms Card */}
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>📝</span>
+                      <span>Note Terms & Purchase Price</span>
+                    </h3>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--lime, #d6ff3f)" }}>
+                      {creativeMetrics.downPaymentPct.toFixed(1)}% Down
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
                     <CurrencyField label="Purchase Price" value={creativePrice} onChange={setCreativePrice} />
                     <CurrencyField label="Down Payment" value={creativeDown} onChange={setCreativeDown} hint={creativeMetrics.downPaymentPct.toFixed(1) + "% down"} />
                     <NumberField label="Annual Interest Rate" value={creativeInterestRate} onChange={setCreativeInterestRate} suffix="%" step={0.25} />
@@ -3124,24 +3106,33 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     <CurrencyField label="Wholesale Assignment Fee" value={creativeAssignmentFee} onChange={setCreativeAssignmentFee} />
                   </div>
 
-                  <div style={{ marginTop: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
                     <input
                       type="checkbox"
                       id="isIOCheck"
                       checked={creativeIsIO}
                       onChange={(e) => setCreativeIsIO(e.target.checked)}
+                      style={{ cursor: "pointer", width: "16px", height: "16px" }}
                     />
-                    <label htmlFor="isIOCheck" style={{ fontSize: "12px", cursor: "pointer", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
+                    <label htmlFor="isIOCheck" style={{ fontSize: "12.5px", cursor: "pointer", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>
                       Interest-Only (I/O) Monthly Payments
                     </label>
                   </div>
                 </div>
 
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Property Revenue & Holding Costs
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                {/* Property Revenue & Holding Costs Card */}
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>🏢</span>
+                      <span>Revenue & Holding Costs</span>
+                    </h3>
+                    <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                      Monthly Underwriting
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
                     <CurrencyField label="Expected Monthly Rent" value={creativeRent} onChange={setCreativeRent} hint="Gross rental revenue" />
                     <CurrencyField label="Monthly Property Taxes" value={creativeTaxes} onChange={setCreativeTaxes} />
                     <CurrencyField label="Monthly Hazard Insurance" value={creativeInsurance} onChange={setCreativeInsurance} />
@@ -3150,31 +3141,101 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 </div>
               </div>
 
-              {/* Viability & Summary Output */}
+              {/* COLUMN 3: Owner Carry Economics & Viability */}
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {/* Scorecard */}
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                {/* Note Economics Card */}
+                <div className="uw-section-card-accent">
+                  <div className="uw-section-header">
+                    <h3 className="uw-section-title">
+                      <span>📈</span>
+                      <span>Owner Carry Note Economics</span>
+                    </h3>
+                    <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "4px", background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
+                      YIELD ENGINE
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Monthly Note (P&I)
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${Math.round(creativeMetrics.monthlyDebtService).toLocaleString()}/mo
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Net Monthly Cash Flow
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: creativeMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444", marginTop: "4px", display: "block" }}>
+                        ${Math.round(creativeMetrics.netMonthlyCashFlow).toLocaleString()}/mo
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Cash-on-Cash Return
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                        {creativeMetrics.cashOnCashReturn.toFixed(1)}%
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Buyer Entry Capital
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                        ${creativeMetrics.totalBuyerEntryCapital.toLocaleString()}
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Balloon Payoff ({creativeBalloonYears}y)
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                        ${Math.round(creativeMetrics.balloonRemainingBalance).toLocaleString()}
+                      </strong>
+                    </div>
+
+                    <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                      <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                        Total Paid to Seller
+                      </span>
+                      <strong style={{ fontSize: "17px", fontWeight: 800, color: "var(--lime, #d6ff3f)", marginTop: "4px", display: "block" }}>
+                        ${Math.round(creativeMetrics.totalPayoutToSeller).toLocaleString()}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Revzenta Viability Index Card */}
+                <div className="uw-section-card">
+                  <div className="uw-section-header">
                     <div>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                        Deal Viability Index
+                      <h3 className="uw-section-title">
+                        <span>🛡️</span>
+                        <span>Revzenta Viability Index</span>
                       </h3>
-                      <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                      <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
                         {currentViability.verdict}
                       </span>
                     </div>
-                    <span style={{ fontSize: "22px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
+                    <span style={{ fontSize: "18px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
                       {currentViability.score}/100 ({currentViability.grade})
                     </span>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     {currentViability.checks.map((c, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "7px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
                         <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 600 }}>{c.title}</span>
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)" }}>{c.metricValue}</span>
-                          <span style={{ fontWeight: 800, color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", fontSize: "11.5px" }}>{c.metricValue}</span>
+                          <span style={{ fontWeight: 800, fontSize: "13px", color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
                             {c.status === "passed" ? "✓" : c.status === "warning" ? "!" : "✕"}
                           </span>
                         </div>
@@ -3182,69 +3243,6 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                     ))}
                   </div>
                 </div>
-
-                {/* Seller Finance Economics Output */}
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 14px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Owner Carry Note Economics
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Monthly Note Payment (P&I)
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
-                        ${Math.round(creativeMetrics.monthlyDebtService).toLocaleString()}/mo
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Net Monthly Cash Flow
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: creativeMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444", marginTop: "4px", display: "block" }}>
-                        ${Math.round(creativeMetrics.netMonthlyCashFlow).toLocaleString()}/mo
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Cash-on-Cash Return
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
-                        {creativeMetrics.cashOnCashReturn.toFixed(1)}%
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Buyer Total Entry Capital
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
-                        ${creativeMetrics.totalBuyerEntryCapital.toLocaleString()}
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Balloon Payoff ({creativeBalloonYears} yr)
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
-                        ${Math.round(creativeMetrics.balloonRemainingBalance).toLocaleString()}
-                      </strong>
-                    </div>
-
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Total Paid to Seller
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
-                        ${Math.round(creativeMetrics.totalPayoutToSeller).toLocaleString()}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
               </div>
             </div>
           )}
@@ -3254,18 +3252,70 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {/* ================================================================ */}
           {tab === "subto" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Subject-To Proposal Settings — compact table at TOP under property/owner header.
-                  Bound to the same state as the editable deal; feeds both panes below. */}
-              <div style={{ background: "var(--panel-2, #16161b)", padding: "16px 20px", borderRadius: "10px", border: "1px solid #38bdf8" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
-                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    📋 Subject-To Proposal Settings
-                  </h3>
-                  <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: 700 }}>
-                    LIVE — edits update the deal &amp; offer letter instantly
-                  </span>
+              {/* Top Quick Settings Ribbon */}
+              <div
+                style={{
+                  background: "var(--panel-2, #16161b)",
+                  padding: "14px 20px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(56, 189, 248, 0.4)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "18px" }}>🏦</span>
+                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                      Subject-To Acquisition Parameters
+                    </h3>
+                    <span style={{ fontSize: "10.5px", fontWeight: 800, padding: "2px 8px", borderRadius: "10px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)" }}>
+                      LIVE MODEL
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowSubtoOfferPreview(!showSubtoOfferPreview)}
+                      style={{
+                        padding: "5px 12px",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        borderRadius: "6px",
+                        border: "1px solid rgba(56, 189, 248, 0.5)",
+                        background: showSubtoOfferPreview ? "rgba(56, 189, 248, 0.25)" : "rgba(56, 189, 248, 0.1)",
+                        color: "#38bdf8",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span>📄</span>
+                      <span>{showSubtoOfferPreview ? "Hide Live Offer Letter ▲" : "View Live Offer Letter ▼"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadSubtoOfferPdf}
+                      disabled={downloadingSubtoPdf}
+                      style={{
+                        padding: "5px 14px",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        borderRadius: "6px",
+                        border: "none",
+                        background: "#0284c7",
+                        color: "#ffffff",
+                        cursor: downloadingSubtoPdf ? "wait" : "pointer",
+                      }}
+                    >
+                      {downloadingSubtoPdf ? "Generating…" : "⬇ Download PDF"}
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
                   <CurrencyField label="Purchase Price" value={subtoPrice} onChange={setSubtoPrice} />
                   <CurrencyField label="Cash to Seller" value={subtoCashToSeller} onChange={setSubtoCashToSeller} hint="Walkaway" />
                   <CurrencyField label="Arrears / Reinstatement" value={subtoArrears} onChange={setSubtoArrears} />
@@ -3273,161 +3323,26 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   <CurrencyField label="Monthly Market Rent" value={subtoRent} onChange={setSubtoRent} />
                   <NumberField label="Closing Days" value={closingDays} onChange={setClosingDays} />
                   <CurrencyField label="Earnest Money" value={earnestMoneyDeposit} onChange={setEarnestMoneyDeposit} />
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", justifyContent: "flex-end", paddingBottom: "2px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink, #f8fafc)" }}>Debt Taken Over</span>
-                    <span style={{ fontSize: "15px", fontWeight: 800, color: "#38bdf8" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", justifyContent: "flex-end", paddingBottom: "2px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted, #94a3b8)", textTransform: "uppercase" }}>Debt Taken Over</span>
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#38bdf8" }}>
                       ${subtoMetrics.totalExistingDebt.toLocaleString()}
                     </span>
-                    <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 500 }}>
+                    <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)" }}>
                       ${Math.round(subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo serviced
                     </span>
                   </div>
                 </div>
               </div>
-            <div className="uw-split">
-              {/* LEFT: pulled source data (read-only) */}
-              <div className="uw-source-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                      Pulled Property Data
-                    </h3>
-                    <SourceTag label="RentCast" />
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "12px" }}>Auto-filled by enrichment - read-only.</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <PulledRow label="Subject Property" value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"} source={activeProperty ? "CRM" : "Manual"} />
-                    <PulledRow label="Market Rent" value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"} source="RentCast" />
-                    {enrichedData?.estimatedRent != null && (
-                      <button type="button" onClick={() => { setSubtoRent(enrichedData.estimatedRent!); setCreativeRent(enrichedData.estimatedRent!); setSaveSuccessMsg("Applied Market Rent $" + enrichedData.estimatedRent!.toLocaleString() + "/mo to SubTo & Seller Financing!"); setTimeout(() => setSaveSuccessMsg(null), 3500); }} title="Apply market rent to SubTo & Creative financing cash flow models" style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "5px", background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", color: "#38bdf8", cursor: "pointer", alignSelf: "flex-start" }}>
-                        Apply to Rent Inputs
-                      </button>
-                    )}
-                    <PulledRow label="AVM Market Value" value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Beds / Baths" value={enrichedData != null ? (enrichedData.bedrooms ?? "-") + " bd / " + (enrichedData.bathrooms ?? "-") + " ba" : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Living Area" value={enrichedData?.squareFootage != null ? enrichedData.squareFootage.toLocaleString() + " sqft" : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Year Built" value={enrichedData?.yearBuilt != null ? String(enrichedData.yearBuilt) : "Not pulled yet"} source="RentCast" />
-                    <PulledRow label="Property Type" value={enrichedData?.propertyType || "Not pulled yet"} source="RentCast" />
-                    {enrichedData?.taxAssessedValue != null && (
-                      <PulledRow label="Tax Assessed" value={"$" + enrichedData.taxAssessedValue.toLocaleString()} source="RentCast" />
-                    )}
-                  </div>
-                  {!enrichedData && (
-                    <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-                      No enrichment pulled yet. Use the Auto-Enrichment bar above to pull verified specs.
-                    </div>
-                  )}
-                  {enrichedData != null && enrichedData.comps != null && enrichedData.comps.length > 0 && (
-                    <div style={{ marginTop: "12px" }}>
-                      <button type="button" onClick={() => setShowComps(!showComps)} style={{ padding: "6px 12px", borderRadius: "7px", background: showComps ? "rgba(168, 85, 247, 0.25)" : "var(--panel, #121216)", border: "1px solid rgba(168, 85, 247, 0.45)", color: "#c084fc", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span>Comps</span>
-                        <span>{enrichedData.comps.length} Comps {showComps ? "Hide" : "View"}</span>
-                        <SourceTag label="RentCast" />
-                      </button>
-                      {showComps && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
-                          {enrichedData.comps.slice(0, 6).map((c, i) => (
-                            <div key={i} style={{ padding: "8px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid rgba(255,255,255,0.06)", fontSize: "11.5px" }}>
-                              <div style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.address}</div>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", color: "var(--muted, #94a3b8)" }}>
-                                <span>{c.bedrooms}b / {c.bathrooms}ba {c.squareFootage ? " - " + c.squareFootage.toLocaleString() + " sqft" : ""}</span>
-                                <strong style={{ color: "var(--primary, #d6ff3f)" }}>${(c.price || 0).toLocaleString()}</strong>
-                              </div>
-                              {c.distanceMiles != null && (
-                                <div style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
-                                  {c.distanceMiles.toFixed(2)} mi away
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* RIGHT: manual inputs + computed outputs */}
-              <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Your Inputs & Outputs
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Inputs */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Existing Debt Portfolios (Mortgage Liens)
-                  </h3>
-                  {liens.map((lien, index) => (
-                    <div key={lien.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "12px", marginBottom: "14px", alignItems: "end" }}>
-                      <div>
-                        <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, display: "block", marginBottom: "6px" }}>
-                          Lien Label
-                        </span>
-                        <input
-                          type="text"
-                          value={lien.label}
-                          onChange={(e) => {
-                            const next = [...liens];
-                            next[index].label = e.target.value;
-                            setLiens(next);
-                          }}
-                          style={{ width: "100%", height: "40px", padding: "0 10px", borderRadius: "7px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "14px", fontWeight: 600, boxSizing: "border-box" }}
-                        />
-                      </div>
-                      <CurrencyField
-                        label="Balance"
-                        value={lien.unpaidPrincipalBalance}
-                        onChange={(val) => {
-                          const next = [...liens];
-                          next[index].unpaidPrincipalBalance = val;
-                          setLiens(next);
-                        }}
-                      />
-                      <NumberField
-                        label="Rate %"
-                        value={lien.interestRate}
-                        onChange={(val) => {
-                          const next = [...liens];
-                          next[index].interestRate = val;
-                          setLiens(next);
-                        }}
-                        suffix="%"
-                        step={0.125}
-                      />
-                      <CurrencyField
-                        label="PITI Payment"
-                        value={lien.monthlyPaymentPITI}
-                        onChange={(val) => {
-                          const next = [...liens];
-                          next[index].monthlyPaymentPITI = val;
-                          setLiens(next);
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
 
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Cash-to-Seller & Entry Costs
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                    <CurrencyField label="Contract Purchase Price" value={subtoPrice} onChange={setSubtoPrice} />
-                    <CurrencyField label="Cash to Seller at Closing" value={subtoCashToSeller} onChange={setSubtoCashToSeller} hint="Seller walkaway cash" />
-                    <CurrencyField label="Arrears / Reinstatement" value={subtoArrears} onChange={setSubtoArrears} hint="Catch up missed payments" />
-                    <CurrencyField label="Wholesale Assignment Fee" value={subtoAssignmentFee} onChange={setSubtoAssignmentFee} hint="Your net spread" />
-                    <CurrencyField label="Monthly Market Rent" value={subtoRent} onChange={setSubtoRent} />
-                    <CurrencyField label="Taxes & Insurance (if not in PITI)" value={subtoTaxesIns} onChange={setSubtoTaxesIns} />
-                  </div>
-                </div>
-              </div>
-
-              {/* RIGHT: live offer-letter preview (same subto data the PDF uses) */}
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "16px 20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
+              {/* Collapsible Live Offer Letter Preview */}
+              {showSubtoOfferPreview && (
+                <div className="uw-section-card" style={{ border: "1px solid rgba(56, 189, 248, 0.4)" }}>
+                  <div className="uw-section-header">
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                        📄 Live Offer Letter
+                      <h3 className="uw-section-title">
+                        <span>📄</span>
+                        <span>Live Subject-To Purchase Offer Document</span>
                       </h3>
                       <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 8px", borderRadius: "10px", backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.4)" }}>
                         LIVE PREVIEW
@@ -3438,121 +3353,339 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       onClick={handleDownloadSubtoOfferPdf}
                       disabled={downloadingSubtoPdf}
                       style={{
-                        padding: "8px 16px",
+                        padding: "6px 14px",
                         borderRadius: "6px",
                         border: "none",
                         background: downloadingSubtoPdf ? "var(--border, #30363d)" : "#0284c7",
                         color: "#ffffff",
-                        fontSize: "12.5px",
+                        fontSize: "12px",
                         fontWeight: 700,
                         cursor: downloadingSubtoPdf ? "wait" : "pointer",
                       }}
                     >
-                      {downloadingSubtoPdf ? "Generating…" : "⬇ Download PDF"}
+                      {downloadingSubtoPdf ? "Generating…" : "⬇ Download Formatted PDF"}
                     </button>
                   </div>
-                  <div style={{ background: "#ffffff", borderRadius: "8px", padding: "16px", maxHeight: "640px", overflowY: "auto" }}>
+                  <div style={{ background: "#ffffff", borderRadius: "8px", padding: "18px", maxHeight: "550px", overflowY: "auto", border: "1px solid #cbd5e1" }}>
                     <div dangerouslySetInnerHTML={{ __html: subtoProposalData.htmlMarkup }} />
                   </div>
                 </div>
-              {/* Viability & Summary Output */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {/* Scorecard */}
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                        Deal Viability Index
+              )}
+
+              {/* 3-Column Structured Dashboard */}
+              <div className="uw-dashboard-3col">
+                {/* COLUMN 1: Existing Debt Portfolio */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div className="uw-section-card">
+                    <div className="uw-section-header">
+                      <h3 className="uw-section-title">
+                        <span>🏦</span>
+                        <span>Existing Debt Portfolio</span>
                       </h3>
-                      <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
-                        {currentViability.verdict}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddLien}
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "3px 9px",
+                          borderRadius: "5px",
+                          background: "rgba(56, 189, 248, 0.15)",
+                          border: "1px solid rgba(56, 189, 248, 0.4)",
+                          color: "#38bdf8",
+                          cursor: "pointer",
+                        }}
+                      >
+                        + Add Junior Lien
+                      </button>
                     </div>
-                    <span style={{ fontSize: "22px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444" }}>
-                      {currentViability.score}/100 ({currentViability.grade})
-                    </span>
-                  </div>
+                    <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", lineHeight: 1.4 }}>
+                      Mortgages, HELOCs, and secondary liens to be taken over subject-to.
+                    </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {currentViability.checks.map((c, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
-                        <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 600 }}>{c.title}</span>
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                          <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)" }}>{c.metricValue}</span>
-                          <span style={{ fontWeight: 800, color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
-                            {c.status === "passed" ? "✓" : c.status === "warning" ? "!" : "✕"}
-                          </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {liens.map((lien, index) => (
+                        <div
+                          key={lien.id}
+                          style={{
+                            background: "var(--panel, #121216)",
+                            padding: "12px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border, #30363d)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#38bdf8", textTransform: "uppercase" }}>
+                              Lien #{index + 1}
+                            </span>
+                            {liens.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLien(index)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#f87171",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  padding: 0,
+                                }}
+                              >
+                                ✕ Remove
+                              </button>
+                            )}
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, display: "block", marginBottom: "4px" }}>
+                              Lien Holder / Label
+                            </span>
+                            <input
+                              type="text"
+                              value={lien.label}
+                              onChange={(e) => {
+                                const next = [...liens];
+                                next[index].label = e.target.value;
+                                setLiens(next);
+                              }}
+                              style={{ width: "100%", height: "34px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel-2, #16161b)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px", fontWeight: 600, boxSizing: "border-box" }}
+                            />
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                            <CurrencyField
+                              label="Principal Balance"
+                              value={lien.unpaidPrincipalBalance}
+                              onChange={(val) => {
+                                const next = [...liens];
+                                next[index].unpaidPrincipalBalance = val;
+                                setLiens(next);
+                              }}
+                            />
+                            <NumberField
+                              label="Interest Rate"
+                              value={lien.interestRate}
+                              onChange={(val) => {
+                                const next = [...liens];
+                                next[index].interestRate = val;
+                                setLiens(next);
+                              }}
+                              suffix="%"
+                              step={0.125}
+                            />
+                          </div>
+
+                          <CurrencyField
+                            label="Monthly PITI Payment"
+                            value={lien.monthlyPaymentPITI}
+                            onChange={(val) => {
+                              const next = [...liens];
+                              next[index].monthlyPaymentPITI = val;
+                              setLiens(next);
+                            }}
+                          />
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* SubTo Metrics Summary */}
-                <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
-                  <h3 style={{ margin: "0 0 14px 0", fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                    Mortgage Assumption Economics
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Total Debt Taken Over
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
-                        ${subtoMetrics.totalExistingDebt.toLocaleString()}
-                      </strong>
+                      ))}
                     </div>
 
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Monthly Debt Service
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                    {/* Total Debt Service Callout */}
+                    <div style={{ padding: "10px 12px", borderRadius: "8px", background: "rgba(56, 189, 248, 0.08)", border: "1px solid rgba(56, 189, 248, 0.25)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#38bdf8" }}>Total Debt Serviced:</span>
+                      <strong style={{ fontSize: "14px", color: "var(--ink, #f8fafc)" }}>
                         ${Math.round(subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo
                       </strong>
                     </div>
 
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Net Monthly Cash Flow
+                    {/* Property Reference */}
+                    <div style={{ borderTop: "1px solid var(--border, #30363d)", paddingTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <PulledRow
+                        label="Subject Property"
+                        value={propertyAddress.trim() || activeProperty?.address || activeProperty?.companyName || "No address selected"}
+                        source={activeProperty ? "CRM" : "Manual"}
+                      />
+                      <PulledRow
+                        label="AVM Valuation"
+                        value={enrichedData?.estimatedValue != null ? "$" + enrichedData.estimatedValue.toLocaleString() : "Not pulled yet"}
+                        source="RentCast"
+                      />
+                      <PulledRow
+                        label="Market Rent"
+                        value={enrichedData?.estimatedRent != null ? "$" + enrichedData.estimatedRent.toLocaleString() + "/mo" : "Not pulled yet"}
+                        source="RentCast"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* COLUMN 2: Cash-to-Seller & Entry Costs */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div className="uw-section-card">
+                    <div className="uw-section-header">
+                      <h3 className="uw-section-title">
+                        <span>💵</span>
+                        <span>Cash-to-Seller & Entry Costs</span>
+                      </h3>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--lime, #d6ff3f)" }}>
+                        Buyer Capital
                       </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: subtoMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444", marginTop: "4px", display: "block" }}>
-                        ${Math.round(subtoMetrics.netMonthlyCashFlow).toLocaleString()}/mo
-                      </strong>
                     </div>
 
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Total Buyer Entry Capital
-                      </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
-                        ${subtoMetrics.totalBuyerEntryCapital.toLocaleString()} ({subtoMetrics.entryCapitalPct.toFixed(1)}%)
-                      </strong>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                      <CurrencyField label="Contract Purchase Price" value={subtoPrice} onChange={setSubtoPrice} />
+                      <CurrencyField label="Cash to Seller at Closing" value={subtoCashToSeller} onChange={setSubtoCashToSeller} hint="Seller walkaway cash" />
+                      <CurrencyField label="Arrears / Reinstatement" value={subtoArrears} onChange={setSubtoArrears} hint="Catch up missed payments" />
+                      <CurrencyField label="Wholesale Assignment Fee" value={subtoAssignmentFee} onChange={setSubtoAssignmentFee} hint="Your net spread" />
+                      <CurrencyField label="Monthly Market Rent" value={subtoRent} onChange={setSubtoRent} />
+                      <CurrencyField label="Taxes & Insurance (if not in PITI)" value={subtoTaxesIns} onChange={setSubtoTaxesIns} />
                     </div>
 
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Cash-on-Cash Return
+                    {/* Entry Cost Waterfall */}
+                    <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <div className="uw-waterfall-step">
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Cash to Seller:</span>
+                        <strong>${subtoCashToSeller.toLocaleString()}</strong>
+                      </div>
+                      <div className="uw-waterfall-step">
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Arrears / Reinstatement:</span>
+                        <strong>${subtoArrears.toLocaleString()}</strong>
+                      </div>
+                      <div className="uw-waterfall-step">
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Wholesale Assignment Fee:</span>
+                        <strong style={{ color: "#34d399" }}>${subtoAssignmentFee.toLocaleString()}</strong>
+                      </div>
+                      <div className="uw-waterfall-step">
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Estimated Closing / Title Costs (1.5%):</span>
+                        <strong>${Math.round(subtoPrice * 0.015).toLocaleString()}</strong>
+                      </div>
+
+                      <div className="uw-section-card-hero" style={{ marginTop: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontSize: "11.5px", fontWeight: 800, color: "#10b981", textTransform: "uppercase" }}>
+                              TOTAL BUYER ENTRY CAPITAL
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                              {subtoMetrics.entryCapitalPct.toFixed(1)}% of Purchase Price
+                            </div>
+                          </div>
+                          <div style={{ fontSize: "22px", fontWeight: 900, color: "#10b981" }}>
+                            ${subtoMetrics.totalBuyerEntryCapital.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* COLUMN 3: Economics & Viability Index */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {/* Economics Card */}
+                  <div className="uw-section-card-accent">
+                    <div className="uw-section-header">
+                      <h3 className="uw-section-title">
+                        <span>📊</span>
+                        <span>Mortgage Assumption Economics</span>
+                      </h3>
+                      <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "4px", background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
+                        TAKE-OVER YIELD
                       </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
-                        {subtoMetrics.cashOnCashReturn.toFixed(1)}%
-                      </strong>
                     </div>
 
-                    <div style={{ background: "var(--panel, #121216)", padding: "14px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block" }}>
-                        Captured Equity Spread
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                      <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                          Total Debt Taken Over
+                        </span>
+                        <strong style={{ fontSize: "17px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                          ${subtoMetrics.totalExistingDebt.toLocaleString()}
+                        </strong>
+                      </div>
+
+                      <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                          Monthly Debt Service
+                        </span>
+                        <strong style={{ fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px", display: "block" }}>
+                          ${Math.round(subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo
+                        </strong>
+                      </div>
+
+                      <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                          Net Monthly Cash Flow
+                        </span>
+                        <strong style={{ fontSize: "17px", fontWeight: 800, color: subtoMetrics.netMonthlyCashFlow >= 0 ? "#10b981" : "#ef4444", marginTop: "4px", display: "block" }}>
+                          ${Math.round(subtoMetrics.netMonthlyCashFlow).toLocaleString()}/mo
+                        </strong>
+                      </div>
+
+                      <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                          Total Buyer Entry Capital
+                        </span>
+                        <strong style={{ fontSize: "17px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                          ${subtoMetrics.totalBuyerEntryCapital.toLocaleString()}
+                        </strong>
+                      </div>
+
+                      <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                          Cash-on-Cash Return
+                        </span>
+                        <strong style={{ fontSize: "17px", fontWeight: 800, color: "#10b981", marginTop: "4px", display: "block" }}>
+                          {subtoMetrics.cashOnCashReturn.toFixed(1)}%
+                        </strong>
+                      </div>
+
+                      <div style={{ background: "var(--panel, #121216)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border, #30363d)" }}>
+                        <span style={{ fontSize: "10.5px", color: "var(--muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", display: "block" }}>
+                          Captured Equity Spread
+                        </span>
+                        <strong style={{ fontSize: "17px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
+                          ${subtoMetrics.sellerEquityCaptured.toLocaleString()} ({subtoMetrics.equityPct.toFixed(1)}%)
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Revzenta Viability Index Card */}
+                  <div className="uw-section-card">
+                    <div className="uw-section-header">
+                      <div>
+                        <h3 className="uw-section-title">
+                          <span>🛡️</span>
+                          <span>Revzenta Viability Index</span>
+                        </h3>
+                        <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>
+                          {currentViability.verdict}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: "18px", fontWeight: 900, color: currentViability.score >= 80 ? "#10b981" : currentViability.score >= 60 ? "#f59e0b" : "#ef4444", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+                        {currentViability.score}/100 ({currentViability.grade})
                       </span>
-                      <strong style={{ fontSize: "18px", fontWeight: 800, color: "#38bdf8", marginTop: "4px", display: "block" }}>
-                        ${subtoMetrics.sellerEquityCaptured.toLocaleString()} ({subtoMetrics.equityPct.toFixed(1)}%)
-                      </strong>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {currentViability.checks.map((c, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "7px 10px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)" }}>
+                          <span style={{ color: "var(--ink, #f8fafc)", fontWeight: 600 }}>{c.title}</span>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <span style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", fontSize: "11.5px" }}>{c.metricValue}</span>
+                            <span style={{ fontWeight: 800, fontSize: "13px", color: c.status === "passed" ? "#10b981" : c.status === "warning" ? "#f59e0b" : "#ef4444" }}>
+                              {c.status === "passed" ? "✓" : c.status === "warning" ? "!" : "✕"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
               </div>
-              </div>
             </div>
-          </div>
           )}
 
         </div>
@@ -3572,22 +3705,24 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             Revzenta Acquisitions Engine • 100% Proprietary Underwriting
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "6px",
-                border: "1px solid var(--border, #30363d)",
-                background: "transparent",
-                color: "var(--ink, #f8fafc)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Close
-            </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border, #30363d)",
+                  background: "transparent",
+                  color: "var(--ink, #f8fafc)",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {embedded ? "Property Pipeline" : "Close"}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSaveTermsToProperty}

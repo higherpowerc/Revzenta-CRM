@@ -13,10 +13,11 @@ import {
 } from "./db";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
+import bcrypt from "bcryptjs";
 
 /**
- * MVP-grade auth: bcrypt password hashing via Bun's built-in crypto
+ * MVP-grade auth: bcrypt password hashing via bcryptjs
  * (proper hashing — no plaintext anywhere) + an HMAC-signed session token
  * carried in an HttpOnly cookie. See README "Security notes" for what must
  * be hardened before a public launch (rate limiting, CSRF, brute-force
@@ -26,7 +27,7 @@ import { randomBytes } from "node:crypto";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function getDataDir(): string {
-  return process.env.DATA_DIR ?? join(import.meta.dir, "..", "data");
+  return process.env.DATA_DIR ?? join(import.meta.dirname ?? process.cwd(), "..", "data");
 }
 
 /** Session signing secret: $SESSION_SECRET, else a generated one persisted to data/.secret. */
@@ -47,7 +48,7 @@ function getSecret(): string {
 }
 
 function sign(data: string, secret: string): string {
-  return new Bun.CryptoHasher("sha256").update(secret + "::" + data).digest("base64url");
+  return createHash("sha256").update(secret + "::" + data).digest("base64url");
 }
 
 /**
@@ -202,7 +203,7 @@ export function userCount(): number {
 /** bcrypt-hash a password (cost 10) — the one hashing helper for every user
  *  (admin seeding + Phase 2 admin-provisioned member accounts). */
 export function hashPassword(password: string): Promise<string> {
-  return Bun.password.hash(password, { algorithm: "bcrypt", cost: 10 });
+  return bcrypt.hash(password, 10);
 }
 
 /**
@@ -253,5 +254,5 @@ export async function ensureAdmin(): Promise<{ created: boolean; message: string
 }
 
 export function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return Bun.password.verify(password, hash);
+  return bcrypt.compare(password, hash);
 }

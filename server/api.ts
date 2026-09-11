@@ -89,7 +89,7 @@ import {
   resolveAgreement,
   deleteAgreementPdf,
 } from "./agreements";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { lookupPropertyData, normalizeWebhookPayload } from "./propertyEnrichment";
 import { fetchCotalityVoluntaryLienStatus } from "./cotality";
 
@@ -310,6 +310,15 @@ function getCookie(req: Request, name: string): string | null {
   return null;
 }
 
+function getAuthToken(req: Request): string | null {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+    const bearer = authHeader.slice(7).trim();
+    if (bearer) return bearer;
+  }
+  return getCookie(req, SESSION_COOKIE);
+}
+
 async function readBody(req: Request): Promise<Record<string, unknown> | null> {
   try {
     const body = await req.json();
@@ -354,7 +363,7 @@ function retentionDateLabel(raw: string | null | undefined): string {
 
 /** Returns { userId, orgId, role } or a 401 Response. */
 function requireAuth(req: Request): AuthContext | Response {
-  const token = getCookie(req, SESSION_COOKIE);
+  const token = getAuthToken(req);
   const userId = verifySession(token);
   if (!userId) return err("Not signed in.", 401);
   const user = getUserById(userId);
@@ -488,7 +497,7 @@ function requireOrgAdmin(auth: AuthContext): Response | null {
  * normal session.
  */
 function impersonationFrom(req: Request): number | null {
-  const payload = verifySessionPayload(getCookie(req, SESSION_COOKIE));
+  const payload = verifySessionPayload(getAuthToken(req));
   if (!payload || typeof payload.imp !== "number") return null;
   const admin = getUserById(payload.imp);
   if (!admin || admin.role !== "admin" || !isOwnerOrg(admin.orgId)) return null;
@@ -515,7 +524,7 @@ function generateResetToken(): string {
 /** SHA-256 hash of a reset token — the only thing ever stored/logged. The
  *  "pwreset::" prefix keeps reset-token hashes distinct from any other use. */
 function hashResetToken(token: string): string {
-  return new Bun.CryptoHasher("sha256").update("pwreset::" + token).digest("hex");
+  return createHash("sha256").update("pwreset::" + token).digest("hex");
 }
 
 /** The generic forgot-password response — identical whether or not the email
@@ -3370,7 +3379,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     }
     const token = createSession(user.id);
     return json(
-      { user: toUser(user), impersonating: false, ok: true },
+      { user: toUser(user), token, impersonating: false, ok: true },
       200,
       { "Set-Cookie": sessionCookie(token) },
     );
@@ -3441,7 +3450,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
 
   if (pathname === "/api/auth/logout" && method === "POST") {
     return json({ ok: true }, 200, {
-      "Set-Cookie": `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+      "Set-Cookie": sessionCookie(""),
     });
   }
 
@@ -3451,10 +3460,11 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const user = getUserById(auth.userId);
     if (!user) return err("Not signed in.", 401);
     const imp = impersonationFrom(req);
+    const token = getAuthToken(req);
     if (imp !== null) {
-      return json({ user, impersonating: true, impersonatedFrom: imp });
+      return json({ user, token: token ?? undefined, impersonating: true, impersonatedFrom: imp });
     }
-    return json({ user, impersonating: false });
+    return json({ user, token: token ?? undefined, impersonating: false });
   }
 
   /* Phase 3d — end an owner impersonation: swap back to the admin's own
@@ -3472,7 +3482,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     }
     const token = createSession(admin.id);
     return json(
-      { user: admin, impersonating: false, ok: true },
+      { user: admin, token, impersonating: false, ok: true },
       200,
       { "Set-Cookie": sessionCookie(token) },
     );
@@ -3771,7 +3781,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const owner = getOrg(getOwnerOrgId());
     const hash = owner?.agreements_pin_hash ?? "";
     if (!hash) return json({ ok: false, error: "No agreements PIN set yet — set one in Settings first." });
-    const candidate = new Bun.CryptoHasher("sha256").update("agpin::" + pin).digest("hex");
+    const candidate = createHash("sha256").update("agpin::" + pin).digest("hex");
     if (candidate !== hash) return json({ ok: false, error: "Incorrect PIN." });
     return json({ ok: true });
   }
@@ -4267,7 +4277,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     if (!targetUser) return err("Org user not found.", 404);
     const token = createSession(targetUser.id, { impersonatedFrom: admin.userId });
     return json(
-      { user: targetUser, impersonating: true, impersonatedFrom: admin.userId, ok: true },
+      { user: targetUser, token, impersonating: true, impersonatedFrom: admin.userId, ok: true },
       200,
       { "Set-Cookie": sessionCookie(token) },
     );
@@ -5022,7 +5032,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         return err("Agreements PIN must be 4–10 digits.", 400);
       }
       sets.push("agreements_pin_hash = ?");
-      params.push(new Bun.CryptoHasher("sha256").update("agpin::" + pin).digest("hex"));
+      params.push(createHash("sha256").update("agpin::" + pin).digest("hex"));
     }
     if (body.allowSelfSchedule !== undefined) {
       if (typeof body.allowSelfSchedule !== "boolean") return err("allowSelfSchedule must be a boolean.", 400);
@@ -5180,7 +5190,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         retentionUntil: updated?.retention_until ?? "",
       },
       200,
-      { "Set-Cookie": `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` },
+      { "Set-Cookie": sessionCookie("") },
     );
   }
 
@@ -5861,16 +5871,24 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const url = new URL(req.url);
     const clientParam = url.searchParams.get("client_id");
 
-    // Auto-backfill past client offers if table is empty
-    const existingCount = (db.query("SELECT COUNT(*) AS c FROM offers WHERE org_id = ?").get(orgId) as { c: number })?.c || 0;
-    if (existingCount === 0) {
-      try {
-        const clientsWithOffers = db.query(`
-          SELECT * FROM clients
-           WHERE org_id = ?
-             AND (custom_fields LIKE '%Offer PDF%' OR notes LIKE '%Offer Sent%')
-        `).all(orgId) as ClientRow[];
+    // Auto-backfill past client offers if table is missing records for properties with LOI sent / in contract
+    try {
+      const clientsWithOffers = db.query(`
+        SELECT * FROM clients
+         WHERE org_id = ?
+           AND id NOT IN (SELECT client_id FROM offers WHERE org_id = ? AND client_id IS NOT NULL)
+           AND (
+             custom_fields LIKE '%Offer PDF%'
+             OR custom_fields LIKE '%Offer Sent%'
+             OR custom_fields LIKE '%loi status%'
+             OR custom_fields LIKE '%"loi"%'
+             OR notes LIKE '%Offer Sent%'
+             OR notes LIKE '%LOI Sent%'
+             OR LOWER(stage) IN ('contract', 'under contract', 'offer sent')
+           )
+      `).all(orgId, orgId) as ClientRow[];
 
+      if (clientsWithOffers.length > 0) {
         const org = db.query("SELECT name FROM orgs WHERE id = ?").get(orgId) as { name: string } | null;
         const defaultBiz = (org?.name || "Revzenta Capital").trim();
 
@@ -5881,15 +5899,16 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
           try {
             const cf: Array<{ name: string; value: string }> = JSON.parse(c.custom_fields || "[]");
             for (const f of cf) {
-              if (f.name.toLowerCase() === "offer pdf" && f.value) {
+              const fn = (f.name || "").toLowerCase();
+              if (fn === "offer pdf" && f.value) {
                 const m = f.value.match(/\/offer-pdf\/([a-f0-9]+)/);
                 if (m) pdfId = m[1];
               }
-              if (f.name.toLowerCase() === "cash offer") {
-                cashOffer = Number(f.value.replace(/[^0-9.]/g, "")) || 0;
+              if (fn === "cash offer" || fn === "underwritten purchase price") {
+                cashOffer = Number(String(f.value).replace(/[^0-9.]/g, "")) || 0;
               }
-              if (f.name.toLowerCase() === "creative price") {
-                creativePrice = Number(f.value.replace(/[^0-9.]/g, "")) || 0;
+              if (fn === "creative price" || fn === "creative purchase price") {
+                creativePrice = Number(String(f.value).replace(/[^0-9.]/g, "")) || 0;
               }
             }
           } catch {}
@@ -5899,35 +5918,61 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
             if (m) pdfId = m[1];
           }
 
-          if (pdfId) {
-            db.query(`
-              INSERT INTO offers (
-                org_id, client_id, pdf_id, property_address, seller_name, seller_email,
-                business_name, offer_type, selected_offers,
-                cash_offer_amount, subto_purchase_price, subto_debt, subto_cash_to_seller, subto_monthly_payment,
-                creative_purchase_price, creative_down_payment, creative_monthly_payment, creative_interest_rate,
-                creative_balloon_years, creative_total_paid, closing_days, email_status, status, notes, created_at, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, 'all', '["cash","subto","creative"]', ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 14, 'sent', 'Sent', ?, ?, ?)
-            `).run(
-              orgId,
-              c.id,
-              pdfId,
-              c.company_name || c.address,
-              c.contact_name || "",
-              c.email || "",
-              defaultBiz,
-              cashOffer,
-              creativePrice,
-              creativePrice,
-              c.notes || "",
-              c.updated_at || c.created_at,
-              c.updated_at || c.created_at
-            );
+          if (!cashOffer && c.deal_value) {
+            cashOffer = Number(c.deal_value) || 0;
           }
+
+          const propAddr = (c.address && c.company_name && c.address !== c.company_name)
+            ? `${c.company_name} — ${c.address}${c.city ? `, ${c.city}` : ""}${c.state ? `, ${c.state}` : ""}`
+            : (c.address || c.company_name || "Subject Property");
+
+          if (!pdfId) {
+            pdfId = crypto.randomUUID().replace(/-/g, "");
+            try {
+              const pdfBytes = await generateOfferPdf({
+                propertyAddress: propAddr,
+                sellerName: c.contact_name || "Property Owner",
+                sellerEmail: c.email || "",
+                sellerPhone: c.phone || "",
+                businessName: defaultBiz,
+                offerType: "cash",
+                cashOfferAmount: cashOffer || 250000,
+                closingDays: 14,
+                earnestMoney: 2500,
+              });
+              storeOfferPdf(pdfBytes, pdfId);
+            } catch (pdfErr) {
+              console.warn("[offers-backfill] PDF generation err:", pdfErr);
+            }
+          }
+
+          db.query(`
+            INSERT INTO offers (
+              org_id, client_id, pdf_id, property_address, seller_name, seller_email,
+              business_name, offer_type, selected_offers,
+              cash_offer_amount, subto_purchase_price, subto_debt, subto_cash_to_seller, subto_monthly_payment,
+              creative_purchase_price, creative_down_payment, creative_monthly_payment, creative_interest_rate,
+              creative_balloon_years, creative_total_paid, closing_days, email_status, status, notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'cash', '["cash"]', ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 14, 'sent', 'Sent', ?, ?, ?)
+          `).run(
+            orgId,
+            c.id,
+            pdfId,
+            propAddr,
+            c.contact_name || "",
+            c.email || "",
+            defaultBiz,
+            cashOffer || 250000,
+            creativePrice,
+            creativePrice,
+            c.notes || "Official Letter of Intent (LOI) Dispatched",
+            c.updated_at || c.created_at || new Date().toISOString(),
+            c.updated_at || c.created_at || new Date().toISOString()
+          );
         }
-      } catch (backfillErr) {
-        console.warn("[offers-backfill] err:", backfillErr);
       }
+    } catch (backfillErr) {
+      console.warn("[offers-backfill] err:", backfillErr);
     }
 
     let queryStr = `
@@ -6473,9 +6518,12 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       inspectionUrgency,
       daysLeftEmd,
       daysLeftClosing,
-      signUrl: `${baseUrl}/sign-contract/${r.token_hash}`,
-      contractPdfUrl: r.contract_pdf_id ? `${baseUrl}/contract-pdf/${r.contract_pdf_id}` : null,
-      titlePortalUrl: `${baseUrl}/title-portal/${r.token_hash}`,
+      signUrl: `/sign-contract/${r.token_hash}`,
+      contractPdfUrl: r.contract_pdf_id ? `/contract-pdf/${r.contract_pdf_id}` : null,
+      titlePortalUrl: `/title-portal/${r.token_hash}`,
+      fullSignUrl: `${baseUrl}/sign-contract/${r.token_hash}`,
+      fullContractPdfUrl: r.contract_pdf_id ? `${baseUrl}/contract-pdf/${r.contract_pdf_id}` : null,
+      fullTitlePortalUrl: `${baseUrl}/title-portal/${r.token_hash}`,
     };
   }
 
@@ -8648,8 +8696,10 @@ ${businessName}
 }
 
 function sessionCookie(token: string): string {
-  const secure = process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}${secure}`;
+  if (!token) {
+    return `${SESSION_COOKIE}=; HttpOnly; SameSite=None; Secure; Partitioned; Path=/; Max-Age=0`;
+  }
+  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=None; Secure; Partitioned; Path=/; Max-Age=${7 * 24 * 60 * 60}`;
 }
 
 export { handleApi };

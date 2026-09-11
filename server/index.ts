@@ -1,4 +1,4 @@
-import { serve } from "bun";
+import express from "express";
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { handleApi } from "./api";
@@ -6,18 +6,18 @@ import { ensureAdmin } from "./auth";
 import { renderSignPage, readAgreementPdf, backfillSignedClients, backfillBrandRename } from "./agreements";
 import { renderConfirmPage, renderReschedulePage } from "./appointmentPages";
 import { readOfferPdf } from "./offerPdf";
-import { readContractPdf } from "./contractPdf";
+import { readContractPdf, generateContractPdf, storeContractPdf } from "./contractPdf";
 import { renderContractSignPage, renderTitlePortalPage } from "./transactionPages";
 import { db } from "./db";
+import { createServer as createViteServer } from "vite";
 
 /**
- * Revzenta CRM — single Bun server: serves the built React frontend from
- * ./dist and the JSON API under /api. One process, one port, real SQLite
- * file. Designed to be deployed as a single unit to any Bun-capable host.
+ * Revzenta CRM — Node.js Express + Vite server:
+ * serves the JSON API under /api, public document/sign endpoints, and the React frontend via Vite in dev / dist in prod.
  */
 
-const PORT = Number(process.env.PORT ?? 3001);
-const DIST_DIR = join(import.meta.dir, "..", "dist");
+const PORT = 3000;
+const DIST_DIR = join(import.meta.dirname ?? process.cwd(), "..", "dist");
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -36,53 +36,7 @@ const MIME: Record<string, string> = {
   ".pdf": "application/pdf",
 };
 
-/** Best-effort client IP for the e-signature delivery stamp: X-Forwarded-For
- *  first (the app runs behind Render's proxy in production), else Bun's
- *  server.requestIP (the fetch handler's second argument is the Server). */
-function clientIp(req: Request, server: { requestIP(req: Request): { address: string } | null }): string {
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff && xff.trim() !== "") return xff.split(",")[0].trim();
-  try {
-    const ip = server.requestIP(req);
-    if (ip?.address) return ip.address;
-  } catch {
-    /* ignore */
-  }
-  return "";
-}
-
-function serveStatic(pathname: string): Response {
-  let rel = pathname === "/" ? "/index.html" : pathname;
-  // Guard against path traversal.
-  if (rel.includes("..")) return new Response("Not found", { status: 404 });
-  const filePath = join(DIST_DIR, rel);
-  if (!existsSync(filePath)) {
-    // SPA fallback: any unknown path gets the app shell (the app uses
-    // internal state routing, so this is mostly for robustness).
-    if (!existsSync(join(DIST_DIR, "index.html"))) {
-      return new Response("Frontend not built yet. Run `bun run build` first.", { status: 200 });
-    }
-    return new Response(readFileSync(join(DIST_DIR, "index.html")), {
-      status: 200,
-      headers: { "Content-Type": MIME[".html"] },
-    });
-  }
-  const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
-  const body = readFileSync(filePath);
-  return new Response(body, {
-    status: 200,
-    headers: {
-      "Content-Type": MIME[ext] ?? "application/octet-stream",
-      "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable",
-    },
-  });
-}
-
-// Boot-time branding backfill (2026-08-18): "Elevate Studio" → "Revzenta".
-// Runs BEFORE the admin seeder so the pre-rename owner org (still stored under
-// the legacy name) is renamed + its stored agreement template scrubbed before
-// ensureDefaultOrg() looks the default org up by its new name — the live org
-// is adopted, never duplicated. Idempotent; failure must never block startup.
+// Boot-time branding backfill:
 try {
   const b = backfillBrandRename(db);
   if (b.renamed) {
@@ -98,12 +52,7 @@ try {
 const seed = await ensureAdmin();
 console.log(seed.message);
 
-// Boot-time signed-client backfill (live-test finding 2026-08-15): records
-// marked signed BEFORE the sign-time auto-advance (PR #60) existed still sit
-// in a non-terminal stage (live client id 59 "Joe"). Advance them exactly
-// like a fresh signature would (terminal stage + deduped account task +
-// next_action). Idempotent; run defensively so a failure can never block
-// startup — the app must still boot and serve.
+// Boot-time signed-client backfill:
 try {
   const advanced = backfillSignedClients(db);
   if (advanced > 0) {
@@ -113,110 +62,244 @@ try {
   console.error("[crm] Signed-client backfill failed (continuing boot):", err);
 }
 
-if (!existsSync(join(DIST_DIR, "index.html"))) {
-  console.log("[crm] dist/index.html missing — run `bun run build` to build the frontend.");
+async function nodeReqToWebRequest(req: express.Request): Promise<Request> {
+  const protocol = req.protocol || "http";
+  const host = req.get("host") || `localhost:${PORT}`;
+  const fullUrl = new URL(req.originalUrl || req.url, `${protocol}://${host}`);
+
+  const headers = new Headers();
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (v === undefined) continue;
+    if (Array.isArray(v)) {
+      for (const val of v) headers.append(k, val);
+    } else {
+      headers.set(k, v);
+    }
+  }
+
+  let body: Buffer | undefined = undefined;
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    }
+    if (chunks.length > 0) {
+      body = Buffer.concat(chunks);
+    }
+  }
+
+  return new Request(fullUrl.toString(), {
+    method: req.method,
+    headers,
+    body,
+    ...(body ? { duplex: "half" } : {}),
+  } as RequestInit);
 }
 
-function withSecurityHeaders(res: Response): Response {
-  res.headers.set("X-Content-Type-Options", "nosniff");
-  res.headers.set("X-Frame-Options", "SAMEORIGIN");
-  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  res.headers.set("X-Robots-Tag", "noindex, nofollow");
-  return res;
+async function sendWebResponse(webRes: Response, res: express.Response): Promise<void> {
+  res.status(webRes.status);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+
+  webRes.headers.forEach((value, key) => {
+    const lk = key.toLowerCase();
+    if (lk === "set-cookie") {
+      const getSetCookie = (webRes.headers as any).getSetCookie;
+      if (typeof getSetCookie === "function") {
+        res.setHeader("set-cookie", getSetCookie.call(webRes.headers));
+      } else {
+        res.setHeader("set-cookie", value);
+      }
+    } else {
+      res.setHeader(key, value);
+    }
+  });
+
+  if (webRes.body) {
+    const buf = Buffer.from(await webRes.arrayBuffer());
+    res.send(buf);
+  } else {
+    res.end();
+  }
 }
 
-const server = serve({
-  port: PORT,
-  hostname: "0.0.0.0",
-  async fetch(req, srv) {
-    const url = new URL(req.url);
-    let res: Response;
-    if (req.method === "GET" && url.pathname === "/robots.txt") {
-      res = new Response("User-agent: *\nDisallow: /\n", {
-        status: 200,
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "Cache-Control": "public, max-age=3600",
-        },
-      });
-    } else if (url.pathname.startsWith("/api/")) {
-      res = await handleApi(req, url, srv);
-    } else if (req.method === "GET" && url.pathname.startsWith("/sign/")) {
-      const token = decodeURIComponent(url.pathname.slice("/sign/".length));
-      res = renderSignPage(token, clientIp(req, srv));
-    } else if (req.method === "GET" && url.pathname.startsWith("/offer-pdf/")) {
-      const pdfId = url.pathname.slice("/offer-pdf/".length);
+async function startServer() {
+  const app = express();
+
+  // Handle all API, sign, document, and custom endpoints
+  app.use(async (req, res, next) => {
+    const urlPath = req.path;
+    const srv = {
+      requestIP(_req: Request) {
+        const addr = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "";
+        return addr ? { address: addr } : null;
+      },
+    };
+
+    if (req.method === "GET" && urlPath === "/robots.txt") {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.send("User-agent: *\nDisallow: /\n");
+      return;
+    }
+
+    if (urlPath.startsWith("/api/")) {
+      try {
+        const webReq = await nodeReqToWebRequest(req);
+        const url = new URL(webReq.url);
+        const webRes = await handleApi(webReq, url, srv);
+        await sendWebResponse(webRes, res);
+      } catch (err) {
+        console.error("[crm] API error:", err);
+        res.status(500).json({ ok: false, error: "Internal server error" });
+      }
+      return;
+    }
+
+    if (req.method === "GET" && urlPath.startsWith("/sign/")) {
+      const token = decodeURIComponent(urlPath.slice("/sign/".length));
+      const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "";
+      const webRes = renderSignPage(token, ip);
+      await sendWebResponse(webRes, res);
+      return;
+    }
+
+    if (req.method === "GET" && urlPath.startsWith("/offer-pdf/")) {
+      const pdfId = urlPath.slice("/offer-pdf/".length);
       const bytes = readOfferPdf(pdfId);
       if (!bytes) {
-        res = new Response("Not found", { status: 404 });
+        res.status(404).send("Not found");
       } else {
-        res = new Response(bytes as unknown as BodyInit, {
-          status: 200,
-          headers: {
-            "Content-Type": MIME[".pdf"],
-            "Cache-Control": "private, max-age=3600",
-            "Content-Disposition": `inline; filename="purchase-offer-${pdfId}.pdf"`,
-          },
-        });
+        res.setHeader("Content-Type", MIME[".pdf"]);
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        res.setHeader("Content-Disposition", `inline; filename="purchase-offer-${pdfId}.pdf"`);
+        res.send(Buffer.from(bytes));
       }
-    } else if (req.method === "GET" && url.pathname.startsWith("/agreement-pdf/")) {
-      const pdfId = url.pathname.slice("/agreement-pdf/".length);
+      return;
+    }
+
+    if (req.method === "GET" && urlPath.startsWith("/agreement-pdf/")) {
+      const pdfId = urlPath.slice("/agreement-pdf/".length);
       const bytes = readAgreementPdf(pdfId);
       if (!bytes) {
-        res = new Response("Not found", { status: 404 });
+        res.status(404).send("Not found");
       } else {
-        res = new Response(bytes as unknown as BodyInit, {
-          status: 200,
-          headers: {
-            "Content-Type": MIME[".pdf"],
-            "Cache-Control": "private, max-age=3600",
-            "Content-Disposition": `inline; filename="agreement-${pdfId}.pdf"`,
-          },
-        });
+        res.setHeader("Content-Type", MIME[".pdf"]);
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        res.setHeader("Content-Disposition", `inline; filename="agreement-${pdfId}.pdf"`);
+        res.send(Buffer.from(bytes));
       }
-    } else if (req.method === "GET" && url.pathname.startsWith("/sign-contract/")) {
-      const token = decodeURIComponent(url.pathname.slice("/sign-contract/".length));
-      res = renderContractSignPage(token, clientIp(req, srv));
-    } else if (req.method === "GET" && url.pathname.startsWith("/contract-pdf/")) {
-      const pdfId = url.pathname.slice("/contract-pdf/".length);
-      const bytes = readContractPdf(pdfId);
+      return;
+    }
+
+    if (req.method === "GET" && urlPath.startsWith("/sign-contract/")) {
+      const token = decodeURIComponent(urlPath.slice("/sign-contract/".length));
+      const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "";
+      const webRes = renderContractSignPage(token, ip);
+      await sendWebResponse(webRes, res);
+      return;
+    }
+
+    if (req.method === "GET" && urlPath.startsWith("/contract-pdf/")) {
+      const pdfId = urlPath.slice("/contract-pdf/".length);
+      let bytes = readContractPdf(pdfId);
       if (!bytes) {
-        res = new Response("Not found", { status: 404 });
-      } else {
-        res = new Response(bytes as unknown as BodyInit, {
-          status: 200,
-          headers: {
-            "Content-Type": MIME[".pdf"],
-            "Cache-Control": "private, max-age=3600",
-            "Content-Disposition": `inline; filename="contract-${pdfId}.pdf"`,
-          },
-        });
+        const tx = db.query("SELECT * FROM transactions WHERE contract_pdf_id = ?").get(pdfId) as any;
+        if (tx) {
+          try {
+            const org = db.query("SELECT name FROM orgs WHERE id = ?").get(tx.org_id) as { name: string } | null;
+            bytes = await generateContractPdf({
+              contractType: tx.contract_type,
+              propertyAddress: tx.property_address,
+              sellerName: tx.seller_name,
+              sellerEmail: tx.seller_email,
+              sellerPhone: tx.seller_phone,
+              buyerName: tx.buyer_name,
+              buyerEmail: tx.buyer_email,
+              buyerPhone: tx.buyer_phone,
+              companyName: org?.name || "Revzenta Wholesale Biz",
+              purchasePrice: tx.purchase_price,
+              assignmentFee: tx.assignment_fee,
+              earnestMoney: tx.earnest_money,
+              emdDueDate: tx.emd_due_date,
+              inspectionDays: tx.inspection_days,
+              closingDate: tx.closing_date,
+              titleCompany: tx.title_company_name,
+              stateJurisdiction: tx.state_jurisdiction,
+              signerName: tx.signer_name,
+              signedAt: tx.signed_at,
+              signerIp: tx.signer_ip,
+              customTerms: tx.custom_terms,
+            });
+            storeContractPdf(bytes, pdfId);
+          } catch (err) {
+            console.error("[contract-pdf] On-demand fallback generation failed:", err);
+          }
+        }
       }
-    } else if (req.method === "GET" && url.pathname.startsWith("/title-portal/")) {
-      const token = decodeURIComponent(url.pathname.slice("/title-portal/".length));
-      res = renderTitlePortalPage(token);
-    } else if (req.method === "GET" && url.pathname.startsWith("/appointment/")) {
-      const rest = url.pathname.slice("/appointment/".length);
+      if (!bytes) {
+        res.status(404).send("Contract PDF not found");
+      } else {
+        res.setHeader("Content-Type", MIME[".pdf"]);
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        res.setHeader("Content-Disposition", `inline; filename="contract-${pdfId}.pdf"`);
+        res.send(Buffer.from(bytes));
+      }
+      return;
+    }
+
+    if (req.method === "GET" && urlPath.startsWith("/title-portal/")) {
+      const token = decodeURIComponent(urlPath.slice("/title-portal/".length));
+      const webRes = renderTitlePortalPage(token);
+      await sendWebResponse(webRes, res);
+      return;
+    }
+
+    if (req.method === "GET" && urlPath.startsWith("/appointment/")) {
+      const rest = urlPath.slice("/appointment/".length);
       const slash = rest.indexOf("/");
       if (slash > 0) {
         const token = decodeURIComponent(rest.slice(0, slash));
         const action = rest.slice(slash + 1);
-        if (action === "confirm") res = renderConfirmPage(token);
-        else if (action === "reschedule") res = renderReschedulePage(token);
-        else res = serveStatic(url.pathname);
-      } else {
-        res = serveStatic(url.pathname);
+        if (action === "confirm") {
+          const webRes = renderConfirmPage(token);
+          await sendWebResponse(webRes, res);
+          return;
+        } else if (action === "reschedule") {
+          const webRes = renderReschedulePage(token);
+          await sendWebResponse(webRes, res);
+          return;
+        }
       }
-    } else {
-      res = serveStatic(url.pathname);
     }
-    return withSecurityHeaders(res);
-  },
+
+    // For all other routes, pass to Vite in dev or static serving in prod
+    next();
+  });
+
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(DIST_DIR));
+    app.get("*all", (_req, res) => {
+      res.sendFile(join(DIST_DIR, "index.html"));
+    });
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[crm] Revzenta CRM listening on http://localhost:${PORT}`);
+    console.log(`[crm] Database: ${process.env.DATA_DIR ?? join(import.meta.dirname ?? process.cwd(), "..", "data")}/crm.db`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error("[crm] Failed to start server:", err);
+  process.exit(1);
 });
-
-console.log(`[crm] Revzenta CRM listening on http://localhost:${PORT}`);
-console.log(`[crm] Database: ${process.env.DATA_DIR ?? join(import.meta.dir, "..", "data")}/crm.db`);
-
-// Keep the process alive if all handlers detach (paranoia guard).
-process.on("SIGINT", () => server.stop(true));

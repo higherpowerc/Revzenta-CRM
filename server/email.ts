@@ -87,8 +87,38 @@ export interface SendEmailInput {
  *  is present (a browser request usually carries it), else the production
  *  fallback. */
 export function appUrlFrom(req?: Request): string {
-  const origin = req?.headers.get("origin") ?? "";
+  if (!req) return DEFAULT_APP_URL;
+  const origin = req.headers.get("origin") ?? "";
   if (/^https?:\/\/[^\s/]+/.test(origin)) return origin.replace(/\/+$/, "");
+
+  // Check Referer header (sent on GET requests by browsers)
+  const referer = req.headers.get("referer") ?? "";
+  if (/^https?:\/\/[^\s/]+/.test(referer)) {
+    try {
+      const u = new URL(referer);
+      return `${u.protocol}//${u.host}`;
+    } catch {}
+  }
+
+  // Check x-forwarded-host or host headers
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost || req.headers.get("host");
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+    return `${proto}://${host}`.replace(/\/+$/, "");
+  }
+
+  try {
+    const u = new URL(req.url);
+    if (u.origin && !u.origin.includes("localhost") && !u.origin.includes("127.0.0.1")) {
+      return u.origin;
+    }
+  } catch {}
+
+  if (host) {
+    return `${proto}://${host}`.replace(/\/+$/, "");
+  }
+
   return DEFAULT_APP_URL;
 }
 

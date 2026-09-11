@@ -22,11 +22,10 @@
  */
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import type { Database } from "bun:sqlite";
-import { dataDir, db, getOrg, getOwnerOrgId, parseStages, LEGACY_ORG_NAME } from "./db";
+import { dataDir, db, getOrg, getOwnerOrgId, parseStages, LEGACY_ORG_NAME, type Database } from "./db";
 import type { ClientRow } from "./db";
 
 /** Sign links live 30 days from send. */
@@ -290,7 +289,7 @@ export function generateAgreementToken(): string {
   return randomBytes(32).toString("hex");
 }
 export function hashAgreementToken(token: string): string {
-  return new Bun.CryptoHasher("sha256").update(token).digest("hex");
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export interface AgreementEnvelopeRow {

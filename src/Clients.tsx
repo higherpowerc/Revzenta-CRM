@@ -19,6 +19,7 @@ import MortgageOfferBuilder from "./MortgageOfferBuilder";
 import { evaluateMatch, type BuyBoxMatch } from "./buyBoxUtils";
 import CsvImportModal from "./CsvImportModal";
 import ZillowImportModal from "./ZillowImportModal";
+import { extractAddressFromUrl } from "./urlAddressParser";
 
 /** Owner request 2026-08-14 — "lost" and "dnc" are STATUS views: they render
  *  the Lost section / DNC list instead of the pipeline table. The pipeline
@@ -201,19 +202,22 @@ export function isOfferSentForClient(c: Client): boolean {
   if (typeof c.offersCount === "number" && c.offersCount > 0) return true;
   if (
     c.customFields?.some((f) => {
-      const n = f.name.toLowerCase();
+      const n = (f.name || "").toLowerCase();
+      const v = (f.value || "").toLowerCase();
       return (
         n === "offer pdf" ||
         n === "offer sent" ||
         n === "offer sent date" ||
         n === "cash offer" ||
-        n === "creative price"
+        n === "creative price" ||
+        (n === "loi status" && v === "sent") ||
+        (n === "loi" && v === "sent")
       );
     })
   ) {
     return true;
   }
-  if (c.notes && /offer\s+sent/i.test(c.notes)) return true;
+  if (c.notes && /offer\s+sent|loi\s+sent/i.test(c.notes)) return true;
   const s = (c.stage || "").toLowerCase();
   if (s === "offer sent" || s === "under contract" || s === "dispo" || s === "closed") {
     return true;
@@ -672,6 +676,9 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   const [modal, setModal] = useState<{ mode: "create" } | { mode: "edit"; client: Client } | null>(null);
   const [calcProperty, setCalcProperty] = useState<Client | null | "new">(null);
   const autoOpenedDealRef = useRef(false);
+  const [hubUrlInput, setHubUrlInput] = useState("");
+  const [hubFetching, setHubFetching] = useState(false);
+  const [hubError, setHubError] = useState<string | null>(null);
   const [csvModal, setCsvModal] = useState(false);
   const [zillowModal, setZillowModal] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
@@ -681,6 +688,102 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   const [cancelLeadReason, setCancelLeadReason] = useState("Inspection / repair costs too high");
   const [cancelLeadNotes, setCancelLeadNotes] = useState("");
   const [cancellingLeadBusy, setCancellingLeadBusy] = useState(false);
+
+  const handleHubUrlSubmit = async (overrideUrl?: string) => {
+    const raw = (overrideUrl ?? hubUrlInput).trim();
+    if (!raw) {
+      setHubError("Please enter or paste a property listing URL.");
+      return;
+    }
+    setHubFetching(true);
+    setHubError(null);
+
+    const parsed = extractAddressFromUrl(raw);
+    if (parsed.isUrl && !parsed.authorized) {
+      setHubError(parsed.rejectionReason || "Only links from authorized real estate platforms (Zillow, Redfin, Realtor.com, Trulia, Homes.com) are supported.");
+      setHubFetching(false);
+      return;
+    }
+
+    const queryAddress = parsed.address || raw;
+
+    try {
+      const res = await api.lookupProperty(queryAddress);
+      const p = res.property;
+      const fullStreet = p?.addressLine1 || queryAddress;
+      const city = p?.city || "";
+      const state = p?.state || "";
+      const zip = p?.zipCode || "";
+      const estVal = p?.estimatedValue && p.estimatedValue > 0 ? p.estimatedValue : 0;
+      const estRent = p?.estimatedRent && p.estimatedRent > 0 ? p.estimatedRent : 0;
+
+      const existing = clients?.find((c) =>
+        (c.address && c.address.toLowerCase().trim() === fullStreet.toLowerCase().trim()) ||
+        (c.companyName && c.companyName.toLowerCase().trim() === fullStreet.toLowerCase().trim())
+      );
+
+      const customFields = [
+        { name: "Estimated Value", value: String(estVal) },
+        { name: "Estimated Equity", value: String(estVal) },
+        { name: "Open Mortgage Balance", value: "0" },
+        { name: "Bedrooms", value: p?.bedrooms != null ? String(p.bedrooms) : "" },
+        { name: "Bathrooms", value: p?.bathrooms != null ? String(p.bathrooms) : "" },
+        { name: "Square Footage", value: p?.squareFootage != null ? String(p.squareFootage) : "" },
+        { name: "Year Built", value: p?.yearBuilt != null ? String(p.yearBuilt) : "" },
+        { name: "Property Class", value: p?.propertyType || "Single Family" },
+        { name: "Estimated Rent", value: String(estRent) },
+        { name: "Property Listing URL", value: raw },
+      ];
+
+      if (p?.comps && p.comps.length > 0) {
+        customFields.push({ name: "Comps Data", value: JSON.stringify(p.comps) });
+      }
+
+      let targetClient: Client;
+      if (existing) {
+        const updateRes = await api.updateClient(existing.id, {
+          address: fullStreet,
+          city,
+          state,
+          zip,
+          dealValue: estVal > 0 ? estVal : existing.dealValue,
+          customFields,
+        });
+        targetClient = updateRes.client;
+      } else {
+        const createRes = await api.createClient({
+          companyName: fullStreet,
+          contactName: p?.ownerName || "Property Owner",
+          address: fullStreet,
+          city,
+          state,
+          zip,
+          clientType: "single_family",
+          stage: "New Lead",
+          dealValue: estVal,
+          leadSource: "Property URL Import",
+          services: ["Wholesale Underwriting"],
+          customFields,
+        });
+        targetClient = createRes.client;
+      }
+
+      setClients((prev) => {
+        if (!prev) return [targetClient];
+        const exists = prev.some((c) => c.id === targetClient.id);
+        if (exists) return prev.map((c) => (c.id === targetClient.id ? targetClient : c));
+        return [targetClient, ...prev];
+      });
+
+      // Autofill into calculator and open
+      setCalcProperty(targetClient);
+      setHubUrlInput("");
+    } catch (err: any) {
+      setHubError(err?.message || "Failed to load property data from URL.");
+    } finally {
+      setHubFetching(false);
+    }
+  };
 
   const availableLeadSources = useMemo(() => {
     if (!clients) return [];
@@ -724,10 +827,11 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   }, [load]);
 
   useEffect(() => {
-    if (!autoOpenDealCalculator || !isWholesale || autoOpenedDealRef.current || !clients) return;
-    autoOpenedDealRef.current = true;
-    setCalcProperty(initialDealProperty ?? "new");
-  }, [autoOpenDealCalculator, clients, isWholesale, initialDealProperty]);
+    if (!isWholesale) return;
+    if (initialDealProperty) {
+      setCalcProperty(initialDealProperty);
+    }
+  }, [isWholesale, initialDealProperty]);
 
   // Esc closes the "Manage stages" modal (keyboard nicety).
   useEffect(() => {
@@ -1370,15 +1474,289 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
     ? "New Lead"
     : ownerOrg ? "New Lead" : "Add your first client";
 
+  if (isWholesale) {
+    if (calcProperty !== null) {
+      return (
+        <div className="page page-stack" style={{ maxWidth: "1440px", margin: "0 auto" }}>
+          <DealCalculatorModal
+            property={calcProperty === "new" ? null : calcProperty}
+            allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
+            onClose={() => setCalcProperty(null)}
+            crmBusinessName={crmBusinessName}
+            embedded={true}
+            onUpdated={(updated) => {
+              setClients((prev) => {
+                if (!prev) return [updated];
+                const exists = prev.some((c) => c.id === updated.id);
+                if (exists) return prev.map((c) => (c.id === updated.id ? updated : c));
+                return [updated, ...prev];
+              });
+              setCalcProperty(updated);
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="page page-stack"
+        style={{
+          maxWidth: "800px",
+          margin: "48px auto",
+          padding: "24px",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            borderRadius: "14px",
+            border: "1px solid var(--border, #30363d)",
+            backgroundColor: "var(--panel, #121216)",
+            boxShadow: "0 12px 36px rgba(0,0,0,0.4)",
+            padding: "36px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "4px 12px",
+                borderRadius: "9999px",
+                fontSize: "11px",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                backgroundColor: "rgba(56, 189, 248, 0.12)",
+                color: "#38bdf8",
+                border: "1px solid rgba(56, 189, 248, 0.35)",
+                marginBottom: "14px",
+              }}
+            >
+              <span>🏘️</span>
+              <span>Creative Hub</span>
+            </div>
+            <h1 style={{ margin: "0 0 8px 0", fontSize: "24px", fontWeight: 800, color: "var(--ink, #f8fafc)", letterSpacing: "-0.01em" }}>
+              Deal Underwriting Calculator
+            </h1>
+            <p style={{ margin: 0, fontSize: "14px", color: "var(--muted, #94a3b8)", lineHeight: 1.6 }}>
+              Paste any property listing URL to automatically extract MLS data, specs, valuation, and comps into the underwriting calculator.
+            </p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleHubUrlSubmit();
+            }}
+            style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+          >
+            <label
+              htmlFor="creative-hub-url-input"
+              style={{
+                fontSize: "12px",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                color: "var(--ink-dim, #cbd5e1)",
+              }}
+            >
+              Property URL Link
+            </label>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <div style={{ position: "relative", flex: "1 1 340px" }}>
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "14px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: "16px",
+                    opacity: 0.75,
+                    pointerEvents: "none",
+                  }}
+                >
+                  🔗
+                </span>
+                <input
+                  id="creative-hub-url-input"
+                  type="text"
+                  value={hubUrlInput}
+                  onChange={(e) => setHubUrlInput(e.target.value)}
+                  placeholder="Paste Zillow, Redfin, or Realtor.com URL..."
+                  disabled={hubFetching}
+                  style={{
+                    width: "100%",
+                    height: "46px",
+                    padding: "0 14px 0 40px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border, #30363d)",
+                    backgroundColor: "var(--panel-2, #16161b)",
+                    color: "var(--ink, #f8fafc)",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={hubFetching || !hubUrlInput.trim()}
+                style={{
+                  height: "46px",
+                  padding: "0 22px",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor: "var(--lime, #d6ff3f)",
+                  color: "var(--lime-ink, #0c0d08)",
+                  fontSize: "13.5px",
+                  fontWeight: 800,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: hubFetching || !hubUrlInput.trim() ? "not-allowed" : "pointer",
+                  opacity: hubFetching || !hubUrlInput.trim() ? 0.6 : 1,
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {hubFetching ? (
+                  <>
+                    <span>🔄</span>
+                    <span>Extracting MLS Data...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⚡</span>
+                    <span>Autofill Calculator</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {hubError && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(239, 68, 68, 0.12)",
+                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  color: "#f87171",
+                  fontSize: "13px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {hubError}
+              </div>
+            )}
+          </form>
+
+          {/* Quick Platform Badges */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)", fontWeight: 600 }}>Supported Platforms:</span>
+            {["Zillow", "Redfin", "Realtor.com", "Trulia", "Homes.com"].map((platform) => (
+              <span
+                key={platform}
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: "6px",
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  border: "1px solid var(--border, #30363d)",
+                  color: "var(--ink-dim, #cbd5e1)",
+                }}
+              >
+                ✓ {platform}
+              </span>
+            ))}
+          </div>
+
+          {/* Existing properties selector */}
+          {clients && clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer").length > 0 && (
+            <div
+              style={{
+                marginTop: "8px",
+                paddingTop: "20px",
+                borderTop: "1px solid var(--border, #30363d)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  color: "var(--muted, #94a3b8)",
+                }}
+              >
+                Or select an existing property to autofill calculator:
+              </label>
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  const propId = e.target.value;
+                  if (!propId) return;
+                  const found = clients.find((c) => String(c.id) === propId);
+                  if (found) {
+                    setCalcProperty(found);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  height: "42px",
+                  padding: "0 12px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border, #30363d)",
+                  backgroundColor: "var(--panel-2, #16161b)",
+                  color: "var(--ink, #f8fafc)",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="">-- Select an existing property ({clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer").length}) --</option>
+                {clients
+                  .filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer")
+                  .map((p) => {
+                    const addr = p.address || p.companyName || `Property #${p.id}`;
+                    const loc = [p.city, p.state].filter(Boolean).join(", ");
+                    const val = p.dealValue ? ` · $${Number(p.dealValue).toLocaleString()}` : "";
+                    const stg = p.stage ? ` [${p.stage}]` : "";
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {addr}{loc ? ` (${loc})` : ""}{val}{stg}
+                      </option>
+                    );
+                  })}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`page page-stack${autoOpenDealCalculator ? " creative-hub-inline" : ""}`}>
-      {autoOpenDealCalculator && <style>{`
+    <div className={`page page-stack${autoOpenDealCalculator && calcProperty !== null ? " creative-hub-inline" : ""}`}>
+      {autoOpenDealCalculator && calcProperty !== null && <style>{`
         .creative-hub-inline > .page-head,
         .creative-hub-inline > .toolbar,
         .creative-hub-inline > .creative-hub-summary,
         .creative-hub-inline > .empty,
         .creative-hub-inline > .table-wrap{display:none !important}
-        .creative-hub-inline{max-width:1400px;margin:0 auto}
+        .creative-hub-inline{max-width:1440px;margin:0 auto}
       `}</style>}
       <div className="page-head creative-hub-summary">
         <div>
@@ -1426,6 +1804,18 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
             >
               <span>🔗</span>
               <span>Property URL Link</span>
+            </button>
+          )}
+          {isWholesale && canEdit && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setCalcProperty("new")}
+              title="Open Revzenta Deal Underwriter to structure and analyze an offer"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <span>📐</span>
+              <span>Revzenta Deal Underwriter™</span>
             </button>
           )}
           {!isWholesale && canEdit && scope !== "middle" && (
@@ -2376,6 +2766,17 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                           {canEdit && (
                             <button
                               className="icon-btn"
+                              title="Underwrite this property in Revzenta Deal Underwriter"
+                              aria-label={`Underwrite ${c.address || c.companyName}`}
+                              onClick={() => setCalcProperty(c)}
+                              style={{ color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.45)", fontWeight: 700 }}
+                            >
+                              📐 Underwrite
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              className="icon-btn"
                               title="Edit"
                               aria-label={`Edit ${c.address || c.companyName}`}
                               onClick={() => setModal({ mode: "edit", client: c })}
@@ -3063,35 +3464,26 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
         />
       )}
       {calcProperty !== null && (
-        autoOpenDealCalculator ? (
-          <MortgageOfferBuilder
-            property={calcProperty === "new" ? null : calcProperty}
-            opportunities={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
-            onUpdated={(updated) => {
-              setClients((prev) => {
-                if (!prev) return [updated];
-                const exists = prev.some((c) => c.id === updated.id);
-                return exists ? prev.map((c) => (c.id === updated.id ? updated : c)) : [updated, ...prev];
-              });
-            }}
-          />
-        ) : (
-          <DealCalculatorModal
-            property={calcProperty === "new" ? null : calcProperty}
-            allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
-            onClose={() => setCalcProperty(null)}
-            crmBusinessName={crmBusinessName}
-            onUpdated={(updated) => {
-              setClients((prev) => {
-                if (!prev) return [updated];
-                const exists = prev.some((c) => c.id === updated.id);
-                if (exists) return prev.map((c) => (c.id === updated.id ? updated : c));
-                return [updated, ...prev];
-              });
+        <DealCalculatorModal
+          property={calcProperty === "new" ? null : calcProperty}
+          allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
+          onClose={() => setCalcProperty(null)}
+          crmBusinessName={crmBusinessName}
+          embedded={autoOpenDealCalculator}
+          onUpdated={(updated) => {
+            setClients((prev) => {
+              if (!prev) return [updated];
+              const exists = prev.some((c) => c.id === updated.id);
+              if (exists) return prev.map((c) => (c.id === updated.id ? updated : c));
+              return [updated, ...prev];
+            });
+            if (!autoOpenDealCalculator) {
               setCalcProperty(null);
-            }}
-          />
-        )
+            } else {
+              setCalcProperty(updated);
+            }
+          }}
+        />
       )}
       {csvModal && (
         <CsvImportModal

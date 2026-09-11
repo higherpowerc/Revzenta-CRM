@@ -5,27 +5,32 @@
   "type": "module",
   "description": "Revzenta CRM — universal client pipeline management app.",
   "scripts": {
+    "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && bun build ./index.html --outdir ./dist --minify",
-    "check": "bun run typecheck && bun run build",
-    "test:underwriting": "bun test/underwriting-engine.ts",
-    "start": "bun ./server/index.ts",
-    "start:local": "cross-env PORT=3001 bun ./server/index.ts",
-    "dev": "cross-env PORT=3001 bun --watch ./server/index.ts",
-    "seed": "bun ./server/seed.ts",
+    "build": "vite build",
+    "dev": "tsx server/index.ts",
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "seed": "tsx server/seed.ts",
     "db:reset": "rm -f data/crm.db data/crm.db-shm data/crm.db-wal"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^5.2.1",
     "pdf-lib": "^1.17.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "stripe": "^22.5.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.2.0",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.2",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "cross-env": "^7.0.0",
-    "typescript": "^7.0.2"
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   }
 }

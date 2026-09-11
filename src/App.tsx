@@ -624,6 +624,8 @@ export default function App() {
         <Login
           onLogin={(u) => {
             setUser(u);
+            setShowLogin(false);
+            setViewingWebsite(false);
             setResetToken(null);
             if (window.location.hash.startsWith("#/reset") || window.location.hash.startsWith("#/login")) {
               window.location.hash = "";
