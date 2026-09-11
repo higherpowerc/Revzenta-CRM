@@ -15,6 +15,7 @@ import ClientModal from "./ClientModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import StageEditor from "./StageEditor";
 import DealCalculatorModal from "./DealCalculatorModal";
+import MortgageOfferBuilder from "./MortgageOfferBuilder";
 import { evaluateMatch, type BuyBoxMatch } from "./buyBoxUtils";
 import CsvImportModal from "./CsvImportModal";
 import ZillowImportModal from "./ZillowImportModal";
@@ -77,6 +78,9 @@ interface Props {
   onGoToBuyBox?: () => void;
   onGoToTransactions?: () => void;
   verticalKey?: string;
+  /** Creative Hub opens directly into the one-property deal builder. */
+  autoOpenDealCalculator?: boolean;
+  initialDealProperty?: Client | null;
 }
 
 /** Short value label for a custom field chip, rendered per field type
@@ -584,7 +588,7 @@ function OwnerActionsMenu({ client, busy, onEdit, onDemo, onFlag }: {
     </div>
   );
 }
-export default function Clients({ stages, scope = "all", ownerOrg = false, initialStage = null, initialFilter, canEdit = true, isWholesale: isWholesaleProp = false, crmBusinessName, onGoToBuyBox, onGoToTransactions, verticalKey = "" }: Props) {
+export default function Clients({ stages, scope = "all", ownerOrg = false, initialStage = null, initialFilter, canEdit = true, isWholesale: isWholesaleProp = false, crmBusinessName, onGoToBuyBox, onGoToTransactions, verticalKey = "", autoOpenDealCalculator = false, initialDealProperty = null }: Props) {
   const isWholesale = Boolean(isWholesaleProp || verticalKey === "wholesalebiz" || verticalKey === "wholesale");
   const [clients, setClients] = useState<Client[] | null>(null);
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([]);
@@ -667,6 +671,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
 
   const [modal, setModal] = useState<{ mode: "create" } | { mode: "edit"; client: Client } | null>(null);
   const [calcProperty, setCalcProperty] = useState<Client | null | "new">(null);
+  const autoOpenedDealRef = useRef(false);
   const [csvModal, setCsvModal] = useState(false);
   const [zillowModal, setZillowModal] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
@@ -717,6 +722,12 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!autoOpenDealCalculator || !isWholesale || autoOpenedDealRef.current || !clients) return;
+    autoOpenedDealRef.current = true;
+    setCalcProperty(initialDealProperty ?? "new");
+  }, [autoOpenDealCalculator, clients, isWholesale, initialDealProperty]);
 
   // Esc closes the "Manage stages" modal (keyboard nicety).
   useEffect(() => {
@@ -1360,8 +1371,16 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
     : ownerOrg ? "New Lead" : "Add your first client";
 
   return (
-    <div className="page page-stack">
-      <div className="page-head">
+    <div className={`page page-stack${autoOpenDealCalculator ? " creative-hub-inline" : ""}`}>
+      {autoOpenDealCalculator && <style>{`
+        .creative-hub-inline > .page-head,
+        .creative-hub-inline > .toolbar,
+        .creative-hub-inline > .creative-hub-summary,
+        .creative-hub-inline > .empty,
+        .creative-hub-inline > .table-wrap{display:none !important}
+        .creative-hub-inline{max-width:1400px;margin:0 auto}
+      `}</style>}
+      <div className="page-head creative-hub-summary">
         <div>
           <h1>{heading}</h1>
           <p className="page-sub">
@@ -1409,23 +1428,6 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               <span>Property URL Link</span>
             </button>
           )}
-          {isWholesale && canEdit && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setCalcProperty("new")}
-              title="Open Deal Calculator to underwrite and build a new creative deal"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                fontWeight: 800,
-              }}
-            >
-              <span>🏗️</span>
-              <span>Build Deal</span>
-            </button>
-          )}
           {!isWholesale && canEdit && scope !== "middle" && (
             <button className="btn btn-primary" onClick={() => setModal({ mode: "create" })}>
               {addCta}
@@ -1441,7 +1443,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
       )}
 
       {isWholesale && sentOffersCount > 0 && (
-        <div
+        <div className="creative-hub-summary"
           style={{
             margin: "0 0 16px 0",
             padding: "10px 16px",
@@ -1606,11 +1608,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               pipeline (orphaned) is a repair surface, not a creation one. */}
           {canEdit && scoped.length === 0 && filter !== "lost" && filter !== "dnc" && filter !== "maybe" && filter !== "orphaned" && scope !== "middle" && (
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap" }}>
-              {isWholesale ? (
-                <button className="btn btn-primary" onClick={() => setCalcProperty("new")}>
-                  🏗️ Build Deal
-                </button>
-              ) : (
+              {!isWholesale && (
                 <button className="btn btn-primary" onClick={() => setModal({ mode: "create" })}>
                   {emptyCta}
                 </button>
@@ -2372,34 +2370,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                         </span>
                       </td>
 
-                      {/* 12. Deal Calculator */}
-                      <td data-label="Deal Calculator" style={{ textAlign: "center" }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            fontSize: "11.5px",
-                            fontWeight: 700,
-                            padding: "4px 10px",
-                            borderRadius: "6px",
-                            background: "rgba(214, 255, 63, 0.12)",
-                            color: "var(--lime, #d6ff3f)",
-                            border: "1px solid rgba(214, 255, 63, 0.35)",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            transition: "all 0.15s ease",
-                          }}
-                          title={`Open Deal Calculator for ${c.address || primaryName(false, c)}`}
-                          onClick={() => setCalcProperty(c)}
-                        >
-                          🧮 Build Deal
-                        </button>
-                      </td>
-
-                      {/* 13. Actions (Edit & More Menu — Create Offer and Cancelation Notice removed) */}
+                      {/* Actions (Edit & More Menu — Create Offer and Cancellation Notice removed) */}
                       <td data-label="Actions" style={{ textAlign: "center" }}>
                         <div className="row-actions" style={{ justifyContent: "center", alignItems: "center" }}>
                           {canEdit && (
@@ -3092,23 +3063,35 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
         />
       )}
       {calcProperty !== null && (
-        <DealCalculatorModal
-          property={calcProperty === "new" ? null : calcProperty}
-          allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
-          onClose={() => setCalcProperty(null)}
-          crmBusinessName={crmBusinessName}
-          onUpdated={(updated) => {
-            setClients((prev) => {
-              if (!prev) return [updated];
-              const exists = prev.some((c) => c.id === updated.id);
-              if (exists) {
-                return prev.map((c) => (c.id === updated.id ? updated : c));
-              }
-              return [updated, ...prev];
-            });
-            setCalcProperty(null);
-          }}
-        />
+        autoOpenDealCalculator ? (
+          <MortgageOfferBuilder
+            property={calcProperty === "new" ? null : calcProperty}
+            opportunities={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
+            onUpdated={(updated) => {
+              setClients((prev) => {
+                if (!prev) return [updated];
+                const exists = prev.some((c) => c.id === updated.id);
+                return exists ? prev.map((c) => (c.id === updated.id ? updated : c)) : [updated, ...prev];
+              });
+            }}
+          />
+        ) : (
+          <DealCalculatorModal
+            property={calcProperty === "new" ? null : calcProperty}
+            allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
+            onClose={() => setCalcProperty(null)}
+            crmBusinessName={crmBusinessName}
+            onUpdated={(updated) => {
+              setClients((prev) => {
+                if (!prev) return [updated];
+                const exists = prev.some((c) => c.id === updated.id);
+                if (exists) return prev.map((c) => (c.id === updated.id ? updated : c));
+                return [updated, ...prev];
+              });
+              setCalcProperty(null);
+            }}
+          />
+        )
       )}
       {csvModal && (
         <CsvImportModal

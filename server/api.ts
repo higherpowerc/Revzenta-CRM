@@ -91,6 +91,7 @@ import {
 } from "./agreements";
 import { randomBytes } from "node:crypto";
 import { lookupPropertyData, normalizeWebhookPayload } from "./propertyEnrichment";
+import { fetchCotalityVoluntaryLienStatus } from "./cotality";
 
 export const SESSION_COOKIE = "elevate_session";
 /** Map a sendEmail result to the emailStatus vocabulary the UI renders:
@@ -2893,6 +2894,25 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
 
     db.query(`UPDATE transactions SET title_status = ?, updated_at = datetime('now') WHERE id = ?`).run(titleStatus, tx.id);
     return json({ ok: true, titleStatus });
+  }
+
+  /* Authenticated property underwriting lookup. Cotality credentials remain server-side. */
+  if (pathname === "/api/underwriting/cotality" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = await readBody(req);
+    if (!body) return err("Invalid JSON body.", 400);
+    const address = typeof body.address === "string" ? body.address.trim() : body.address;
+    if (!address || (typeof address !== "string" && typeof address !== "object")) {
+      return err("Property address is required.", 400);
+    }
+    try {
+      const profile = await fetchCotalityVoluntaryLienStatus(address as string | { street?: string; city?: string; state?: string; zip?: string });
+      return json({ profile });
+    } catch (error) {
+      console.error(`[underwriting] Cotality lookup failed for org ${auth.orgId}:`, error);
+      return err(error instanceof Error ? error.message : "Unable to retrieve public records.", 502);
+    }
   }
 
   /* ── Wholesale Inbound Lead Webhook (BatchLeads, Zapier, Make, Form Submissions, Webhook Relays) ── */

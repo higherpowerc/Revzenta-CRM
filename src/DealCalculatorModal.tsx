@@ -11,6 +11,7 @@ import {
 } from "./dealUnderwriting";
 import { extractAddressFromUrl } from "./urlAddressParser";
 import ZillowImportModal from "./ZillowImportModal";
+import UnderwritingRecordsPanel from "./UnderwritingRecordsPanel";
 
 interface Props {
   property?: Client | null;
@@ -18,6 +19,7 @@ interface Props {
   onClose: () => void;
   onUpdated?: (updated: Client) => void;
   crmBusinessName?: string;
+  embedded?: boolean;
 }
 
 /** Currency input with clean $ prefix, high-contrast text, and automatic numeric comma formatting */
@@ -167,7 +169,62 @@ function NumberField({
  * set SHOW_SOURCE_TAGS = false to hide them -- nothing else changes.
  */
 const SHOW_SOURCE_TAGS = true;
-const UW_SPLIT_CSS = ".uw-split{display:grid;grid-template-columns:0.95fr 1.05fr;gap:24px;align-items:start}@media (max-width:900px){.uw-split{grid-template-columns:1fr}}/* Mobile (<640px): keep the 1440px underwriter modal inside the viewport. All multi-column grids stack to one column (beats inline styles via !important); min-width/flex-basis guards that force page-level horizontal scroll are neutralised. No logic changes. */@media (max-width:640px){div[role=dialog]{padding:8px !important;align-items:flex-start !important}div[role=dialog]>div{max-width:100vw !important;max-height:96vh !important;border-radius:10px !important}div[role=dialog] div[style*=grid-template-columns]{grid-template-columns:1fr !important}div[role=dialog] div[style*=min-width]{min-width:0 !important}div[role=dialog] div[style*=440px]{flex-basis:100% !important}div[role=dialog] div[style*='20px 24px']{padding:14px 12px !important}div[role=dialog] div[style*='16px 24px']{padding:12px !important}}";
+const UW_SPLIT_CSS = `
+.uw-split{display:grid;grid-template-columns:minmax(260px,.78fr) minmax(0,1.22fr);gap:28px;align-items:start}
+.uw-clean .uw-split{grid-template-columns:1fr;gap:18px}
+.uw-clean .uw-property-header{justify-content:center !important;text-align:center}
+.uw-clean .uw-property-header > div{justify-content:center !important}
+.uw-clean .uw-property-header input,.uw-clean .uw-property-header select{max-width:420px}
+.uw-awaiting-property .uw-tab-nav,.uw-awaiting-property .uw-calculator-body{display:none !important}
+.uw-clean .uw-source-panel{display:none !important;}
+.uw-clean,.uw-clean > div{width:100%;max-width:100%;min-width:0;box-sizing:border-box;}
+.uw-clean .uw-property-header > div{min-width:0 !important;}
+.uw-clean .uw-property-header > div:first-child{flex:1 1 100% !important;}
+.uw-clean .uw-property-header > div:last-child{width:100%;justify-content:center !important;}
+.uw-clean .uw-property-header > div:first-child > div > div:nth-child(2){flex-wrap:wrap;}
+.uw-clean .uw-property-header input,.uw-clean .uw-property-header select{min-width:0 !important;}
+.uw-clean > div{border:0 !important;border-radius:0 !important;box-shadow:none !important;background:transparent !important;}
+.uw-clean > div > div{border-radius:0 !important;box-shadow:none !important;}
+.uw-clean [style*="var(--panel-2"]{background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;}
+.uw-clean [style*="var(--panel, #121216)"]{background:transparent !important;}
+.uw-clean [style*="borderRadius"]{border-radius:0 !important;}
+.uw-clean [style*="border: 1px solid var(--border"]{border:0 !important;border-bottom:1px solid var(--border, #30363d) !important;}
+.uw-clean h3{font-size:13px !important;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border, #30363d);padding-bottom:10px;margin-bottom:12px !important;}
+.uw-clean h4{font-size:12px !important;text-transform:uppercase;letter-spacing:.06em;}
+.uw-clean [style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:14px !important;}
+.uw-clean [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:14px !important;}
+.uw-clean input,.uw-clean select,.uw-clean textarea{border-radius:4px !important;border-color:var(--border, #30363d) !important;}
+.uw-clean .uw-data-row{border-radius:0 !important;border:0 !important;border-bottom:1px solid var(--border, #30363d) !important;padding:10px 0 !important;}
+.uw-clean .uw-table{width:100%;border-collapse:collapse;}
+.uw-clean .uw-table th{color:var(--muted, #94a3b8);font-size:10px;text-align:left;text-transform:uppercase;letter-spacing:.06em;padding:8px 0;border-bottom:1px solid var(--border, #30363d);}
+.uw-clean .uw-table td{padding:10px 0;border-bottom:1px solid var(--border, #30363d);font-size:12px;}
+@media (max-width:900px){.uw-split{grid-template-columns:1fr}}
+@media (max-width:900px){
+  .uw-clean .uw-property-header{padding:12px !important;align-items:stretch !important;}
+  .uw-clean .uw-property-header > div:first-child > div > div:nth-child(2){display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;}
+  .uw-clean .uw-property-header > div:first-child > div > div:nth-child(2) button{grid-column:1 / -1;width:100%;}
+  .uw-clean .uw-property-header > div:last-child{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+  .uw-clean .uw-property-header > div:last-child > div{width:100% !important;}
+  .uw-clean .uw-property-header > div:last-child > div:last-child{grid-column:1 / -1;}
+  .uw-clean [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+}
+@media (max-width:640px){
+  .uw-clean .uw-property-header > div:first-child > div > div:nth-child(2){grid-template-columns:1fr !important;}
+  .uw-clean .uw-property-header > div:last-child{grid-template-columns:1fr !important;}
+  .uw-clean .uw-property-header > div:last-child > div:last-child{grid-column:auto;}
+  .uw-clean [style*="grid-template-columns: 1fr 1fr"],.uw-clean [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:1fr !important;}
+  .uw-clean .uw-calculator-body{padding:12px !important;}
+}
+@media (max-width:640px){
+  div[role=dialog]{padding:8px !important;align-items:flex-start !important}
+  div[role=dialog]>div{max-width:100vw !important;max-height:96vh !important;border-radius:10px !important}
+  div[role=dialog] div[style*=grid-template-columns]{grid-template-columns:1fr !important}
+  div[role=dialog] div[style*=min-width]{min-width:0 !important}
+  div[role=dialog] div[style*=440px]{flex-basis:100% !important}
+  div[role=dialog] div[style*='20px 24px']{padding:14px 12px !important}
+  div[role=dialog] div[style*='16px 24px']{padding:12px !important}
+}
+`;
 function SourceTag({ label }: { label: string }) {
   if (!SHOW_SOURCE_TAGS) return null;
   return (
@@ -178,7 +235,7 @@ function SourceTag({ label }: { label: string }) {
 }
 function PulledRow({ label, value, source }: { label: string; value: string; source: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", fontSize: "12.5px" }}>
+    <div className="uw-data-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "6px", background: "var(--panel, #121216)", border: "1px solid var(--border, #30363d)", fontSize: "12.5px" }}>
       <span style={{ color: "var(--muted, #94a3b8)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.03em" }}>{label}</span>
       <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <strong style={{ color: "var(--ink, #f8fafc)" }}>{value}</strong>
@@ -215,9 +272,9 @@ function parseAddressString(raw: string) {
   return { address: trimmed, city: "", state: "", zip: "" };
 }
 
-export default function DealCalculatorModal({ property, allProperties, onClose, onUpdated, crmBusinessName }: Props) {
+export default function DealCalculatorModal({ property, allProperties, onClose, onUpdated, crmBusinessName, embedded = false }: Props) {
   // Active Calculation Tab: Deal Types first (Cash Wholesale MAO), then Proposal Settings
-  const [tab, setTab] = useState<"cash" | "creative" | "subto" | "proposal">("cash");
+  const [tab, setTab] = useState<"cash" | "creative" | "subto" | "records" | "proposal">("cash");
 
   const [propertiesList, setPropertiesList] = useState<Client[]>(allProperties || []);
   const [activeProperty, setActiveProperty] = useState<Client | null>(property || null);
@@ -1191,6 +1248,43 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     }
   };
 
+  const resetDealWorkspace = () => {
+    setActiveProperty(null);
+    setPropertyAddress("");
+    setSellerName("");
+    setRecipientEmail("");
+    setSellerPhone("");
+    setAgentName("");
+    setAgentEmail("");
+    setAgentPhone("");
+    setRecipientType("owner");
+    setPropertyType("single_family");
+    setEnrichedData(null);
+    setEnrichError(null);
+    setEnrichSuccess(null);
+    setShowApiKeyInput(false);
+    setShowComps(false);
+    setCashArv(0);
+    setCashRepairs(0);
+    setCashInvestorRule(70);
+    setCashAssignmentFee(0);
+    setCreativePrice(0);
+    setCreativeDown(0);
+    setCreativeInterestRate(0);
+    setCreativeRent(0);
+    setCreativeTaxes(0);
+    setCreativeInsurance(0);
+    setCreativeHoa(0);
+    setSubtoPrice(0);
+    setSubtoCashToSeller(0);
+    setSubtoArrears(0);
+    setSubtoRent(0);
+    setSubtoTaxesIns(0);
+    setLiens([]);
+    setEarnestMoneyDeposit(0);
+    setSaveSuccessMsg(null);
+  };
+
   const handleSaveTermsToProperty = async () => {
     setSavingToCrm(true);
     setSaveSuccessMsg(null);
@@ -1220,7 +1314,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             !c.name.toLowerCase().includes("projected assignment") &&
             !c.name.toLowerCase().includes("purchase price") &&
             !c.name.toLowerCase().includes("earnest") &&
-            !c.name.toLowerCase().includes("property address")
+            !c.name.toLowerCase().includes("property address") &&
+            !c.name.toLowerCase().includes("bedrooms") &&
+            !c.name.toLowerCase().includes("bathrooms") &&
+            !c.name.toLowerCase().includes("square footage") &&
+            !c.name.toLowerCase().includes("year built") &&
+            !c.name.toLowerCase().includes("market rent") &&
+            !c.name.toLowerCase().includes("rent estimate") &&
+            !c.name.toLowerCase().includes("avm market value") &&
+            !c.name.toLowerCase().includes("estimated value")
         ),
         { id: "cf_arv", name: "ARV", type: "currency", value: String(cashArv) },
         { id: "cf_repairs", name: "Repairs", type: "currency", value: String(cashRepairs) },
@@ -1271,10 +1373,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
         const res = await api.updateClient(activeProperty.id, updatePayload);
         if (res.client) {
-          setActiveProperty(res.client);
           onUpdated?.(res.client);
-          setSaveSuccessMsg("Saved underwritten terms & address directly to property lead!");
-          setTimeout(() => setSaveSuccessMsg(null), 5000);
+          if (embedded) {
+            resetDealWorkspace();
+            setSaveSuccessMsg("Saved to the lead file. Creative Hub is ready for the next property.");
+          } else {
+            setActiveProperty(res.client);
+            setSaveSuccessMsg("Saved underwritten terms & address directly to property lead!");
+            setTimeout(() => setSaveSuccessMsg(null), 5000);
+          }
         }
       } else {
         const createPayload: ClientInput = {
@@ -1297,10 +1404,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         };
         const res = await api.createClient(createPayload);
         if (res.client) {
-          setActiveProperty(res.client);
           onUpdated?.(res.client);
-          setSaveSuccessMsg("Created new underwritten property lead in your pipeline!");
-          setTimeout(() => setSaveSuccessMsg(null), 5000);
+          if (embedded) {
+            resetDealWorkspace();
+            setSaveSuccessMsg("Saved to the lead file. Creative Hub is ready for the next property.");
+          } else {
+            setActiveProperty(res.client);
+            setSaveSuccessMsg("Created new underwritten property lead in your pipeline!");
+            setTimeout(() => setSaveSuccessMsg(null), 5000);
+          }
         }
       }
     } catch (err: any) {
@@ -1442,35 +1554,44 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     <>
       <style>{UW_SPLIT_CSS}</style>
     <div
-      role="dialog"
-      aria-modal="true"
+      className={embedded ? `uw-clean${!activeProperty && !propertyAddress.trim() ? " uw-awaiting-property" : ""}` : undefined}
+      role={embedded ? undefined : "dialog"}
+      aria-modal={embedded ? undefined : "true"}
       style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        backdropFilter: "blur(6px)",
-        zIndex: 9999,
+        ...(embedded ? {
+          position: "relative",
+          width: "100%",
+          backgroundColor: "transparent",
+          padding: 0,
+          overflow: "visible",
+        } : {
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          backdropFilter: "blur(6px)",
+          zIndex: 9999,
+          padding: "16px",
+          overflowY: "auto",
+        }),
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "16px",
-        overflowY: "auto",
       }}
-      onClick={onClose}
+      onClick={embedded ? undefined : onClose}
     >
       <div
         style={{
           width: "100%",
           maxWidth: "1440px",
-          maxHeight: "94vh",
+          maxHeight: embedded ? "none" : "94vh",
           backgroundColor: "var(--panel, #121216)",
           color: "var(--ink, #f8fafc)",
           border: "1px solid var(--border, #30363d)",
-          borderRadius: "14px",
+          borderRadius: embedded ? "10px" : "14px",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          boxShadow: "0 25px 60px rgba(0, 0, 0, 0.6)",
+          boxShadow: embedded ? "none" : "0 25px 60px rgba(0, 0, 0, 0.6)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1489,14 +1610,14 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             <span style={{ fontSize: "24px" }}>📐</span>
             <div>
               <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--ink, #f8fafc)", letterSpacing: "-0.01em" }}>
-                Revzenta Deal Underwriter™
+                {embedded ? "Build Deal" : "Revzenta Deal Underwriter™"}
               </h2>
               <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-                Proprietary Acquisitions Modeling • Cash Wholesale MAO • Seller Financing • Subject-To
+                {embedded ? "Add a property URL or select a property to begin" : "Proprietary Acquisitions Modeling • Cash Wholesale MAO • Seller Financing • Subject-To"}
               </p>
             </div>
           </div>
-          <button
+          {!embedded && <button
             onClick={onClose}
             style={{
               fontSize: "16px",
@@ -1514,11 +1635,12 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             aria-label="Close modal"
           >
             ✕
-          </button>
+          </button>}
         </div>
 
         {/* Persistent Property & Deal Header */}
         <div
+          className="uw-property-header"
           style={{
             padding: "12px 24px",
             backgroundColor: "var(--panel-2, #16161b)",
@@ -1535,7 +1657,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <label style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#38bdf8", letterSpacing: "0.05em" }}>
-                  Property Address (Properties Table)
+                  Property Search / Selection
                 </label>
                 {activeProperty ? (
                   <span style={{ fontSize: "11px", color: "var(--lime, #d6ff3f)", fontWeight: 700, background: "rgba(214, 255, 63, 0.12)", padding: "1px 8px", borderRadius: "8px", border: "1px solid rgba(214, 255, 63, 0.3)" }}>
@@ -1568,7 +1690,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   }}
                   aria-label="Select property from table"
                 >
-                  <option value="">-- Pull Property from Table ({propertiesList.length}) --</option>
+                  <option value="">-- Select a property ({propertiesList.length}) --</option>
                   {propertiesList.map((p) => {
                     const addr = p.address || p.companyName || `Property #${p.id}`;
                     const loc = [p.city, p.state].filter(Boolean).join(", ");
@@ -1587,7 +1709,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   type="text"
                   value={propertyAddress}
                   onChange={(e) => setPropertyAddress(e.target.value)}
-                  placeholder="Street address, city, state, zip..."
+                  placeholder="Enter Property Address"
                   style={{
                     flex: "1 1 50%",
                     height: "38px",
@@ -1625,7 +1747,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   }}
                 >
                   <span>🔗</span>
-                  <span>Property URL Link</span>
+                  <span>Upload Property URL</span>
                 </button>
               </div>
             </div>
@@ -1785,7 +1907,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                 }}
               >
                 <span>💾</span>
-                <span>{savingToCrm ? "Saving…" : activeProperty ? "Save to Property" : "Save as New Property"}</span>
+                <span>{savingToCrm ? "Saving…" : embedded ? "Save Deal" : activeProperty ? "Save to Property" : "Save as New Property"}</span>
               </button>
 
               {activeProperty && (
@@ -2076,6 +2198,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
         {/* Tab Navigation */}
         <div
+          className="uw-tab-nav"
           style={{
             display: "flex",
             alignItems: "center",
@@ -2090,6 +2213,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             { id: "cash" as const, icon: "💵", label: "Cash Wholesale & MAO" },
             { id: "creative" as const, icon: "🤝", label: "Seller Financing (Owner Carry)" },
             { id: "subto" as const, icon: "🏦", label: "Subject-To (Mortgage Takeover)" },
+            { id: "records" as const, icon: "🧾", label: "Public Records Underwriting" },
             { id: "proposal" as const, icon: "📋", label: "Proposal Settings & Multi-Option LOI" },
           ].map((item) => {
             const isActive = tab === item.id;
@@ -2125,11 +2249,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div className="uw-calculator-body" style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
           
           {/* ================================================================ */}
           {/* TAB: MULTI-OPTION LOI & PROPOSAL SETTINGS */}
           {/* ================================================================ */}
+          {tab === "records" && (
+            <UnderwritingRecordsPanel address={propertyAddress} />
+          )}
+
           {tab === "proposal" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {/* Deal Type Selection Banner */}
@@ -2680,7 +2808,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {tab === "cash" && (
             <div className="uw-split">
               {/* LEFT: pulled source data (read-only) */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className="uw-source-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                     <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
@@ -2916,7 +3044,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           {tab === "creative" && (
             <div className="uw-split">
               {/* LEFT: pulled source data (read-only) */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className="uw-source-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                     <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
@@ -3158,7 +3286,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
               </div>
             <div className="uw-split">
               {/* LEFT: pulled source data (read-only) */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className="uw-source-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ background: "var(--panel-2, #16161b)", padding: "20px", borderRadius: "10px", border: "1px solid var(--border, #30363d)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                     <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>

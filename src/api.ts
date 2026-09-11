@@ -1,4 +1,5 @@
 import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, User, WebhookLog, WebhookSettings, WholesaleOffer } from "./types";
+import type { UnifiedPropertyFinancialProfile } from "./underwritingEngine";
 
 
 export class ApiError extends Error {
@@ -79,6 +80,11 @@ export const api = {
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
 
   dashboard: () => request<DashboardData>("/api/dashboard"),
+  cotalityUnderwriting: (address: string | { street?: string; city?: string; state?: string; zip?: string }) =>
+    request<{ profile: UnifiedPropertyFinancialProfile }>("/api/underwriting/cotality", {
+      method: "POST",
+      body: JSON.stringify({ address }),
+    }),
   clients: (includeArchived = false) =>
     request<{ clients: Client[] }>(`/api/clients${includeArchived ? "?archived=1" : ""}`),
   createClient: (data: ClientInput) =>

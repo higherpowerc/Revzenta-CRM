@@ -20,10 +20,11 @@ import BuyBoxMatcher from "./BuyBoxMatcher";
 import TransactionHub from "./TransactionHub";
 import Connections from "./Connections";
 import Compliance from "./Compliance";
+import Opportunities from "./Opportunities";
 import Website from "./Website";
 import UpgradeGate from "./UpgradeGate";
 import { api } from "./api";
-import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
+import { DEFAULT_STAGES, TENANT_TABS, type Client, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
 import { initials } from "./bits";
 import { PiiContext, PII_HIDDEN_KEY, blurPii, PiiEyeIcon, PiiEyeOffIcon } from "./pii";
@@ -43,7 +44,7 @@ import ThemeToggle from "./ThemeToggle";
  * (prospects), Onboarding = the MIDDLE stages (intake leads), Clients = the
  * terminal stage (sold). Client accounts (role=member) are unchanged: their
  * Leads tab keeps showing every stage except their terminal one. */
-type View = "dashboard" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections" | "compliance";
+type View = "dashboard" | "opportunities" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections" | "compliance";
 
 
 /** 3k — the emailed reset link is `<appUrl>/#/reset?token=...`; pull the
@@ -61,6 +62,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [booted, setBooted] = useState(false);
   const [view, setView] = useState<View>("dashboard");
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Client | null>(null);
   /** Owner request 2026-08-14 — deep-linked stage filter for the Leads view.
    *  The Dashboard's stage-card "View →" stores the stage name here and
    *  switches to the leads view; the nav "Leads" tab clears it so a normal
@@ -311,6 +313,8 @@ export default function App() {
         return canSeeTab("dashboard");
       case "leads":
         return canSeeTab("clients");
+      case "opportunities":
+        return isWholesale && canSeeTab("clients");
       case "offers":
         return canSeeTab("offers");
       case "buybox":
@@ -378,6 +382,7 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard";
+        case "opportunities": return "Opportunities";
         case "leads": return "Creative Hub";
         case "documents": return "Transaction Hub";
         case "offers": return "Offers Repository";
@@ -426,6 +431,7 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "📊";
+        case "opportunities": return "🎯";
         case "leads": return "🏘️";
         case "offers": return "📑";
         case "documents": return "🤝";
@@ -903,7 +909,25 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 2. Creative Hub */}
+                {/* 2. Opportunities */}
+                {canSeeTab("clients") && (
+                  <button
+                    className={effectiveViewFinal === "opportunities" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setLeadsStage(null);
+                      setOnboardingStage(null);
+                      setLeadsFilter("active");
+                      setView("opportunities");
+                      setMobileMenuOpen(false);
+                    }}
+                    title="View active wholesale opportunities"
+                  >
+                    <span className="tab-icon">🎯</span>
+                    <span>Opportunities</span>
+                  </button>
+                )}
+
+                {/* 3. Creative Hub */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
@@ -1379,6 +1403,16 @@ export default function App() {
             ownerOrg={isOwnerCockpit}
             isWholesale={isWholesale}
           />
+        ) : effectiveViewFinal === "opportunities" ? (
+          <Opportunities
+            onOpenCreativeHub={(opportunity) => {
+              setSelectedOpportunity(opportunity ?? null);
+              setLeadsStage(null);
+              setOnboardingStage(null);
+              setLeadsFilter("active");
+              setView("leads");
+            }}
+          />
         ) : effectiveViewFinal === "leads" ? (
           /* Owner request 2026-08-15 — the owner's Leads tab scopes to the
              FIRST stage only; client accounts (role=member) keep the full
@@ -1394,6 +1428,8 @@ export default function App() {
             canEdit={canEditTab("clients")}
             isWholesale={isWholesale}
             crmBusinessName={orgName}
+            autoOpenDealCalculator={isWholesale}
+            initialDealProperty={selectedOpportunity}
             onGoToBuyBox={() => setView("buybox")}
             onGoToTransactions={() => setView("documents")}
             verticalKey={verticalKey}
