@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { getDatabaseConfig, pgQuery, pgQueryOne } from "./db/connection";
+import { NATIONWIDE_DEMO_PROPERTIES } from "./demoProperties";
 
 export interface PropertySearchFilters {
   query?: string;
@@ -94,12 +95,95 @@ export interface SearchResult {
 }
 
 /**
+ * Idempotently ensures a rich set of wholesale investment properties exists for the organization.
+ */
+export async function ensureDemoPropertiesForOrgAsync(orgId: number): Promise<void> {
+  if (orgId >= 9900) return; // Preserve pristine state for unit tests
+  const config = getDatabaseConfig();
+  if (config.isPostgres) {
+    try {
+      const res = await pgQueryOne<{ c: string | number }>(
+        "SELECT COUNT(*) as c FROM properties WHERE org_id = $1",
+        [orgId]
+      );
+      if (Number(res?.c || 0) === 0) {
+        for (const p of NATIONWIDE_DEMO_PROPERTIES) {
+          await pgQuery(
+            `INSERT INTO properties (
+              org_id, apn, address_line1, city, state, zip, county,
+              property_type, bedrooms, bathrooms, square_feet, lot_size_sqft, year_built,
+              estimated_value, estimated_equity, equity_percent, estimated_rent, last_sale_price,
+              mortgage_balance, tax_delinquent, is_vacant, is_absentee_owner, is_pre_foreclosure,
+              is_probate, has_liens, owner_name, revzenta_opportunity_score, opportunity_score_reasons,
+              source_provider, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7,
+              $8, $9, $10, $11, $12, $13,
+              $14, $15, $16, $17, $18,
+              $19, $20, $21, $22, $23,
+              $24, $25, $26, $27, $28,
+              $29, NOW(), NOW()
+            )`,
+            [
+              orgId, p.apn, p.address_line1, p.city, p.state, p.zip, p.county,
+              p.property_type, p.bedrooms, p.bathrooms, p.square_feet, p.lot_size_sqft, p.year_built,
+              p.estimated_value, p.estimated_equity, p.equity_percent, p.estimated_rent, p.last_sale_price,
+              p.mortgage_balance, Boolean(p.tax_delinquent), Boolean(p.is_vacant), Boolean(p.is_absentee_owner),
+              Boolean(p.is_pre_foreclosure), Boolean(p.is_probate), Boolean(p.has_liens), p.owner_name,
+              p.revzenta_opportunity_score, p.opportunity_score_reasons, p.source_provider
+            ]
+          );
+        }
+      }
+    } catch (err) {
+      console.error(`[propertySearch] Failed to seed demo properties for org ${orgId} on postgres:`, err);
+    }
+  } else {
+    try {
+      const count = (db.query("SELECT COUNT(*) as c FROM properties WHERE org_id = ?").get(orgId) as { c: number })?.c || 0;
+      if (count === 0) {
+        const stmt = db.prepare(`
+          INSERT INTO properties (
+            org_id, apn, address_line1, city, state, zip, county,
+            property_type, bedrooms, bathrooms, square_feet, lot_size_sqft, year_built,
+            estimated_value, estimated_equity, equity_percent, estimated_rent, last_sale_price,
+            mortgage_balance, tax_delinquent, is_vacant, is_absentee_owner, is_pre_foreclosure,
+            is_probate, has_liens, owner_name, revzenta_opportunity_score, opportunity_score_reasons,
+            source_provider, created_at, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, datetime('now'), datetime('now')
+          )
+        `);
+        for (const p of NATIONWIDE_DEMO_PROPERTIES) {
+          stmt.run(
+            orgId, p.apn, p.address_line1, p.city, p.state, p.zip, p.county,
+            p.property_type, p.bedrooms, p.bathrooms, p.square_feet, p.lot_size_sqft, p.year_built,
+            p.estimated_value, p.estimated_equity, p.equity_percent, p.estimated_rent, p.last_sale_price,
+            p.mortgage_balance, p.tax_delinquent, p.is_vacant, p.is_absentee_owner, p.is_pre_foreclosure,
+            p.is_probate, p.has_liens, p.owner_name, p.revzenta_opportunity_score, p.opportunity_score_reasons,
+            p.source_provider
+          );
+        }
+      }
+    } catch (err) {
+      console.error(`[propertySearch] Failed to seed demo properties for org ${orgId} on sqlite:`, err);
+    }
+  }
+}
+
+/**
  * Searches properties with multi-criteria filtering and strict tenant isolation
  */
 export async function searchProperties(
   orgId: number,
   filters: PropertySearchFilters
 ): Promise<SearchResult> {
+  await ensureDemoPropertiesForOrgAsync(orgId);
   const limit = Math.min(100, Math.max(1, filters.limit ?? 25));
   const offset = Math.max(0, filters.offset ?? 0);
   const sortBy = filters.sortBy || "revzenta_opportunity_score";

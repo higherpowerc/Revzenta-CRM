@@ -233,7 +233,7 @@ export function parseQueryDeterministically(prompt: string): TranslatedSearchQue
     filters.isPreForeclosure = true;
     distressSignals.push("Pre-Foreclosure");
   }
-  if (/\bforeclosure\b|\breo\b|bank\s+owned/i.test(lower)) {
+  if (!filters.isPreForeclosure && (/\bforeclosure\b|\breo\b|bank\s+owned/i.test(lower))) {
     filters.isForeclosure = true;
     distressSignals.push("Foreclosure / Bank Owned");
   }
