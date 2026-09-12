@@ -93,17 +93,24 @@ async function nodeReqToWebRequest(req: express.Request): Promise<Request> {
 
   let body: any = undefined;
   if (req.method !== "GET" && req.method !== "HEAD") {
-    if (req.body && Object.keys(req.body).length > 0) {
-      body = JSON.stringify(req.body);
-      if (!headers.has("content-type")) {
-        headers.set("content-type", "application/json");
+    if (req.body !== undefined && req.body !== null) {
+      if (typeof req.body === "string" || Buffer.isBuffer(req.body)) {
+        body = req.body;
+      } else if (typeof req.body === "object") {
+        const ct = (req.headers["content-type"] as string) || "";
+        if (ct.includes("json") || Object.keys(req.body).length > 0) {
+          body = JSON.stringify(req.body);
+          if (!headers.has("content-type")) {
+            headers.set("content-type", "application/json");
+          }
+        }
       }
-    } else {
-      // Stream the raw body if express haven't parsed it yet
+    } else if (!req.readableEnded) {
       body = await new Promise<Buffer>((resolve) => {
         const chunks: Buffer[] = [];
         req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
         req.on("end", () => resolve(Buffer.concat(chunks)));
+        req.on("error", () => resolve(Buffer.concat(chunks)));
       });
       if (body.length === 0) body = undefined;
     }

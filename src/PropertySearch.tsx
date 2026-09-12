@@ -173,18 +173,16 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
       setModelUsed(res.model);
 
       // Apply translated filters to UI state
-      if (res.filters.state) setStateFilter(res.filters.state);
-      if (res.filters.county) setCountyFilter(res.filters.county);
-      if (res.filters.city) setCityFilter(res.filters.city);
-      if (res.filters.zip) setZipFilter(res.filters.zip);
-      if (res.filters.minValue) setMinValue(String(res.filters.minValue));
-      if (res.filters.maxValue) setMaxValue(String(res.filters.maxValue));
-      if (res.filters.minEquityPct) setMinEquityPct(String(res.filters.minEquityPct));
-      if (res.filters.minBeds) setMinBeds(String(res.filters.minBeds));
-      if (res.filters.minBaths) setMinBaths(String(res.filters.minBaths));
-      if (res.filters.propertyTypes && res.filters.propertyTypes[0]) {
-        setPropertyType(res.filters.propertyTypes[0]);
-      }
+      setStateFilter(res.filters.state || "");
+      setCountyFilter(res.filters.county || "");
+      setCityFilter(res.filters.city || "");
+      setZipFilter(res.filters.zip || "");
+      setMinValue(res.filters.minValue !== undefined ? String(res.filters.minValue) : "");
+      setMaxValue(res.filters.maxValue !== undefined ? String(res.filters.maxValue) : "");
+      setMinEquityPct(res.filters.minEquityPct !== undefined ? String(res.filters.minEquityPct) : "");
+      setMinBeds(res.filters.minBeds !== undefined ? String(res.filters.minBeds) : "");
+      setMinBaths(res.filters.minBaths !== undefined ? String(res.filters.minBaths) : "");
+      setPropertyType(res.filters.propertyTypes && res.filters.propertyTypes[0] ? res.filters.propertyTypes[0] : "");
       setIsAbsentee(Boolean(res.filters.isAbsenteeOwner));
       setIsVacant(Boolean(res.filters.isVacant));
       setIsTaxDelinquent(Boolean(res.filters.taxDelinquent));

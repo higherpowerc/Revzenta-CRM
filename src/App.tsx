@@ -500,9 +500,9 @@ export default function App() {
       const res = await api.impersonateReturn();
       setUser(res.user);
       setImpersonating(false);
-      setView("admin");
-    } catch {
-      // Session round-trip failed — reload so /api/auth/me reports the truth.
+      setView("dashboard");
+    } catch (err) {
+      console.error("Failed to return from impersonation:", err);
       window.location.reload();
     } finally {
       setReturning(false);
