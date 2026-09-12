@@ -1126,39 +1126,6 @@ export default function Dashboard({
                     </div>
                   </div>
                 </div>
-
-                {topProjectedProperties.length === 0 ? (
-                  <div className="window-empty-state">
-                    <div style={{ fontSize: "26px", marginBottom: "6px" }}>📈</div>
-                    <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Active Deals In Pipeline</p>
-                    <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
-                      Add wholesale properties with projected assignment values to monitor anticipated returns.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="window-list-stack">
-                    {topProjectedProperties.slice(0, 2).map((p) => (
-                      <div key={p.id} className="window-item-card" onClick={() => onGoToStage()} style={{ cursor: "pointer" }}>
-                        <div style={{ maxWidth: "68%", overflow: "hidden" }}>
-                          <div className={`window-item-title cell-strong ${blurPii(pii)}`}>
-                            {p.address || p.companyName}
-                          </div>
-                          <div className="window-item-sub">
-                            {p.stage || "Pipeline"} · {getPropertyTypeCategory(p).replace("_", " ")} · Value {money(Number(p.dealValue) || 0)}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                          <div className="window-item-val" style={{ color: "var(--lime, #3fb950)" }}>
-                            {money(getAssignmentValue(p))}
-                          </div>
-                          <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
-                            Projected Fee
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="dashboard-window-footer">
@@ -1325,24 +1292,24 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* Row 3: Under Contract + Buyer Under Contract */}
+          {/* Row 3: Sellers Under Contract + Buyer Under Contract */}
           <div className="dashboard-windows-row">
-            {/* Window 5: Under Contract */}
+            {/* Window 5: Sellers Under Contract */}
             <div className="card dashboard-window">
               <div>
                 <WindowHead
                   icon="📑"
-                  title="Under Contract"
+                  title="Sellers Under Contract"
                   badgeText={`${underContractProperties.length} Contracted`}
                   badgeTone="tone-amber"
                   subtitle="A-B purchase contracts locked up with sellers awaiting disposition"
                   onView={() => onGoToStage("Under Contract")}
-                  viewTitle="View under contract properties"
+                  viewTitle="View sellers under contract properties"
                 />
 
                 <div className="window-stat-grid">
                   <div className="window-stat-card">
-                    <div className="window-stat-label">Under Contract</div>
+                    <div className="window-stat-label">Sellers Under Contract</div>
                     <div className="window-stat-value" style={{ color: "var(--primary, #d6ff3f)" }}>
                       {underContractProperties.length}
                     </div>
@@ -1850,7 +1817,7 @@ export default function Dashboard({
                     <div style={{ fontSize: "26px", marginBottom: "6px" }}>🎯</div>
                     <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "13.5px" }}>No Inbound Sales Leads Yet</p>
                     <p style={{ margin: 0, fontSize: "11.5px", color: "var(--muted)", maxWidth: "260px" }}>
-                      Website visitors requesting demos or starting trials will populate your inbound funnel.
+                      Website visitors requesting demos or signing up will populate your inbound funnel.
                     </p>
                     {onGoToLeads && (
                       <button

@@ -224,7 +224,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
 
           <div className="rw-hero-ctas">
             <button type="button" className="rw-btn-lg rw-btn-primary" onClick={() => onLaunchApp("pro")}>
-              ⚡ Get Started Free
+              ⚡ Get Started Now
             </button>
             <button type="button" className="rw-btn-lg rw-btn-outline" onClick={onSignIn}>
               Sign In to Your Workspace →
@@ -623,7 +623,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
             <span className="rw-section-tag">Transparent Pricing</span>
             <h2 className="rw-section-title">Plans Built to Grow with Your Deal Flow</h2>
             <p className="rw-section-sub">
-              No long-term contracts. Cancel anytime. Start free and upgrade when your deal pipeline expands.
+              No long-term contracts. Cancel anytime. Payment is due at signup — your workspace activates immediately after checkout.
             </p>
 
             <div className="rw-billing-toggle">
@@ -650,7 +650,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <h3 className="rw-price-title">Starter Wholesaler</h3>
               <p className="rw-price-desc">Ideal for solo dealmakers launching their wholesale business.</p>
               <div className="rw-price-amount">
-                ${billingCycle === "annual" ? "63" : "79"}
+                ${billingCycle === "annual" ? "19.99" : "24.99"}
                 <span>/ month</span>
               </div>
               <ul className="rw-price-features">
@@ -672,7 +672,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <h3 className="rw-price-title">Pro Dealmaker</h3>
               <p className="rw-price-desc">For active wholesalers closing multiple contracts every month.</p>
               <div className="rw-price-amount">
-                ${billingCycle === "annual" ? "159" : "199"}
+                ${billingCycle === "annual" ? "47.99" : "59.99"}
                 <span>/ month</span>
               </div>
               <ul className="rw-price-features">
@@ -685,7 +685,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 <li><span>✓</span> Shared Title Company Escrow Portal</li>
               </ul>
               <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => onLaunchApp("pro")}>
-                Start Pro Trial
+                Start Pro Plan
               </button>
             </div>
 
@@ -694,7 +694,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <h3 className="rw-price-title">Scale & Brokerage</h3>
               <p className="rw-price-desc">For acquisitions teams, dispo reps, and high-volume brokerages.</p>
               <div className="rw-price-amount">
-                ${billingCycle === "annual" ? "319" : "399"}
+                ${billingCycle === "annual" ? "63.20" : "79"}
                 <span>/ month</span>
               </div>
               <ul className="rw-price-features">

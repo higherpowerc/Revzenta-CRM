@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -329,10 +329,84 @@ export function parseCustomFields(raw: string | null | undefined): CustomFieldDe
 /** Data dir: $DATA_DIR env, else ./data next to the server directory.
  *  Exported so the native e-signature module (server/agreements.ts) can store
  *  generated agreement PDFs alongside the DB in the same persistent volume. */
-export const dataDir = process.env.DATA_DIR ?? join(import.meta.dir, "..", "data");
+export const dataDir = process.env.DATA_DIR ?? join(import.meta.dirname ?? process.cwd(), "..", "data");
 mkdirSync(dataDir, { recursive: true });
 
-export const db = new Database(join(dataDir, "crm.db"));
+export interface SqlitePreparedStatement {
+  all(...params: any[]): any[];
+  get(...params: any[]): any;
+  run(...params: any[]): { changes: number; lastInsertRowid: number };
+}
+
+export class SqliteCompat {
+  private _db: DatabaseSync;
+  private txDepth = 0;
+
+  constructor(filename: string) {
+    this._db = new DatabaseSync(filename);
+  }
+
+  exec(sql: string): void {
+    this._db.exec(sql);
+  }
+
+  query(sql: string): SqlitePreparedStatement {
+    const stmt = this._db.prepare(sql);
+    return {
+      all: (...params: any[]) => stmt.all(...params),
+      get: (...params: any[]) => stmt.get(...params),
+      run: (...params: any[]) => {
+        const res = stmt.run(...params);
+        return {
+          changes: Number(res.changes),
+          lastInsertRowid: Number(res.lastInsertRowid),
+        };
+      },
+    };
+  }
+
+  prepare(sql: string): SqlitePreparedStatement {
+    return this.query(sql);
+  }
+
+  transaction<T extends (...args: any[]) => any>(fn: T): T {
+    return ((...args: any[]) => {
+      const isRoot = this.txDepth === 0;
+      const sp = `sp_${this.txDepth++}`;
+      if (isRoot) {
+        this.exec("BEGIN IMMEDIATE");
+      } else {
+        this.exec(`SAVEPOINT ${sp}`);
+      }
+      try {
+        const result = fn(...args);
+        if (isRoot) {
+          this.exec("COMMIT");
+        } else {
+          this.exec(`RELEASE SAVEPOINT ${sp}`);
+        }
+        return result;
+      } catch (err) {
+        if (isRoot) {
+          this.exec("ROLLBACK");
+        } else {
+          this.exec(`ROLLBACK TO SAVEPOINT ${sp}`);
+        }
+        throw err;
+      } finally {
+        this.txDepth--;
+      }
+    }) as T;
+  }
+
+  close(): void {
+    this._db.close();
+  }
+}
+
+export type Database = SqliteCompat;
+
+export const db = new SqliteCompat(join(dataDir, "crm.db"));
 
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA foreign_keys = ON");
@@ -2091,6 +2165,19 @@ CREATE TABLE IF NOT EXISTS property_distress_alerts (
 
 CREATE INDEX IF NOT EXISTS idx_distress_alerts_org ON property_distress_alerts(org_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_distress_alerts_created ON property_distress_alerts(org_id, created_at DESC);
+
+-- Pending self-serve signups
+CREATE TABLE IF NOT EXISTS pending_signups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE,
+  workspace_name TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  tier TEXT NOT NULL DEFAULT 'pro',
+  billing TEXT NOT NULL DEFAULT 'monthly',
+  stripe_session_id TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_pending_signups_session ON pending_signups(stripe_session_id);
 `);
 
 export interface RentcastUsageInfo {

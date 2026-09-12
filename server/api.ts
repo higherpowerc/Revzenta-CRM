@@ -90,7 +90,7 @@ import {
   resolveAgreement,
   deleteAgreementPdf,
 } from "./agreements";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { lookupPropertyData, normalizeWebhookPayload } from "./propertyEnrichment";
 import { searchProperties, convertPropertyToLead, getPropertyById } from "./propertySearch";
 import {
@@ -106,6 +106,7 @@ import { explainPropertyDeal } from "./ai/dealExplainer";
 import { getDevCommandCenterStatus, analyzeDevQuery } from "./ai/devCommandCenter";
 import { enrichProperty, getRegisteredProvidersStatus } from "./providers/enrichmentWorker";
 import { listDistressAlerts, markAlertsRead, runDistressCheck } from "./jobs/distressMonitor";
+import { fetchCotalityVoluntaryLienStatus } from "./cotality";
 
 export const SESSION_COOKIE = "elevate_session";
 /** Map a sendEmail result to the emailStatus vocabulary the UI renders:
@@ -173,6 +174,67 @@ function resolveOwnerClientForStripeEvent(obj: Record<string, unknown>): ClientR
  * forget like every transactional email). Idempotent: an already-paid record
  * skips the invoice email but still acknowledges. Returns the ack payload.
  */
+/**
+ * Owner decision 2026-09-09 - self-serve purchases must appear in the
+ * Revenue/Stripe Ledger (GET /api/invoices on the owner org). The ledger only
+ * reads the local `invoices` table, so the Stripe success path writes a paid
+ * row there. Uses the SAME columns as the manual create-invoice endpoint
+ * (org_id, client_id, amount, status, due_date, notes) - amount is DOLLARS
+ * (matches Finance.tsx, which renders i.amount directly). The Stripe event id
+ * is embedded in notes as `[stripe:<id>]` and acts as the idempotency key:
+ * webhook retries match the LIKE pattern before inserting, so a retry never
+ * double-books revenue. No-op when the key is already present (returns the
+ * existing row id) or when no id/amount can be derived.
+ */
+function recordStripeLedgerInvoice(input: {
+  orgId: number;
+  clientId: number | null;
+  amountCents: number;
+  currency: string;
+  tier: string;
+  billing: string;
+  purchaser: string;
+  stripeEventId: string;
+}): number | null {
+  const key = input.stripeEventId.trim();
+  if (key === "") return null;
+  const existing = db
+    .query("SELECT id FROM invoices WHERE org_id = ? AND notes LIKE ? ORDER BY id ASC LIMIT 1")
+    .get(input.orgId, `%[stripe:${key}]%`) as { id: number } | null;
+  if (existing) {
+    console.log(`[stripe] ledger invoice already recorded for ${key} (invoice ${existing.id}) - skipped (idempotent)`);
+    return existing.id;
+  }
+  const cents = Math.round(input.amountCents);
+  if (!Number.isFinite(cents) || cents <= 0) return null;
+  const info = db
+    .query(
+      `INSERT INTO invoices (org_id, client_id, amount, status, due_date, notes)
+       VALUES (?, ?, ?, 'paid', '', ?)`,
+    )
+    .run(
+      input.orgId,
+      input.clientId,
+      cents / 100,
+      `Stripe ${input.billing} - ${input.tier} (${input.currency.toUpperCase()}) - ${input.purchaser} [stripe:${key}]`,
+    );
+  const id = Number(info.lastInsertRowid);
+  console.log(`[stripe] ledger invoice ${id} recorded for ${key} (${input.purchaser}, ${cents / 100} ${input.currency.toUpperCase()})`);
+  return id;
+}
+
+/** Owner pricing 2026-09-08 in cents (mirrors the signup checkout plan map). */
+const SELF_SERVE_PLAN_CENTS: Record<string, Record<string, number>> = {
+  starter: { monthly: 2499, annual: 23990 },
+  pro: { monthly: 5999, annual: 57590 },
+  scale: { monthly: 7900, annual: 75840 },
+};
+
+function stripeNum(v: unknown): number | null {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function recordStripePayment(
   eventType: string,
   obj: Record<string, unknown>,
@@ -263,6 +325,15 @@ function getCookie(req: Request, name: string): string | null {
   return null;
 }
 
+function getAuthToken(req: Request): string | null {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+    const bearer = authHeader.slice(7).trim();
+    if (bearer) return bearer;
+  }
+  return getCookie(req, SESSION_COOKIE);
+}
+
 async function readBody(req: Request): Promise<Record<string, unknown> | null> {
   try {
     const body = await req.json();
@@ -307,7 +378,7 @@ function retentionDateLabel(raw: string | null | undefined): string {
 
 /** Returns { userId, orgId, role } or a 401 Response. */
 function requireAuth(req: Request): AuthContext | Response {
-  const token = getCookie(req, SESSION_COOKIE);
+  const token = getAuthToken(req);
   const userId = verifySession(token);
   if (!userId) return err("Not signed in.", 401);
   const user = getUserById(userId);
@@ -441,7 +512,7 @@ function requireOrgAdmin(auth: AuthContext): Response | null {
  * normal session.
  */
 function impersonationFrom(req: Request): number | null {
-  const payload = verifySessionPayload(getCookie(req, SESSION_COOKIE));
+  const payload = verifySessionPayload(getAuthToken(req));
   if (!payload || typeof payload.imp !== "number") return null;
   const admin = getUserById(payload.imp);
   if (!admin || admin.role !== "admin" || !isOwnerOrg(admin.orgId)) return null;
@@ -468,7 +539,7 @@ function generateResetToken(): string {
 /** SHA-256 hash of a reset token — the only thing ever stored/logged. The
  *  "pwreset::" prefix keeps reset-token hashes distinct from any other use. */
 function hashResetToken(token: string): string {
-  return new Bun.CryptoHasher("sha256").update("pwreset::" + token).digest("hex");
+  return createHash("sha256").update("pwreset::" + token).digest("hex");
 }
 
 /** The generic forgot-password response — identical whether or not the email
@@ -820,12 +891,12 @@ export type PackageTier = "" | "starter" | "pro" | "scale" | "tier1" | "tier2" |
 export const TIER_KEYS: readonly string[] = ["starter", "pro", "scale", "tier1", "tier2", "tier3", "tier4"];
 export const TIER_LABELS: Record<string, string> = {
   "": "— Unset —",
-  starter: "Starter Wholesaler — $79/mo",
-  pro: "Pro Dealmaker — $199/mo",
-  scale: "Scale & Brokerage — $399/mo",
-  tier1: "Starter Wholesaler — $79/mo",
-  tier2: "Pro Dealmaker — $199/mo",
-  tier3: "Scale & Brokerage — $399/mo",
+  starter: "Starter Wholesaler — $24.99/mo",
+  pro: "Pro Dealmaker — $59.99/mo",
+  scale: "Scale & Brokerage — $79/mo",
+  tier1: "Starter Wholesaler — $24.99/mo",
+  tier2: "Pro Dealmaker — $59.99/mo",
+  tier3: "Scale & Brokerage — $79/mo",
   tier4: "Custom Enterprise Package",
 };
 export const TIER_SERVICE_TAGS: Record<string, string[]> = {
@@ -2203,6 +2274,100 @@ function insertOrgWithMember(input: {
   })();
 }
 
+/* ── Post-payment signup provisioning (owner decision 2026-09-08: no free
+   trial, no workspace before payment) ────────────────────────────────
+   provisionPendingSignup consumes one pending_signups row (by email, else by
+   Stripe session id) and creates the org + member via insertOrgWithMember.
+   Idempotent: if a user with that email already exists, the pending row is
+   deleted and the existing user is returned. Both the
+   checkout.session.completed webhook and the verified /api/auth/signup-complete
+   path call this, so whichever runs first wins and the second is a no-op.
+   The welcome email (with credentials) fires only from the signup-complete
+   path, where the plaintext password is NOT available post-hoc — the caller
+   passes it only when known. The webhook path sends no credentials email;
+   the customer signs in with the password they chose at signup. */
+async function provisionPendingSignup(input: {
+  lookupEmail: string;
+  sessionId?: string;
+  checkoutMeta?: Record<string, string>;
+  appUrl?: string;
+  password?: string;
+}): Promise<{ orgId: number; userId: number } | null> {
+  const email = input.lookupEmail.trim().toLowerCase();
+  if (!email) return null;
+  let pending = db
+    .query("SELECT * FROM pending_signups WHERE email = ?")
+    .get(email) as {
+    email: string;
+    workspace_name: string;
+    password_hash: string;
+    tier: string;
+    billing: string;
+    stripe_session_id: string;
+  } | null;
+  if (!pending && input.sessionId) {
+    pending = db
+      .query("SELECT * FROM pending_signups WHERE stripe_session_id = ?")
+      .get(input.sessionId) as typeof pending;
+  }
+  const existingUser = getUserByEmail(pending ? pending.email : email);
+  if (existingUser) {
+    // Owner pricing 2026-09-08 (PR #135, cents) as monthly-equivalent MRR
+    // (dollars): monthly at face value, annual amortized round(annual/12).
+    // Self-heals a $0-MRR org only — never overwrites an owner-set amount.
+    if (pending) {
+      const healMrr =
+        pending.billing === "annual"
+          ? pending.tier === "starter" ? 19.99 : pending.tier === "scale" ? 63.2 : 47.99
+          : pending.tier === "starter" ? 24.99 : pending.tier === "scale" ? 79 : 59.99;
+      db.query("UPDATE orgs SET monthly_subscription_amount = ? WHERE id = ? AND monthly_subscription_amount = 0")
+        .run(healMrr, (existingUser as { org_id: number }).org_id);
+    }
+    db.query("DELETE FROM pending_signups WHERE email = ?").run(pending ? pending.email : email);
+    return { orgId: existingUser.org_id, userId: existingUser.id };
+  }
+  if (!pending) return null;
+  const tier = pending.tier === "starter" || pending.tier === "scale" ? pending.tier : "pro";
+  // Owner pricing 2026-09-08 (PR #135, cents) as monthly-equivalent MRR
+  // (dollars): monthly at face value, annual amortized round(annual/12)
+  // (starter 1999c / pro 4799c / scale 6320c).
+  const mrrDollars =
+    pending.billing === "annual"
+      ? tier === "starter" ? 19.99 : tier === "scale" ? 63.2 : 47.99
+      : tier === "starter" ? 24.99 : tier === "scale" ? 79 : 59.99;
+  let provisioned: { orgId: number; userId: number };
+  try {
+    provisioned = insertOrgWithMember({
+      name: pending.workspace_name,
+      email: pending.email,
+      passwordHash: pending.password_hash,
+      verticalKey: "wholesalebiz",
+      tier,
+    });
+    db.query("UPDATE orgs SET monthly_subscription_amount = ? WHERE id = ?")
+      .run(mrrDollars, provisioned.orgId);
+  } catch (e) {
+    console.error("[signup] post-payment provisioning failed for", pending.email + ":", e instanceof Error ? e.message : e);
+    return null;
+  }
+  db.query("DELETE FROM pending_signups WHERE email = ?").run(pending.email);
+  // Welcome email with credentials: only when the plaintext password is known
+  // (signup-complete path passes it through when available). Never from the
+  // webhook — the hash is not reversible.
+  if (input.appUrl && input.password) {
+    void sendSignupWelcomeEmail({
+      to: pending.email,
+      workspaceName: pending.workspace_name,
+      email: pending.email,
+      password: input.password,
+      tier,
+      appUrl: input.appUrl,
+    });
+  }
+  console.log(`[signup] workspace provisioned post-payment for ${pending.email} (tier ${tier}, billing ${pending.billing})`);
+  return provisioned;
+}
+
 /* ── 3g-3: sold-lead auto-provisioning ─────────────────────── */
 
 /** The owner orgs = exactly the platform owner's workspace (Revzenta,
@@ -2776,6 +2941,25 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     return json({ ok: true, titleStatus });
   }
 
+  /* Authenticated property underwriting lookup. Cotality credentials remain server-side. */
+  if (pathname === "/api/underwriting/cotality" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = await readBody(req);
+    if (!body) return err("Invalid JSON body.", 400);
+    const address = typeof body.address === "string" ? body.address.trim() : body.address;
+    if (!address || (typeof address !== "string" && typeof address !== "object")) {
+      return err("Property address is required.", 400);
+    }
+    try {
+      const profile = await fetchCotalityVoluntaryLienStatus(address as string | { street?: string; city?: string; state?: string; zip?: string });
+      return json({ profile });
+    } catch (error) {
+      console.error(`[underwriting] Cotality lookup failed for org ${auth.orgId}:`, error);
+      return err(error instanceof Error ? error.message : "Unable to retrieve public records.", 502);
+    }
+  }
+
   /* ── Wholesale Inbound Lead Webhook (BatchLeads, Zapier, Make, Form Submissions, Webhook Relays) ── */
   if (pathname === "/api/leads/webhook" && method === "POST") {
     let secret = url.searchParams.get("key") ?? req.headers.get("x-webhook-secret") ?? "";
@@ -2949,6 +3133,16 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     });
   }
 
+  /* Self-serve signup (owner decision 2026-09-08): NO free trial, payment
+     required at signup.
+     - Stripe configured (Branch A): stores the intent in pending_signups and
+       returns { checkoutUrl, stripeSessionId } with NO session cookie and NO
+       org/user row. The workspace is provisioned only after payment succeeds —
+       via the checkout.session.completed webhook or the verified
+       /api/auth/signup-complete path (both call provisionPendingSignup).
+     - No Stripe keys (Branch B, local/dev): provisions directly and signs in
+       (201 + user), unchanged. This path only triggers when Stripe is not
+       configured. */
   if (pathname === "/api/auth/signup" && method === "POST") {
     const body = await readBody(req);
     if (!body) return err("Invalid JSON body.", 400);
@@ -2958,6 +3152,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const workspaceName = typeof body.workspaceName === "string" ? body.workspaceName.trim() : "";
     const tierRaw = typeof body.tier === "string" ? body.tier.trim().toLowerCase() : "pro";
     const tier = tierRaw === "starter" || tierRaw === "scale" ? tierRaw : "pro";
+    const billingRaw = typeof body.billing === "string" ? body.billing.trim().toLowerCase() : "monthly";
+    const billing: "monthly" | "annual" = billingRaw === "annual" ? "annual" : "monthly";
 
     if (!email || !EMAIL_RE.test(email)) return err("A valid email address is required.", 400);
     if (!password || password.length < 8) return err("Password must be at least 8 characters.", 400);
@@ -2972,12 +3168,86 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const s = stripeClient();
     const returnUrl = appUrlFrom(req);
 
+    // Owner pricing 2026-09-08 (cents). Annual = monthly x 12 x 0.8.
     const planDetails = {
-      starter: { name: "Starter Wholesaler", price: 7900 },
-      pro: { name: "Wholesale Pro", price: 19900 },
-      scale: { name: "Scale Empire", price: 39900 },
+      starter: {
+        name: "Starter Wholesaler",
+        unitAmount: billing === "annual" ? 23990 : 2499,
+        interval: billing === "annual" ? ("year" as const) : ("month" as const),
+      },
+      pro: {
+        name: "Wholesale Pro",
+        unitAmount: billing === "annual" ? 57590 : 5999,
+        interval: billing === "annual" ? ("year" as const) : ("month" as const),
+      },
+      scale: {
+        name: "Scale Empire",
+        unitAmount: billing === "annual" ? 75840 : 7900,
+        interval: billing === "annual" ? ("year" as const) : ("month" as const),
+      },
     }[tier];
 
+    // Branch A — Stripe configured: stash the intent, create checkout (NO
+    // trial, NO pre-payment provisioning, NO session cookie).
+    if (s && body.skipStripe !== true) {
+      db.query(
+        `INSERT INTO pending_signups (email, workspace_name, password_hash, tier, billing, stripe_session_id)
+         VALUES (?, ?, ?, ?, ?, '')
+         ON CONFLICT(email) DO UPDATE SET
+           workspace_name = excluded.workspace_name,
+           password_hash = excluded.password_hash,
+           tier = excluded.tier,
+           billing = excluded.billing,
+           created_at = datetime('now')`,
+      ).run(email, workspaceName, passwordHash, tier, billing);
+      let session: Stripe.Checkout.Session;
+      try {
+        session = await s.checkout.sessions.create({
+          mode: "subscription",
+          customer_email: email,
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: `Revzenta CRM — ${planDetails.name} (${billing === "annual" ? "Annual" : "Monthly"})`,
+                  description: `Revzenta Wholesaling Real Estate CRM — ${planDetails.name}, billed ${billing}.`,
+                  tax_code: "txcd_10000000",
+                },
+                unit_amount: planDetails.unitAmount,
+                recurring: { interval: planDetails.interval },
+              },
+              quantity: 1,
+            },
+          ],
+          // No trial_period_days / trial_settings: payment is due immediately.
+          subscription_data: {
+            metadata: { email, tier, billing },
+          },
+          metadata: { email, tier, billing },
+          success_url: `${returnUrl}/#/signup-success?session_id={CHECKOUT_SESSION_ID}&email=${encodeURIComponent(email)}`,
+          cancel_url: `${returnUrl}/#/signup?tier=${tier}`,
+        });
+      } catch (stripeErr) {
+        console.error("[signup] Stripe checkout session creation error:", stripeErr);
+        return err("Could not start checkout. Please try again in a moment.", 502);
+      }
+      db.query("UPDATE pending_signups SET stripe_session_id = ? WHERE email = ?").run(session.id, email);
+      return json(
+        {
+          ok: true,
+          checkoutUrl: session.url,
+          stripeSessionId: session.id,
+          provisioned: false,
+          tier,
+          billing,
+          message: "Complete payment to activate your workspace.",
+        },
+        200,
+      );
+    }
+
+    // Branch B — no Stripe keys (local/dev): direct provisioning, unchanged.
     let provisioned: { orgId: number; userId: number };
     try {
       provisioned = insertOrgWithMember({
@@ -3001,52 +3271,6 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       appUrl: returnUrl,
     });
 
-    if (s && body.skipStripe !== true) {
-      try {
-        const session = await s.checkout.sessions.create({
-          mode: "subscription",
-          payment_method_types: ["card"],
-          customer_email: email,
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `Revzenta CRM — ${planDetails.name}`,
-                  description: `Revzenta Wholesaling Real Estate CRM (${planDetails.name}) - Includes 14-day risk-free trial`,
-                },
-                unit_amount: planDetails.price,
-                recurring: { interval: "month" },
-              },
-              quantity: 1,
-            },
-          ],
-          subscription_data: {
-            trial_period_days: 14,
-            metadata: { orgId: String(provisioned.orgId), email, tier },
-          },
-          metadata: { orgId: String(provisioned.orgId), email, tier },
-          success_url: `${returnUrl}/#/signup-success?session_id={CHECKOUT_SESSION_ID}&email=${encodeURIComponent(email)}`,
-          cancel_url: `${returnUrl}/#/signup?tier=${tier}`,
-        });
-
-        const token = createSession(provisioned.userId);
-        return json(
-          {
-            ok: true,
-            checkoutUrl: session.url,
-            stripeSessionId: session.id,
-            provisioned: true,
-            orgId: provisioned.orgId,
-          },
-          200,
-          { "Set-Cookie": sessionCookie(token) },
-        );
-      } catch (stripeErr) {
-        console.error("[signup] Stripe checkout session creation error:", stripeErr);
-      }
-    }
-
     const token = createSession(provisioned.userId);
     const user = getUserById(provisioned.userId);
     return json(
@@ -3056,7 +3280,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         provisioned: true,
         user: user ?? null,
         tier,
-        message: "Account successfully created and 14-day trial activated!",
+        message: "Account successfully created! Welcome to Revzenta CRM.",
       },
       201,
       { "Set-Cookie": sessionCookie(token) },
@@ -3066,23 +3290,57 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
   if (pathname === "/api/auth/signup-complete" && method === "POST") {
     const body = await readBody(req);
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    const sessionId = typeof body?.sessionId === "string" ? body.sessionId.trim() : "";
     const auth = requireAuth(req);
     if (!(auth instanceof Response)) {
       const user = getUserById(auth.userId);
       if (user) return json({ ok: true, user });
     }
-    if (email) {
-      const user = getUserByEmail(email);
-      if (user) {
-        const token = createSession(user.id);
-        return json(
-          { ok: true, user: toUser(user) },
-          200,
-          { "Set-Cookie": sessionCookie(token) },
-        );
-      }
+    // SECURITY (2026-09-08): never mint a session for a bare email. When
+    // Stripe is configured, the caller must present the checkout session id:
+    // it is retrieved from Stripe and must be paid/complete with a customer
+    // email matching the account. When Stripe keys are absent (no-Stripe /
+    // local dev), signup already signs the account in directly, so there is
+    // nothing to complete — return ok without minting a session.
+    const stripe = stripeClient();
+    if (!stripe) return json({ ok: true });
+    if (!sessionId) return err("A Stripe checkout session is required.", 400);
+    let checkout: Stripe.Checkout.Session | null = null;
+    try {
+      checkout = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch {
+      return err("Could not verify the checkout session.", 400);
     }
-    return json({ ok: true });
+    const paid =
+      checkout?.payment_status === "paid" ||
+      checkout?.status === "complete" ||
+      checkout?.subscription != null;
+    const stripeEmail = (checkout?.customer_email ?? checkout?.customer_details?.email ?? "")
+      .trim()
+      .toLowerCase();
+    if (!paid) return err("Checkout is not complete yet.", 402);
+    const lookupEmail = email || stripeEmail;
+    if (!lookupEmail) return err("No account email found for this checkout session.", 400);
+    if (email && stripeEmail && email !== stripeEmail) {
+      return err("This checkout session does not belong to that email address.", 403);
+    }
+    // Post-payment provisioning (2026-09-08): the workspace is created HERE
+    // (or was already created by the webhook — provisionPendingSignup is
+    // idempotent on email), then the new user is signed in.
+    let authed = getUserById((getUserByEmail(lookupEmail)?.id ?? -1));
+    if (!authed) {
+      const provisioned = await provisionPendingSignup({
+        lookupEmail,
+        sessionId,
+        checkoutMeta: (checkout?.metadata ?? {}) as Record<string, string>,
+        appUrl: appUrlFrom(req),
+      });
+      if (!provisioned) return err("No signup found for this checkout session.", 404);
+      authed = getUserById(provisioned.userId);
+      if (!authed) return err("Workspace setup failed. Please contact support.", 500);
+    }
+    const token = createSession(authed.id);
+    return json({ ok: true, user: authed }, 200, { "Set-Cookie": sessionCookie(token) });
   }
 
   /* Auth */
@@ -3157,7 +3415,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     }
     const token = createSession(user.id);
     return json(
-      { user: toUser(user), impersonating: false, ok: true },
+      { user: toUser(user), token, impersonating: false, ok: true },
       200,
       { "Set-Cookie": sessionCookie(token) },
     );
@@ -3228,7 +3486,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
 
   if (pathname === "/api/auth/logout" && method === "POST") {
     return json({ ok: true }, 200, {
-      "Set-Cookie": `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+      "Set-Cookie": sessionCookie(""),
     });
   }
 
@@ -3238,10 +3496,11 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const user = getUserById(auth.userId);
     if (!user) return err("Not signed in.", 401);
     const imp = impersonationFrom(req);
+    const token = getAuthToken(req);
     if (imp !== null) {
-      return json({ user, impersonating: true, impersonatedFrom: imp });
+      return json({ user, token: token ?? undefined, impersonating: true, impersonatedFrom: imp });
     }
-    return json({ user, impersonating: false });
+    return json({ user, token: token ?? undefined, impersonating: false });
   }
 
   /* Phase 3d — end an owner impersonation: swap back to the admin's own
@@ -3259,7 +3518,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     }
     const token = createSession(admin.id);
     return json(
-      { user: admin, impersonating: false, ok: true },
+      { user: admin, token, impersonating: false, ok: true },
       200,
       { "Set-Cookie": sessionCookie(token) },
     );
@@ -3341,6 +3600,57 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     }
     if (typeof event.type !== "string") return err("Missing event type.", 400);
     const obj = event.data?.object ?? {};
+    // Post-payment provisioning: a completed self-serve checkout provisions
+    // the workspace (idempotent on email) BEFORE the owner-client invoice
+    // bookkeeping below. Webhook needs no appUrl (no email credentials sent
+    // from here — the welcome email fires on the signup-complete path).
+    if (event.type === "checkout.session.completed") {
+      const meta = (obj.metadata ?? {}) as Record<string, unknown>;
+      const metaEmail =
+        typeof meta.email === "string" && meta.email.trim() !== ""
+          ? meta.email.trim().toLowerCase()
+          : ((obj.customer_email ?? (obj.customer_details as { email?: unknown } | null)?.email ?? "") as string)
+              .toString()
+              .trim()
+              .toLowerCase();
+      const sessionId = typeof obj.id === "string" ? obj.id : "";
+      if (metaEmail) {
+        await provisionPendingSignup({ lookupEmail: metaEmail, sessionId });
+      }
+      // Revenue/Stripe Ledger (owner decision 2026-09-09): self-serve checkout
+      // purchases write a paid `invoices` row into the OWNER org so they show
+      // in Finance.tsx. Idempotent on the Stripe session id (see
+      // recordStripeLedgerInvoice) - retries never double-book. Amount prefers
+      // the session's amount_total (cents); the tier/billing plan map is the
+      // fallback when Stripe omits it.
+      const ownerOrg = getOwnerOrgId();
+      const tierRaw = typeof meta.tier === "string" ? meta.tier.trim().toLowerCase() : "";
+      const tier = tierRaw === "starter" || tierRaw === "scale" ? tierRaw : "pro";
+      const billingRaw = typeof meta.billing === "string" ? meta.billing.trim().toLowerCase() : "";
+      const billing = billingRaw === "annual" ? "annual" : "monthly";
+      const amountTotal = stripeNum(obj.amount_total);
+      const planCents = SELF_SERVE_PLAN_CENTS[tier]?.[billing] ?? 0;
+      const purchaseCents = amountTotal !== null && amountTotal > 0 ? Math.round(amountTotal) : planCents;
+      const currency =
+        typeof obj.currency === "string" && obj.currency.trim() !== "" ? obj.currency.trim().toLowerCase() : "usd";
+      const purchaser =
+        metaEmail ||
+        (typeof obj.customer_email === "string" ? obj.customer_email.trim() : "") ||
+        (typeof obj.customer === "string" ? obj.customer.trim() : "");
+      const eventId = typeof event.id === "string" ? event.id : "";
+      // Idempotency key: the Stripe event id when present, else the checkout
+      // session id (both are unique per purchase; Stripe retries resend both).
+      recordStripeLedgerInvoice({
+        orgId: ownerOrg,
+        clientId: null,
+        amountCents: purchaseCents,
+        currency,
+        tier,
+        billing,
+        purchaser: purchaser || metaEmail || "self-serve signup",
+        stripeEventId: eventId || sessionId,
+      });
+    }
     if (
       event.type === "checkout.session.completed" ||
       event.type === "invoice.paid" ||
@@ -3507,7 +3817,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const owner = getOrg(getOwnerOrgId());
     const hash = owner?.agreements_pin_hash ?? "";
     if (!hash) return json({ ok: false, error: "No agreements PIN set yet — set one in Settings first." });
-    const candidate = new Bun.CryptoHasher("sha256").update("agpin::" + pin).digest("hex");
+    const candidate = createHash("sha256").update("agpin::" + pin).digest("hex");
     if (candidate !== hash) return json({ ok: false, error: "Incorrect PIN." });
     return json({ ok: true });
   }
@@ -4003,7 +4313,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     if (!targetUser) return err("Org user not found.", 404);
     const token = createSession(targetUser.id, { impersonatedFrom: admin.userId });
     return json(
-      { user: targetUser, impersonating: true, impersonatedFrom: admin.userId, ok: true },
+      { user: targetUser, token, impersonating: true, impersonatedFrom: admin.userId, ok: true },
       200,
       { "Set-Cookie": sessionCookie(token) },
     );
@@ -4758,7 +5068,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         return err("Agreements PIN must be 4–10 digits.", 400);
       }
       sets.push("agreements_pin_hash = ?");
-      params.push(new Bun.CryptoHasher("sha256").update("agpin::" + pin).digest("hex"));
+      params.push(createHash("sha256").update("agpin::" + pin).digest("hex"));
     }
     if (body.allowSelfSchedule !== undefined) {
       if (typeof body.allowSelfSchedule !== "boolean") return err("allowSelfSchedule must be a boolean.", 400);
@@ -4916,7 +5226,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         retentionUntil: updated?.retention_until ?? "",
       },
       200,
-      { "Set-Cookie": `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` },
+      { "Set-Cookie": sessionCookie("") },
     );
   }
 
@@ -5597,16 +5907,24 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const url = new URL(req.url);
     const clientParam = url.searchParams.get("client_id");
 
-    // Auto-backfill past client offers if table is empty
-    const existingCount = (db.query("SELECT COUNT(*) AS c FROM offers WHERE org_id = ?").get(orgId) as { c: number })?.c || 0;
-    if (existingCount === 0) {
-      try {
-        const clientsWithOffers = db.query(`
-          SELECT * FROM clients
-           WHERE org_id = ?
-             AND (custom_fields LIKE '%Offer PDF%' OR notes LIKE '%Offer Sent%')
-        `).all(orgId) as ClientRow[];
+    // Auto-backfill past client offers if table is missing records for properties with LOI sent / in contract
+    try {
+      const clientsWithOffers = db.query(`
+        SELECT * FROM clients
+         WHERE org_id = ?
+           AND id NOT IN (SELECT client_id FROM offers WHERE org_id = ? AND client_id IS NOT NULL)
+           AND (
+             custom_fields LIKE '%Offer PDF%'
+             OR custom_fields LIKE '%Offer Sent%'
+             OR custom_fields LIKE '%loi status%'
+             OR custom_fields LIKE '%"loi"%'
+             OR notes LIKE '%Offer Sent%'
+             OR notes LIKE '%LOI Sent%'
+             OR LOWER(stage) IN ('contract', 'under contract', 'offer sent')
+           )
+      `).all(orgId, orgId) as ClientRow[];
 
+      if (clientsWithOffers.length > 0) {
         const org = db.query("SELECT name FROM orgs WHERE id = ?").get(orgId) as { name: string } | null;
         const defaultBiz = (org?.name || "Revzenta Capital").trim();
 
@@ -5617,15 +5935,16 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
           try {
             const cf: Array<{ name: string; value: string }> = JSON.parse(c.custom_fields || "[]");
             for (const f of cf) {
-              if (f.name.toLowerCase() === "offer pdf" && f.value) {
+              const fn = (f.name || "").toLowerCase();
+              if (fn === "offer pdf" && f.value) {
                 const m = f.value.match(/\/offer-pdf\/([a-f0-9]+)/);
                 if (m) pdfId = m[1];
               }
-              if (f.name.toLowerCase() === "cash offer") {
-                cashOffer = Number(f.value.replace(/[^0-9.]/g, "")) || 0;
+              if (fn === "cash offer" || fn === "underwritten purchase price") {
+                cashOffer = Number(String(f.value).replace(/[^0-9.]/g, "")) || 0;
               }
-              if (f.name.toLowerCase() === "creative price") {
-                creativePrice = Number(f.value.replace(/[^0-9.]/g, "")) || 0;
+              if (fn === "creative price" || fn === "creative purchase price") {
+                creativePrice = Number(String(f.value).replace(/[^0-9.]/g, "")) || 0;
               }
             }
           } catch {}
@@ -5635,35 +5954,61 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
             if (m) pdfId = m[1];
           }
 
-          if (pdfId) {
-            db.query(`
-              INSERT INTO offers (
-                org_id, client_id, pdf_id, property_address, seller_name, seller_email,
-                business_name, offer_type, selected_offers,
-                cash_offer_amount, subto_purchase_price, subto_debt, subto_cash_to_seller, subto_monthly_payment,
-                creative_purchase_price, creative_down_payment, creative_monthly_payment, creative_interest_rate,
-                creative_balloon_years, creative_total_paid, closing_days, email_status, status, notes, created_at, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, 'all', '["cash","subto","creative"]', ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 14, 'sent', 'Sent', ?, ?, ?)
-            `).run(
-              orgId,
-              c.id,
-              pdfId,
-              c.company_name || c.address,
-              c.contact_name || "",
-              c.email || "",
-              defaultBiz,
-              cashOffer,
-              creativePrice,
-              creativePrice,
-              c.notes || "",
-              c.updated_at || c.created_at,
-              c.updated_at || c.created_at
-            );
+          if (!cashOffer && c.deal_value) {
+            cashOffer = Number(c.deal_value) || 0;
           }
+
+          const propAddr = (c.address && c.company_name && c.address !== c.company_name)
+            ? `${c.company_name} — ${c.address}${c.city ? `, ${c.city}` : ""}${c.state ? `, ${c.state}` : ""}`
+            : (c.address || c.company_name || "Subject Property");
+
+          if (!pdfId) {
+            pdfId = crypto.randomUUID().replace(/-/g, "");
+            try {
+              const pdfBytes = await generateOfferPdf({
+                propertyAddress: propAddr,
+                sellerName: c.contact_name || "Property Owner",
+                sellerEmail: c.email || "",
+                sellerPhone: c.phone || "",
+                businessName: defaultBiz,
+                offerType: "cash",
+                cashOfferAmount: cashOffer || 250000,
+                closingDays: 14,
+                earnestMoney: 2500,
+              });
+              storeOfferPdf(pdfBytes, pdfId);
+            } catch (pdfErr) {
+              console.warn("[offers-backfill] PDF generation err:", pdfErr);
+            }
+          }
+
+          db.query(`
+            INSERT INTO offers (
+              org_id, client_id, pdf_id, property_address, seller_name, seller_email,
+              business_name, offer_type, selected_offers,
+              cash_offer_amount, subto_purchase_price, subto_debt, subto_cash_to_seller, subto_monthly_payment,
+              creative_purchase_price, creative_down_payment, creative_monthly_payment, creative_interest_rate,
+              creative_balloon_years, creative_total_paid, closing_days, email_status, status, notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'cash', '["cash"]', ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 14, 'sent', 'Sent', ?, ?, ?)
+          `).run(
+            orgId,
+            c.id,
+            pdfId,
+            propAddr,
+            c.contact_name || "",
+            c.email || "",
+            defaultBiz,
+            cashOffer || 250000,
+            creativePrice,
+            creativePrice,
+            c.notes || "Official Letter of Intent (LOI) Dispatched",
+            c.updated_at || c.created_at || new Date().toISOString(),
+            c.updated_at || c.created_at || new Date().toISOString()
+          );
         }
-      } catch (backfillErr) {
-        console.warn("[offers-backfill] err:", backfillErr);
       }
+    } catch (backfillErr) {
+      console.warn("[offers-backfill] err:", backfillErr);
     }
 
     let queryStr = `
@@ -5927,6 +6272,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const cashOfferAmount = Number(body.cashOfferAmount) || 0;
     const creativePurchasePrice = Number(body.creativePurchasePrice) || 0;
     const subtoPurchasePrice = Number(body.subtoPurchasePrice) || 0;
+    const subtoDebt = Number(body.subtoDebt) || 0;
+    const subtoCashToSeller = Number(body.subtoCashToSeller) || 0;
+    const subtoMonthlyPayment = Number(body.subtoMonthlyPayment) || 0;
     const status = typeof body.status === "string" ? body.status.trim() : "Sent";
     const notes = typeof body.notes === "string" ? body.notes : "";
     const closingDays = Number(body.closingDays) || 14;
@@ -5984,6 +6332,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         offerType: (offerType === "Cash" ? "cash" : offerType === "Seller Financing" ? "creative" : offerType === "Subject-To" ? "subto" : offerType) as any,
         cashOfferAmount,
         subtoPurchasePrice,
+        subtoDebt,
+        subtoCashToSeller,
+        subtoMonthlyPayment,
         creativePurchasePrice,
         closingDays,
         earnestMoney: earnestMoneyDeposit,
@@ -6003,7 +6354,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, '["cash"]',
-        ?, ?, 0, 0, 0,
+        ?, ?, ?, ?, ?,
         ?, 0, 0, 0,
         0, 0, ?, 'sent', ?, ?, datetime('now'), datetime('now')
       )
@@ -6018,6 +6369,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       offerType,
       cashOfferAmount,
       subtoPurchasePrice,
+      subtoDebt,
+      subtoCashToSeller,
+      subtoMonthlyPayment,
       creativePurchasePrice,
       closingDays,
       status,
@@ -6200,9 +6554,12 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       inspectionUrgency,
       daysLeftEmd,
       daysLeftClosing,
-      signUrl: `${baseUrl}/sign-contract/${r.token_hash}`,
-      contractPdfUrl: r.contract_pdf_id ? `${baseUrl}/contract-pdf/${r.contract_pdf_id}` : null,
-      titlePortalUrl: `${baseUrl}/title-portal/${r.token_hash}`,
+      signUrl: `/sign-contract/${r.token_hash}`,
+      contractPdfUrl: r.contract_pdf_id ? `/contract-pdf/${r.contract_pdf_id}` : null,
+      titlePortalUrl: `/title-portal/${r.token_hash}`,
+      fullSignUrl: `${baseUrl}/sign-contract/${r.token_hash}`,
+      fullContractPdfUrl: r.contract_pdf_id ? `${baseUrl}/contract-pdf/${r.contract_pdf_id}` : null,
+      fullTitlePortalUrl: `${baseUrl}/title-portal/${r.token_hash}`,
     };
   }
 
@@ -8600,8 +8957,10 @@ ${businessName}
 }
 
 function sessionCookie(token: string): string {
-  const secure = process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}${secure}`;
+  if (!token) {
+    return `${SESSION_COOKIE}=; HttpOnly; SameSite=None; Secure; Partitioned; Path=/; Max-Age=0`;
+  }
+  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=None; Secure; Partitioned; Path=/; Max-Age=${7 * 24 * 60 * 60}`;
 }
 
 export { handleApi };

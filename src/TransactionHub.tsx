@@ -4,6 +4,8 @@ import type { Transaction, Client, Buyer } from "./types";
 
 interface Props {
   crmBusinessName?: string;
+  initialTab?: "process" | "clocks" | "contracts" | "title";
+  onTabChange?: (tab: "process" | "clocks" | "contracts" | "title") => void;
 }
 
 const STATE_OPTIONS = [
@@ -264,7 +266,7 @@ export function WholesaleStageBadge({
   );
 }
 
-export default function TransactionHub({ crmBusinessName }: Props) {
+export default function TransactionHub({ crmBusinessName, initialTab = "process", onTabChange }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [properties, setProperties] = useState<Client[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -272,9 +274,38 @@ export default function TransactionHub({ crmBusinessName }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title">("process");
+  const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title">(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  const handleSelectTab = (tab: "process" | "clocks" | "contracts" | "title") => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
   const [processViewMode, setProcessViewMode] = useState<"board" | "table">("board");
   const [stepFilter, setStepFilter] = useState<number | "all">("all");
+  const [processCollapsed, setProcessCollapsed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("revzenta_wholesale_process_collapsed");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleProcessCollapsed = () => {
+    setProcessCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("revzenta_wholesale_process_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Search & Filters
   const [search, setSearch] = useState("");
@@ -289,6 +320,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
   const [titlePacketEmail, setTitlePacketEmail] = useState("");
   const [signRequestModalTx, setSignRequestModalTx] = useState<Transaction | null>(null);
   const [signRequestEmail, setSignRequestEmail] = useState("");
+  const [viewingPdfTx, setViewingPdfTx] = useState<Transaction | null>(null);
   const [cancellingTx, setCancellingTx] = useState<Transaction | null>(null);
   const [cancelTxReason, setCancelTxReason] = useState("Inspection / repair costs too high");
   const [cancelTxNotes, setCancelTxNotes] = useState("");
@@ -482,9 +514,25 @@ export default function TransactionHub({ crmBusinessName }: Props) {
     }
   };
 
+  // Contract PDF helper
+  const getCleanContractPdfUrl = (tx: Transaction | null): string => {
+    if (!tx) return "";
+    if (tx.contractPdfId) return `/contract-pdf/${tx.contractPdfId}`;
+    if (tx.contractPdfUrl) {
+      const idx = tx.contractPdfUrl.indexOf("/contract-pdf/");
+      if (idx !== -1) return tx.contractPdfUrl.slice(idx);
+      return tx.contractPdfUrl;
+    }
+    return "";
+  };
+
   // Copy link helper
   const copyToClipboard = (url: string, label: string) => {
-    navigator.clipboard.writeText(url);
+    const fullUrl =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? url
+        : `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+    navigator.clipboard.writeText(fullUrl);
     notify("success", `Copied ${label} to clipboard!`);
   };
 
@@ -605,103 +653,160 @@ export default function TransactionHub({ crmBusinessName }: Props) {
       {/* ─────────────────────────────────────────────────────────────
           5-STEP WHOLESALE REAL ESTATE LIFECYCLE ROADMAP BANNER
          ───────────────────────────────────────────────────────────── */}
+      {/* Wholesaling Process Overview Ribbon */}
       <div
         style={{
           backgroundColor: "var(--panel)",
           border: "1px solid var(--border)",
           borderRadius: "10px",
-          padding: "16px 20px",
+          padding: processCollapsed ? "12px 18px" : "16px 20px",
           marginBottom: "20px",
           boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+          transition: "padding 0.2s ease",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div
+          onClick={toggleProcessCollapsed}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: processCollapsed ? "0" : "14px",
+            flexWrap: "wrap",
+            gap: "8px",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+          title={processCollapsed ? "Click to expand standard wholesaling process guide" : "Click to collapse guide"}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
             <span style={{ fontSize: "18px" }}>🧭</span>
             <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--fg)", letterSpacing: "0.02em", textTransform: "uppercase" }}>
               Standard Real Estate Wholesaling Process (Start to Finish)
             </span>
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-            Click any milestone step below to filter active pipeline deals:
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-            gap: "10px",
-          }}
-        >
-          {WHOLESALE_STEPS.map((s) => {
-            const count = transactions.filter((t) => getDealWholesaleStep(t) === s.step).length;
-            const isFiltered = stepFilter === s.step;
-
-            return (
-              <div
-                key={s.step}
-                onClick={() => {
-                  setStepFilter((prev) => (prev === s.step ? "all" : s.step));
-                  if (activeTab !== "process") setActiveTab("process");
-                }}
+            {processCollapsed && stepFilter !== "all" && (
+              <span
                 style={{
-                  padding: "12px 14px",
-                  borderRadius: "8px",
-                  border: isFiltered ? "2px solid var(--accent, #3b82f6)" : "1px solid var(--border)",
-                  backgroundColor: isFiltered
-                    ? "rgba(59, 130, 246, 0.08)"
-                    : "var(--card-bg, var(--panel))",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  position: "relative",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: "12px",
+                  backgroundColor: "rgba(59, 130, 246, 0.15)",
+                  color: "var(--accent, #3b82f6)",
                 }}
               >
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                    <span style={{ fontSize: "15px" }}>{s.icon}</span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        padding: "2px 7px",
-                        borderRadius: "10px",
-                        backgroundColor: count > 0 ? "rgba(59, 130, 246, 0.15)" : "var(--border)",
-                        color: count > 0 ? "var(--accent, #3b82f6)" : "var(--muted)",
-                      }}
-                    >
-                      {count} {count === 1 ? "Deal" : "Deals"}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--fg)", marginTop: "2px" }}>
-                    {s.title}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px", lineHeight: 1.35 }}>
-                    {s.description}
-                  </div>
-                </div>
+                Filtered: Step {stepFilter}
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+              {processCollapsed ? "Click to view 7-milestone walkthrough" : "Click any milestone step below to filter active pipeline deals"}
+            </span>
+            <button
+              type="button"
+              id="toggle-wholesale-process-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleProcessCollapsed();
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 10px",
+                borderRadius: "6px",
+                border: "1px solid var(--border)",
+                backgroundColor: "var(--card-bg, var(--panel))",
+                color: "var(--fg)",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <span>{processCollapsed ? "Expand Guide" : "Collapse"}</span>
+              <span style={{ fontSize: "10px" }}>{processCollapsed ? "▼" : "▲"}</span>
+            </button>
+          </div>
+        </div>
 
+        {!processCollapsed && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+              gap: "10px",
+            }}
+          >
+            {WHOLESALE_STEPS.map((s) => {
+              const count = transactions.filter((t) => getDealWholesaleStep(t) === s.step).length;
+              const isFiltered = stepFilter === s.step;
+
+              return (
                 <div
+                  key={s.step}
+                  onClick={() => {
+                    setStepFilter((prev) => (prev === s.step ? "all" : s.step));
+                    if (activeTab !== "process") handleSelectTab("process");
+                  }}
                   style={{
-                    marginTop: "10px",
-                    paddingTop: "6px",
-                    borderTop: "1px solid var(--border)",
+                    padding: "12px 14px",
+                    borderRadius: "8px",
+                    border: isFiltered ? "2px solid var(--accent, #3b82f6)" : "1px solid var(--border)",
+                    backgroundColor: isFiltered
+                      ? "rgba(59, 130, 246, 0.08)"
+                      : "var(--card-bg, var(--panel))",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
                     display: "flex",
+                    flexDirection: "column",
                     justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: "10px",
+                    position: "relative",
                   }}
                 >
-                  <span style={{ color: "var(--accent, #3b82f6)", fontWeight: 600 }}>{s.badge}</span>
-                  <span style={{ color: "var(--muted)" }}>{isFiltered ? "Active Filter ✕" : "Filter →"}</span>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "15px" }}>{s.icon}</span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "2px 7px",
+                          borderRadius: "10px",
+                          backgroundColor: count > 0 ? "rgba(59, 130, 246, 0.15)" : "var(--border)",
+                          color: count > 0 ? "var(--accent, #3b82f6)" : "var(--muted)",
+                        }}
+                      >
+                        {count} {count === 1 ? "Deal" : "Deals"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--fg)", marginTop: "2px" }}>
+                      {s.title}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px", lineHeight: 1.35 }}>
+                      {s.description}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      paddingTop: "6px",
+                      borderTop: "1px solid var(--border)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: "10px",
+                    }}
+                  >
+                    <span style={{ color: "var(--accent, #3b82f6)", fontWeight: 600 }}>{s.badge}</span>
+                    <span style={{ color: "var(--muted)" }}>{isFiltered ? "Active Filter ✕" : "Filter →"}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* KPI Stats Ribbon */}
@@ -807,7 +912,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
       >
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button
-            onClick={() => setActiveTab("process")}
+            onClick={() => handleSelectTab("process")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",
@@ -822,7 +927,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             🧭 5-Step Wholesale Process Board
           </button>
           <button
-            onClick={() => setActiveTab("clocks")}
+            onClick={() => handleSelectTab("clocks")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",
@@ -837,7 +942,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             ⏱️ Contingency Clocks &amp; Deals
           </button>
           <button
-            onClick={() => setActiveTab("contracts")}
+            onClick={() => handleSelectTab("contracts")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",
@@ -852,7 +957,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             📄 Deals &amp; Contracts Table
           </button>
           <button
-            onClick={() => setActiveTab("title")}
+            onClick={() => handleSelectTab("title")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",
@@ -1247,11 +1352,11 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                               >
                                 Manage
                               </button>
-                              {tx.contractPdfUrl && (
-                                <a
-                                  href={tx.contractPdfUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
+                              {(tx.contractPdfUrl || tx.contractPdfId) && (
+                                <button
+                                  id={`btn-manage-pdf-${tx.id}`}
+                                  onClick={() => setViewingPdfTx(tx)}
+                                  title="View / Download Contract PDF"
                                   style={{
                                     padding: "4px 8px",
                                     borderRadius: "4px",
@@ -1259,11 +1364,11 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                                     border: "1px solid var(--border)",
                                     color: "var(--fg)",
                                     fontSize: "12px",
-                                    textDecoration: "none",
+                                    cursor: "pointer",
                                   }}
                                 >
-                                  PDF
-                                </a>
+                                  📄 PDF
+                                </button>
                               )}
                               <a
                                 href={tx.titlePortalUrl}
@@ -1518,11 +1623,11 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                             >
                               Manage Deal
                             </button>
-                            {tx.contractPdfUrl && (
-                              <a
-                                href={tx.contractPdfUrl}
-                                target="_blank"
-                                rel="noreferrer"
+                            {(tx.contractPdfUrl || tx.contractPdfId) && (
+                              <button
+                                id={`btn-card-pdf-${tx.id}`}
+                                onClick={() => setViewingPdfTx(tx)}
+                                title="View / Download Contract PDF"
                                 style={{
                                   padding: "4px 8px",
                                   borderRadius: "4px",
@@ -1530,13 +1635,14 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                                   backgroundColor: "var(--panel)",
                                   color: "var(--fg)",
                                   fontSize: "11px",
-                                  textDecoration: "none",
+                                  cursor: "pointer",
                                   display: "inline-flex",
                                   alignItems: "center",
+                                  gap: "4px",
                                 }}
                               >
-                                PDF
-                              </a>
+                                📄 PDF
+                              </button>
                             )}
                             <a
                               href={tx.titlePortalUrl}
@@ -1889,11 +1995,11 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                     🏛️ Title Portal &rarr;
                   </a>
 
-                  {tx.contractPdfUrl && (
-                    <a
-                      href={tx.contractPdfUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                  {(tx.contractPdfUrl || tx.contractPdfId) && (
+                    <button
+                      id={`btn-drawer-pdf-${tx.id}`}
+                      onClick={() => setViewingPdfTx(tx)}
+                      title="View / Download Contract PDF"
                       style={{
                         padding: "6px 12px",
                         borderRadius: "6px",
@@ -1902,14 +2008,14 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                         color: "var(--fg)",
                         fontSize: "12px",
                         fontWeight: 600,
-                        textDecoration: "none",
+                        cursor: "pointer",
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "4px",
                       }}
                     >
-                      📥 Contract PDF
-                    </a>
+                      📄 Contract PDF
+                    </button>
                   )}
 
                   <button
@@ -2164,11 +2270,11 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                     </td>
                     <td style={{ padding: "12px 16px", textAlign: "center" }}>
                       <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
-                        {tx.contractPdfUrl && (
-                          <a
-                            href={tx.contractPdfUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                        {(tx.contractPdfUrl || tx.contractPdfId) && (
+                          <button
+                            id={`btn-table-pdf-${tx.id}`}
+                            onClick={() => setViewingPdfTx(tx)}
+                            title="View / Download Contract PDF"
                             style={{
                               padding: "4px 8px",
                               borderRadius: "4px",
@@ -2176,11 +2282,11 @@ export default function TransactionHub({ crmBusinessName }: Props) {
                               border: "1px solid var(--border)",
                               color: "var(--fg)",
                               fontSize: "12px",
-                              textDecoration: "none",
+                              cursor: "pointer",
                             }}
                           >
-                            PDF
-                          </a>
+                            📄 PDF
+                          </button>
                         )}
                         <button
                           onClick={() => copyToClipboard(tx.signUrl, "E-Sign Link")}
@@ -2834,6 +2940,214 @@ export default function TransactionHub({ crmBusinessName }: Props) {
               >
                 Send E-Sign Request
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: CONTRACT PDF PREVIEW
+         ───────────────────────────────────────────────────────────── */}
+      {viewingPdfTx && (
+        <div
+          id="modal-contract-pdf-preview"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1100,
+            padding: "20px",
+          }}
+          onClick={() => setViewingPdfTx(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--panel)",
+              borderRadius: "12px",
+              width: "100%",
+              maxWidth: "960px",
+              maxHeight: "92vh",
+              display: "flex",
+              flexDirection: "column",
+              border: "1px solid var(--border)",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--border)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "12px",
+                backgroundColor: "var(--card-bg, var(--panel))",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "18px" }}>📄</span>
+                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--fg)" }}>
+                    {viewingPdfTx.contractType === "assignment" ? "Assignment Agreement" : "Purchase & Sale Agreement (PSA)"}
+                  </h3>
+                  <span
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      backgroundColor:
+                        viewingPdfTx.status === "signed"
+                          ? "rgba(16, 185, 129, 0.15)"
+                          : "rgba(245, 158, 11, 0.15)",
+                      color: viewingPdfTx.status === "signed" ? "#10b981" : "#f59e0b",
+                    }}
+                  >
+                    {viewingPdfTx.status === "signed" ? "✅ Signed" : "⏳ " + viewingPdfTx.status.toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                  📍 {viewingPdfTx.propertyAddress} &bull; Seller: <strong>{viewingPdfTx.sellerName || "N/A"}</strong>
+                  {viewingPdfTx.buyerName && viewingPdfTx.contractType === "assignment" && (
+                    <span> &bull; Assignee/Buyer: <strong>{viewingPdfTx.buyerName}</strong></span>
+                  )}
+                  {viewingPdfTx.signedAt && (
+                    <span style={{ marginLeft: "8px", color: "#10b981", fontWeight: 600 }}>
+                      (Signed by {viewingPdfTx.signerName || viewingPdfTx.sellerName} on {new Date(viewingPdfTx.signedAt).toLocaleDateString()})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <a
+                  id="btn-download-pdf"
+                  href={getCleanContractPdfUrl(viewingPdfTx)}
+                  download={`Contract-${viewingPdfTx.propertyAddress.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--panel)",
+                    border: "1px solid var(--border)",
+                    color: "var(--fg)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  📥 Download PDF
+                </a>
+                <a
+                  id="btn-open-new-tab"
+                  href={getCleanContractPdfUrl(viewingPdfTx)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--accent, #3b82f6)",
+                    color: "#ffffff",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  🔗 Open New Tab
+                </a>
+                <button
+                  id="btn-close-pdf-modal"
+                  onClick={() => setViewingPdfTx(null)}
+                  style={{
+                    padding: "7px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border)",
+                    backgroundColor: "transparent",
+                    color: "var(--fg)",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    lineHeight: 1,
+                  }}
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Viewer Body */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: "450px",
+                height: "68vh",
+                backgroundColor: "#525659",
+                position: "relative",
+              }}
+            >
+              <iframe
+                id="contract-pdf-iframe"
+                src={getCleanContractPdfUrl(viewingPdfTx)}
+                title="Contract Document Viewer"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                  display: "block",
+                }}
+              />
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: "10px 20px",
+                borderTop: "1px solid var(--border)",
+                backgroundColor: "var(--card-bg, var(--panel))",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: "11px",
+                color: "var(--muted)",
+              }}
+            >
+              <div>
+                Document ID: <code style={{ color: "var(--fg)" }}>{viewingPdfTx.contractPdfId || "Pending"}</code>
+              </div>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <span>If the viewer does not load in your browser, use <strong>Download PDF</strong> or <strong>Open New Tab</strong> above.</span>
+                <button
+                  onClick={() => setViewingPdfTx(null)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: "4px",
+                    border: "1px solid var(--border)",
+                    backgroundColor: "transparent",
+                    color: "var(--fg)",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

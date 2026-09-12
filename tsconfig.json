@@ -8,8 +8,7 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
-    "types": ["bun"]
+    "types": ["node"]
   },
   "include": ["src", "server"]
 }

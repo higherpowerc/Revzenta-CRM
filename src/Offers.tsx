@@ -64,10 +64,13 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
   }, []);
 
   const togglePropertyExpanded = (key: string) => {
-    setExpandedProperties((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setExpandedProperties((prev) => {
+      const current = prev[key] !== false;
+      return {
+        ...prev,
+        [key]: !current,
+      };
+    });
   };
 
   // Update offer status
@@ -138,11 +141,17 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
       // Search
       if (search.trim()) {
         const q = search.toLowerCase();
-        const matchesAddress = o.propertyAddress?.toLowerCase().includes(q);
+        const cleanQ = q.replace(/\s+/g, "");
+        const matchesAddress = o.propertyAddress?.toLowerCase().includes(q) ||
+          (cleanQ.length > 2 && o.propertyAddress?.toLowerCase().replace(/\s+/g, "").includes(cleanQ));
+        const matchesClient = o.client?.companyName?.toLowerCase().includes(q) ||
+          (cleanQ.length > 2 && o.client?.companyName?.toLowerCase().replace(/\s+/g, "").includes(cleanQ)) ||
+          o.client?.address?.toLowerCase().includes(q) ||
+          (cleanQ.length > 2 && o.client?.address?.toLowerCase().replace(/\s+/g, "").includes(cleanQ));
         const matchesSeller = o.sellerName?.toLowerCase().includes(q);
         const matchesEmail = o.sellerEmail?.toLowerCase().includes(q);
         const matchesRef = o.pdfId?.toLowerCase().includes(q);
-        if (!matchesAddress && !matchesSeller && !matchesEmail && !matchesRef) return false;
+        if (!matchesAddress && !matchesClient && !matchesSeller && !matchesEmail && !matchesRef) return false;
       }
 
       // Status Filter
@@ -574,7 +583,11 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
               <span style={{ color: "var(--muted-2)" }}>·</span>
               <button
                 type="button"
-                onClick={() => setExpandedProperties({})}
+                onClick={() => {
+                  const allClosed: Record<string, boolean> = {};
+                  for (const g of propertyGroups) allClosed[g.key] = false;
+                  setExpandedProperties(allClosed);
+                }}
                 style={{
                   background: "none",
                   border: "none",
@@ -590,7 +603,7 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
             </div>
           )}
           {propertyGroups.map((group) => {
-            const isExpanded = Boolean(expandedProperties[group.key]);
+            const isExpanded = expandedProperties[group.key] !== false;
             return (
               <div
                 key={group.key}
@@ -968,32 +981,62 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
         </div>
       ) : (
         /* ========================================================================= */
-        /* FLAT LIST VIEW (Alternative view mode)                                    */
+        /* FLAT LIST TABLE VIEW - COMPLETE DATA & STRUCTURES                          */
         /* ========================================================================= */
         <div
           style={{
             backgroundColor: "var(--card-bg, var(--panel))",
             border: "1px solid var(--border)",
             borderRadius: "10px",
-            overflow: "hidden",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
           }}
         >
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          {/* Table Header Bar */}
+          <div
+            style={{
+              padding: "10px 16px",
+              backgroundColor: "var(--panel, var(--bg-soft))",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "8px",
+              fontSize: "12px",
+              color: "var(--muted)",
+            }}
+          >
+            <div>
+              Displaying <strong style={{ color: "var(--ink)" }}>{filteredOffers.length}</strong> offer records across all structures
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--muted-2)" }}>
+              <span>↔ Scroll horizontally to view all terms & actions</span>
+            </div>
+          </div>
+
+          <table style={{ width: "100%", minWidth: "1280px", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
-              <tr style={{ backgroundColor: "var(--panel, var(--bg-soft))", borderBottom: "1px solid var(--border)", color: "var(--muted)", textAlign: "center" }}>
-                <th style={{ padding: "12px 16px", textAlign: "center" }}>Property Address</th>
-                <th style={{ padding: "12px 16px", textAlign: "center" }}>Seller</th>
-                <th style={{ padding: "12px 16px", textAlign: "center" }}>Date Sent</th>
-                <th style={{ padding: "12px 16px", textAlign: "center" }}>Buyer Entity</th>
-                <th style={{ padding: "12px 16px", textAlign: "center" }}>Highest Term</th>
-                <th style={{ padding: "12px 16px", textAlign: "center" }}>Status</th>
-                <th style={{ padding: "12px 16px", textAlign: "center" }}>Actions</th>
+              <tr style={{ backgroundColor: "var(--panel-2, var(--bg-soft))", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>
+                <th style={{ padding: "12px 16px", textAlign: "left", width: "140px" }}>Ref & Date</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", minWidth: "220px" }}>Property Address</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", minWidth: "180px" }}>Seller & Contact</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", minWidth: "290px" }}>Offer Structures & Terms</th>
+                <th style={{ padding: "12px 16px", textAlign: "right", width: "130px" }}>Top Offer</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", width: "170px" }}>Buyer Entity</th>
+                <th style={{ padding: "12px 16px", textAlign: "center", width: "130px" }}>Status</th>
+                <th style={{ padding: "12px 16px", textAlign: "center", width: "230px" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredOffers.map((offer) => {
                 const maxAmt = Math.max(offer.cashOfferAmount || 0, offer.subtoPurchasePrice || 0, offer.creativePurchasePrice || 0);
                 const badge = getStatusBadgeStyle(offer.status);
+                const isSelectedCash = offer.selectedOffers?.includes("cash") || offer.offerType === "cash" || (offer.cashOfferAmount || 0) > 0;
+                const isSelectedSubto = offer.selectedOffers?.includes("subto") || offer.offerType === "subto" || (offer.subtoPurchasePrice || 0) > 0 || (offer.subtoDebt || 0) > 0;
+                const isSelectedCreative = offer.selectedOffers?.includes("creative") || offer.offerType === "creative" || (offer.creativePurchasePrice || 0) > 0;
+
                 return (
                   <tr
                     key={offer.id}
@@ -1002,30 +1045,203 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                       color: "var(--ink)",
                     }}
                   >
-                    <td style={{ padding: "12px 16px", fontWeight: 700, textAlign: "center" }}>
-                      <div style={{ color: "var(--ink)" }}>{offer.propertyAddress}</div>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>Ref: {offer.pdfId?.slice(0, 8)}</div>
+                    {/* 1. Ref & Date */}
+                    <td style={{ padding: "12px 16px", verticalAlign: "top" }}>
+                      <div style={{ fontFamily: "monospace", color: "#38bdf8", fontWeight: 700, fontSize: "11.5px" }}>
+                        {offer.pdfId ? `LOI-${offer.pdfId.slice(0, 8)}` : `OFFER #${offer.id}`}
+                      </div>
+                      <div style={{ color: "var(--ink)", fontWeight: 600, fontSize: "12px", marginTop: "2px" }}>
+                        {new Date(offer.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </div>
+                      <div style={{ color: "var(--muted)", fontSize: "11px" }}>
+                        {new Date(offer.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                      </div>
+                      {offer.closingDays ? (
+                        <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "4px", backgroundColor: "var(--line)", color: "var(--ink-dim)", display: "inline-block", marginTop: "4px" }}>
+                          {offer.closingDays}-Day Close
+                        </span>
+                      ) : null}
                     </td>
-                    <td style={{ padding: "12px 16px", color: "var(--ink-dim)", textAlign: "center" }}>
-                      <div>{offer.sellerName || "—"}</div>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{offer.sellerEmail}</div>
+
+                    {/* 2. Property Address */}
+                    <td style={{ padding: "12px 16px", verticalAlign: "top" }}>
+                      <div style={{ fontWeight: 700, color: "var(--ink)", fontSize: "13.5px", lineHeight: "1.4" }}>
+                        {offer.propertyAddress}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            fontSize: "10.5px",
+                            padding: "2px 7px",
+                            borderRadius: "10px",
+                            backgroundColor: "var(--panel-2)",
+                            color: "var(--muted-2)",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          Stage: {offer.client?.stage || "Contacted"}
+                        </span>
+                        {offer.earnestMoneyDeposit ? (
+                          <span style={{ fontSize: "10.5px", color: "var(--muted)" }}>
+                            EMD: ${offer.earnestMoneyDeposit.toLocaleString()}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
-                    <td style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>
-                      {new Date(offer.createdAt).toLocaleDateString()}
+
+                    {/* 3. Seller & Contact */}
+                    <td style={{ padding: "12px 16px", verticalAlign: "top" }}>
+                      <div style={{ fontWeight: 600, color: "var(--ink)" }}>{offer.sellerName || "—"}</div>
+                      {offer.sellerEmail && (
+                        <div style={{ fontSize: "11.5px", color: "var(--muted)", marginTop: "2px", wordBreak: "break-all" }}>
+                          ✉️ {offer.sellerEmail}
+                        </div>
+                      )}
+                      {offer.sellerPhone && (
+                        <div style={{ fontSize: "11.5px", color: "var(--muted)", marginTop: "1px" }}>
+                          📞 {offer.sellerPhone}
+                        </div>
+                      )}
+                      {offer.agentName && (
+                        <div style={{ fontSize: "11px", color: "#38bdf8", marginTop: "3px" }}>
+                          Agent: {offer.agentName} {offer.agentPhone ? `· ${offer.agentPhone}` : ""}
+                        </div>
+                      )}
                     </td>
-                    <td style={{ padding: "12px 16px", color: "#38bdf8", fontWeight: 600, textAlign: "center" }}>
-                      {offer.businessName || "Revzenta Capital"} and/or assigns
+
+                    {/* 4. Complete Offer Structures & Terms Breakdown */}
+                    <td style={{ padding: "12px 16px", verticalAlign: "top" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        {/* Cash Option */}
+                        {isSelectedCash && (
+                          <div
+                            style={{
+                              fontSize: "11.5px",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              backgroundColor: "rgba(34, 197, 94, 0.08)",
+                              border: "1px solid rgba(34, 197, 94, 0.25)",
+                              color: "var(--ink)",
+                            }}
+                          >
+                            <span style={{ color: "#4ade80", fontWeight: 700 }}>💵 Cash MAO:</span>{" "}
+                            <strong>${(offer.cashOfferAmount || 0).toLocaleString()}</strong>
+                            <span style={{ color: "var(--muted)", marginLeft: "4px" }}>
+                              ({offer.closingDays || 14}-Day Close · 100% As-Is)
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Subject-To Option */}
+                        {isSelectedSubto && (
+                          <div
+                            style={{
+                              fontSize: "11.5px",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              backgroundColor: "rgba(56, 189, 248, 0.08)",
+                              border: "1px solid rgba(56, 189, 248, 0.25)",
+                              color: "var(--ink)",
+                            }}
+                          >
+                            <span style={{ color: "#38bdf8", fontWeight: 700 }}>🔄 SubTo Relief:</span>{" "}
+                            Take over <strong>${(offer.subtoDebt || 0).toLocaleString()}</strong> Debt
+                            {(offer.subtoCashToSeller || 0) > 0 && (
+                              <span style={{ color: "var(--muted)", marginLeft: "4px" }}>
+                                +${offer.subtoCashToSeller.toLocaleString()} Cash
+                              </span>
+                            )}
+                            {(offer.subtoMonthlyPayment || 0) > 0 && (
+                              <span style={{ color: "var(--muted)", marginLeft: "4px" }}>
+                                · ${offer.subtoMonthlyPayment.toLocaleString()}/mo
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Seller Financing Option */}
+                        {isSelectedCreative && (
+                          <div
+                            style={{
+                              fontSize: "11.5px",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              backgroundColor: "rgba(168, 85, 247, 0.08)",
+                              border: "1px solid rgba(168, 85, 247, 0.25)",
+                              color: "var(--ink)",
+                            }}
+                          >
+                            <span style={{ color: "#c084fc", fontWeight: 700 }}>🔥 Seller Financing:</span>{" "}
+                            <strong>${(offer.creativePurchasePrice || 0).toLocaleString()}</strong> Price
+                            {(offer.creativeDownPayment || 0) > 0 && (
+                              <span style={{ color: "var(--muted)", marginLeft: "4px" }}>
+                                (${offer.creativeDownPayment.toLocaleString()} Down)
+                              </span>
+                            )}
+                            {(offer.creativeMonthlyPayment || 0) > 0 && (
+                              <span style={{ color: "var(--muted)", marginLeft: "4px" }}>
+                                · ${offer.creativeMonthlyPayment.toLocaleString()}/mo
+                              </span>
+                            )}
+                            {offer.creativeBalloonYears ? (
+                              <span style={{ color: "var(--muted)", marginLeft: "4px" }}>
+                                ({offer.creativeBalloonYears}-Yr Balloon)
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+
+                        {!isSelectedCash && !isSelectedSubto && !isSelectedCreative && (
+                          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                            Terms: ${maxAmt.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td style={{ padding: "12px 16px", fontWeight: 800, color: "#34d399", textAlign: "center" }}>
-                      ${maxAmt.toLocaleString()}
+
+                    {/* 5. Highest Term Amount */}
+                    <td style={{ padding: "12px 16px", textAlign: "right", verticalAlign: "top" }}>
+                      <div style={{ fontWeight: 800, color: "#34d399", fontSize: "16px" }}>
+                        ${maxAmt.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>
+                        Top Structure
+                      </div>
                     </td>
-                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                      <span style={{ padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, ...badge }}>
-                        {offer.status || "Sent"}
-                      </span>
+
+                    {/* 6. Buyer Entity */}
+                    <td style={{ padding: "12px 16px", verticalAlign: "top" }}>
+                      <div style={{ color: "#38bdf8", fontWeight: 600, fontSize: "12px" }}>
+                        {offer.businessName || "Revzenta Capital"} and/or assigns
+                      </div>
                     </td>
-                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                      <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+
+                    {/* 7. Status Selector */}
+                    <td style={{ padding: "12px 16px", textAlign: "center", verticalAlign: "top" }}>
+                      <select
+                        value={offer.status || "Sent"}
+                        onChange={(e) => handleUpdateStatus(offer.id, e.target.value)}
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          fontSize: "11.5px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          ...badge,
+                        }}
+                      >
+                        <option value="Sent">Sent</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="Accepted">Accepted</option>
+                        <option value="Countered">Countered</option>
+                        <option value="Declined">Declined</option>
+                      </select>
+                    </td>
+
+                    {/* 8. Action Buttons */}
+                    <td style={{ padding: "12px 16px", textAlign: "center", verticalAlign: "top" }}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "center", flexWrap: "wrap" }}>
+                        {/* View PDF LOI */}
                         <a
                           href={offer.pdfUrl}
                           target="_blank"
@@ -1038,10 +1254,15 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                             fontSize: "11px",
                             fontWeight: 700,
                             textDecoration: "none",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3px",
                           }}
                         >
                           📄 PDF
                         </a>
+
+                        {/* Preview Offer */}
                         <button
                           type="button"
                           onClick={() => handleOpenPreviewOffer(offer)}
@@ -1059,9 +1280,10 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                             gap: "3px",
                           }}
                         >
-                          👁️ Preview Offer
+                          👁️ Preview
                         </button>
 
+                        {/* Send Offer */}
                         <button
                           type="button"
                           onClick={() => handleManualSendOffer(offer)}
@@ -1081,7 +1303,25 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                             opacity: sendingOfferId === offer.id ? 0.7 : 1,
                           }}
                         >
-                          📤 {sendingOfferId === offer.id ? "Sending..." : "Send Offer"}
+                          📤 {sendingOfferId === offer.id ? "Sending..." : "Send"}
+                        </button>
+
+                        {/* Delete Offer */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOffer(offer.id)}
+                          style={{
+                            background: "none",
+                            border: "1px solid var(--border)",
+                            color: "#f87171",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            cursor: "pointer",
+                          }}
+                          title="Delete Offer Record"
+                        >
+                          🗑️
                         </button>
                       </div>
                     </td>

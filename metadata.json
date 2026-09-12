@@ -1,0 +1,6 @@
+{
+  "name": "Revzenta — CRM",
+  "description": "Revzenta CRM — universal client pipeline management app.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

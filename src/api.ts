@@ -1,4 +1,5 @@
 import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem } from "./types";
+import type { UnifiedPropertyFinancialProfile } from "./underwritingEngine";
 
 
 export class ApiError extends Error {
@@ -11,11 +12,39 @@ export class ApiError extends Error {
   }
 }
 
+export const TOKEN_STORAGE_KEY = "elevate_session_token";
+
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredToken(token: string | null | undefined): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    /* ignore storage errors (e.g. private browsing) */
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((init.headers as Record<string, string>) ?? {}),
+  };
   const res = await fetch(path, {
     credentials: "include",
     ...init,
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+    headers,
   });
   let body: { error?: string; message?: string } | null = null;
   try {
@@ -24,6 +53,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     /* no body */
   }
   if (res.status === 401) {
+    setStoredToken(null);
     // A live session expired or was rejected — the app shell signs back out.
     window.dispatchEvent(new Event("crm:unauthorized"));
     throw new ApiError(401, body?.error ?? "Not signed in.", body);
@@ -43,41 +73,67 @@ export type TaskInput = Omit<Task, "id" | "clientName" | "createdAt" | "updatedA
 export type InvoiceInput = Omit<Invoice, "id" | "clientName" | "createdAt" | "updatedAt">;
 
 export const api = {
-  me: () => request<MeResponse>("/api/auth/me"),
-  login: (email: string, password: string) =>
-    request<MeResponse>("/api/auth/login", {
+  me: async () => {
+    const res = await request<MeResponse>("/api/auth/me");
+    if (res.token) setStoredToken(res.token);
+    return res;
+  },
+  login: async (email: string, password: string) => {
+    const res = await request<MeResponse>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
-    }),
-  signup: (data: {
+    });
+    if (res.token) setStoredToken(res.token);
+    return res;
+  },
+  signup: async (data: {
     workspaceName: string;
     email: string;
     password: string;
     tier?: string;
+    billing?: "monthly" | "annual";
     skipStripe?: boolean;
-  }) =>
-    request<{
+  }) => {
+    const res = await request<{
       ok: boolean;
       checkoutUrl?: string | null;
       stripeSessionId?: string;
       provisioned?: boolean;
       user?: User | null;
+      token?: string;
       tier?: string;
       message?: string;
     }>("/api/auth/signup", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
+    });
+    if (res.token) setStoredToken(res.token);
+    return res;
+  },
   stripeConfig: () =>
     request<{ stripeConfigured: boolean; publishableKey: string }>("/api/auth/stripe-config"),
-  signupComplete: (data: { sessionId?: string; email?: string }) =>
-    request<{ ok: boolean; user?: User }>("/api/auth/signup-complete", {
+  signupComplete: async (data: { sessionId?: string; email?: string }) => {
+    const res = await request<{ ok: boolean; user?: User; token?: string }>("/api/auth/signup-complete", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
-  logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
+    });
+    if (res.token) setStoredToken(res.token);
+    return res;
+  },
+  logout: async () => {
+    try {
+      return await request<{ ok: true }>("/api/auth/logout", { method: "POST" });
+    } finally {
+      setStoredToken(null);
+    }
+  },
 
   dashboard: () => request<DashboardData>("/api/dashboard"),
+  cotalityUnderwriting: (address: string | { street?: string; city?: string; state?: string; zip?: string }) =>
+    request<{ profile: UnifiedPropertyFinancialProfile }>("/api/underwriting/cotality", {
+      method: "POST",
+      body: JSON.stringify({ address }),
+    }),
   clients: (includeArchived = false) =>
     request<{ clients: Client[] }>(`/api/clients${includeArchived ? "?archived=1" : ""}`),
   createClient: (data: ClientInput) =>
@@ -406,13 +462,19 @@ export const api = {
   /* Phase 3d — owner impersonation: swap the owner's session into a tenant
      workspace (response is that tenant's user + impersonating: true), and
      swap back to the owner's own session. */
-  adminImpersonate: (orgId: number) =>
-    request<MeResponse>("/api/admin/impersonate", {
+  adminImpersonate: async (orgId: number) => {
+    const res = await request<MeResponse>("/api/admin/impersonate", {
       method: "POST",
       body: JSON.stringify({ orgId }),
-    }),
-  impersonateReturn: () =>
-    request<MeResponse>("/api/auth/impersonate-return", { method: "POST" }),
+    });
+    if (res.token) setStoredToken(res.token);
+    return res;
+  },
+  impersonateReturn: async () => {
+    const res = await request<MeResponse>("/api/auth/impersonate-return", { method: "POST" });
+    if (res.token) setStoredToken(res.token);
+    return res;
+  },
 
   /* 3k — password reset: forgot-password (public, mints + emails a token),
      token redemption (public), and change-password from Settings

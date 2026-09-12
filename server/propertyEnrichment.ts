@@ -9,7 +9,7 @@
  * - Intelligent heuristic fallback when API key is unconfigured
  */
 
-import { db, getRentcastUsage, logRentcastCall } from "./db.ts";
+import { db, getRentcastUsage, logRentcastCall } from "./db";
 
 export interface PropertyEnrichmentResult {
   formattedAddress: string;

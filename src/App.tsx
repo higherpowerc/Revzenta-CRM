@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "r
 import Login from "./Login";
 import ResetPassword from "./ResetPassword";
 import Signup from "./Signup";
+import SignupSuccess from "./SignupSuccess";
 import Dashboard from "./Dashboard";
 import Clients, { type Filter } from "./Clients";
 import ClientsDirectory from "./ClientsDirectory";
@@ -17,13 +18,15 @@ import Settings from "./Settings";
 import Offers from "./Offers";
 import BuyBoxMatcher from "./BuyBoxMatcher";
 import TransactionHub from "./TransactionHub";
+import SoldHub from "./SoldHub";
 import Connections from "./Connections";
 import Compliance from "./Compliance";
+import Opportunities from "./Opportunities";
 import Website from "./Website";
 import UpgradeGate from "./UpgradeGate";
 import PropertySearch from "./PropertySearch";
 import { api } from "./api";
-import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
+import { DEFAULT_STAGES, TENANT_TABS, type Client, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
 import { initials } from "./bits";
 import { PiiContext, PII_HIDDEN_KEY, blurPii, PiiEyeIcon, PiiEyeOffIcon } from "./pii";
@@ -43,7 +46,7 @@ import ThemeToggle from "./ThemeToggle";
  * (prospects), Onboarding = the MIDDLE stages (intake leads), Clients = the
  * terminal stage (sold). Client accounts (role=member) are unchanged: their
  * Leads tab keeps showing every stage except their terminal one. */
-type View = "dashboard" | "leads" | "properties" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections" | "compliance";
+type View = "dashboard" | "opportunities" | "properties" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "contracts" | "tickets" | "settings" | "buyers" | "connections" | "compliance" | "sold";
 
 
 /** 3k — the emailed reset link is `<appUrl>/#/reset?token=...`; pull the
@@ -61,6 +64,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [booted, setBooted] = useState(false);
   const [view, setView] = useState<View>("dashboard");
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Client | null>(null);
   /** Owner request 2026-08-14 — deep-linked stage filter for the Leads view.
    *  The Dashboard's stage-card "View →" stores the stage name here and
    *  switches to the leads view; the nav "Leads" tab clears it so a normal
@@ -84,10 +88,12 @@ export default function App() {
     const l = h.toLowerCase();
     return l.startsWith("#/website") || l.includes("privacy") || l.includes("terms") || l.includes("security") || l.includes("agreement");
   };
-  const isSignupHash = (h: string) => h.startsWith("#/signup");
+  const isSignupHash = (h: string) => h.startsWith("#/signup") && !h.startsWith("#/signup-success");
+  const isSignupSuccessHash = (h: string) => h.startsWith("#/signup-success");
 
   const [viewingWebsite, setViewingWebsite] = useState<boolean>(() => isWebsiteOrLegalHash(window.location.hash));
   const [viewingSignup, setViewingSignup] = useState<boolean>(() => isSignupHash(window.location.hash));
+  const [viewingSignupSuccess, setViewingSignupSuccess] = useState<boolean>(() => isSignupSuccessHash(window.location.hash));
   const [signupTier, setSignupTier] = useState<string>(() => {
     const h = window.location.hash;
     const q = h.includes("?") ? h.slice(h.indexOf("?") + 1) : "";
@@ -96,24 +102,33 @@ export default function App() {
 
   useEffect(() => {
     const onHash = () => {
-      if (isSignupHash(window.location.hash)) {
+      if (isSignupSuccessHash(window.location.hash)) {
+        setViewingSignupSuccess(true);
+        setViewingSignup(false);
+        setShowLogin(false);
+        setViewingWebsite(false);
+      } else if (isSignupHash(window.location.hash)) {
         const q = window.location.hash.includes("?") ? window.location.hash.slice(window.location.hash.indexOf("?") + 1) : "";
         const t = new URLSearchParams(q).get("tier") || "pro";
         setSignupTier(t);
         setViewingSignup(true);
+        setViewingSignupSuccess(false);
         setShowLogin(false);
         setViewingWebsite(false);
       } else if (window.location.hash.startsWith("#/login")) {
         setShowLogin(true);
         setViewingSignup(false);
+        setViewingSignupSuccess(false);
         setViewingWebsite(false);
       } else if (isWebsiteOrLegalHash(window.location.hash)) {
         setShowLogin(false);
         setViewingSignup(false);
+        setViewingSignupSuccess(false);
         setViewingWebsite(true);
       } else {
         setViewingWebsite(false);
         setViewingSignup(false);
+        if (!window.location.hash.startsWith("#/signup-success")) setViewingSignupSuccess(false);
       }
     };
     window.addEventListener("hashchange", onHash);
@@ -217,7 +232,6 @@ export default function App() {
   /** Business Type Preview mode (owner only) — allows the owner to view and explore
    *  each business type CRM (B2B, B2C, Wholesale Real Estate) directly from the side menu. */
   const [previewVertical, setPreviewVertical] = useState<string | null>(null);
-  const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   /** Whether the owner is in their cockpit vs previewing a business type CRM */
@@ -243,7 +257,7 @@ export default function App() {
   /** Package tier preview toggle (allows owner to test Starter / Pro / Scale behavior) */
   const [previewTier, setPreviewTier] = useState<PackageTier | null>(null);
 
-  /** Package tier outfitting: starter ($79/mo), pro ($199/mo), scale ($399/mo).
+  /** Package tier outfitting: starter ($24.99/mo), pro ($59.99/mo), scale ($79/mo).
    *  Owner cockpit has unconstrained superadmin access (scale).
    *  Subscribers read their org's package tier from user.tier. */
   const effectiveTier: PackageTier =
@@ -303,6 +317,8 @@ export default function App() {
         return true;
       case "leads":
         return canSeeTab("clients");
+      case "opportunities":
+        return isWholesale && canSeeTab("clients");
       case "offers":
         return canSeeTab("offers");
       case "buybox":
@@ -328,6 +344,10 @@ export default function App() {
         return isOwnerCockpit;
       case "documents":
         return isOwnerCockpit || canSeeTab("documents");
+      case "contracts":
+        return isWholesale ? canSeeTab("documents") : isOwnerCockpit;
+      case "sold":
+        return isWholesale ? (canSeeTab("documents") || canSeeTab("clients")) : isOwnerCockpit;
       case "buyers":
         return isWholesale && (canSeeTab("investors") || canSeeTab("tasks"));
       case "connections":
@@ -342,7 +362,7 @@ export default function App() {
      wholesale-only view is somehow active), fall back to the Dashboard. */
   const viewWholesaleAllowed = (v: View): boolean => {
     if (!isWholesale) {
-      return v !== "buyers" && (isOwnerCockpit ? true : v !== "documents") && v !== "offers" && v !== "buybox" && v !== "connections";
+      return v !== "buyers" && (isOwnerCockpit ? true : v !== "documents") && v !== "offers" && v !== "buybox" && v !== "connections" && v !== "sold" && v !== "contracts";
     }
     return !(v === "appointments" || v === "finance");
   };
@@ -361,6 +381,7 @@ export default function App() {
         case "tasks": return "Tasks";
         case "tickets": return "Support Tickets";
         case "documents": return "Signed Agreements";
+        case "sold": return "Sold Hub";
         case "admin": return "Template & Admin";
         case "compliance": return "Compliance & DNC";
         case "settings": return "Settings";
@@ -370,10 +391,13 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard";
+        case "opportunities": return "Opportunities";
         case "properties": return "Property Search";
         case "leads": return "Creative Hub";
-        case "documents": return "Transaction Hub";
         case "offers": return "Offers Repository";
+        case "documents": return "Title Hub";
+        case "contracts": return "Deals & Contracts";
+        case "sold": return "Sold Hub";
         case "buybox": return "Buy Box";
         case "clients": return "Investors";
         case "connections": return "Connections";
@@ -412,6 +436,7 @@ export default function App() {
         case "tasks": return "📋";
         case "tickets": return "🎫";
         case "documents": return "📑";
+        case "sold": return "🏆";
         case "admin": return "📝";
         case "compliance": return "🛡️";
         case "settings": return "⚙️";
@@ -421,10 +446,13 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "📊";
+        case "opportunities": return "🎯";
         case "properties": return "🌐";
         case "leads": return "🏘️";
         case "offers": return "📑";
         case "documents": return "🤝";
+        case "contracts": return "📄";
+        case "sold": return "🏆";
         case "buybox": return "🎯";
         case "clients": return "💼";
         case "connections": return "🔌";
@@ -575,6 +603,22 @@ export default function App() {
   }
 
   if (!user) {
+    if (viewingSignupSuccess) {
+      return (
+        <SignupSuccess
+          onDone={(u) => {
+            setUser(u);
+            setViewingSignupSuccess(false);
+            window.location.hash = "";
+          }}
+          onSignIn={() => {
+            setViewingSignupSuccess(false);
+            setShowLogin(true);
+            window.location.hash = "#/login";
+          }}
+        />
+      );
+    }
     if (viewingSignup) {
       return (
         <Signup
@@ -586,6 +630,7 @@ export default function App() {
           }}
           onSignIn={() => {
             setViewingSignup(false);
+            setViewingSignupSuccess(false);
             setShowLogin(true);
             window.location.hash = "#/login";
           }}
@@ -597,6 +642,8 @@ export default function App() {
         <Login
           onLogin={(u) => {
             setUser(u);
+            setShowLogin(false);
+            setViewingWebsite(false);
             setResetToken(null);
             if (window.location.hash.startsWith("#/reset") || window.location.hash.startsWith("#/login")) {
               window.location.hash = "";
@@ -659,7 +706,7 @@ export default function App() {
         <div className="nav-inner">
           <div className="nav-header-row">
             <button
-              className="brand"
+              className="brand brand-vertical"
               onClick={() => {
                 setView("dashboard");
                 setMobileMenuOpen(false);
@@ -667,11 +714,14 @@ export default function App() {
               aria-label="Go to dashboard"
               style={{
                 display: "inline-flex",
-                alignItems: "center",
+                flexDirection: "column",
+                alignItems: "flex-start",
                 background: "none",
                 border: "none",
                 padding: "2px 6px",
                 cursor: "pointer",
+                textAlign: "left",
+                gap: "3px",
               }}
             >
               <img
@@ -679,17 +729,47 @@ export default function App() {
                 alt="Revzenta"
                 className="brand-logo-img"
                 style={{
-                  height: "40px",
+                  height: "36px",
                   width: "auto",
                   objectFit: "contain",
                   display: "block",
                 }}
               />
-              {!isOwner && orgName && orgName.toLowerCase() !== "revzenta" && (
-                <span className="brand-text">
-                  {orgName}
-                  <span className="brand-sub">CRM</span>
-                </span>
+              {(orgName || isOwner) && (
+                <div
+                  className="brand-workspace-block"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    marginTop: "2px",
+                  }}
+                >
+                  <span
+                    className="brand-workspace-name"
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--fg, var(--ink))",
+                      letterSpacing: "-0.01em",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {orgName || (isOwner ? "Revzenta HQ" : "Workspace")}
+                  </span>
+                  <span
+                    className="brand-sub"
+                    style={{
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      padding: "1px 6px",
+                      borderRadius: "999px",
+                    }}
+                  >
+                    CRM
+                  </span>
+                </div>
               )}
             </button>
 
@@ -754,32 +834,17 @@ export default function App() {
                 <div className="nav-section-title">
                   <span>Subscribers &amp; Workspaces</span>
                 </div>
-                <div className="nav-accounts-row">
-                  <button
-                    className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setCreateAccountOpen(false);
-                      setView("clients");
-                      setMobileMenuOpen(false);
-                    }}
-                    title="Website subscribers, tenant workspaces, and 1-click CRM launch"
-                  >
-                    <span className="tab-icon">👥</span>
-                    <span>Subscribers</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm nav-build-btn"
-                    title="Provision a new subscriber workspace"
-                    onClick={() => {
-                      setCreateAccountOpen(true);
-                      setView("clients");
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    + Build
-                  </button>
-                </div>
+                <button
+                  className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("clients");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Website subscribers, tenant workspaces, and 1-click CRM launch"
+                >
+                  <span className="tab-icon">👥</span>
+                  <span>Subscribers</span>
+                </button>
 
                 {/* 3. Sales & Growth Pipeline */}
                 <div className="nav-section-title">
@@ -794,7 +859,7 @@ export default function App() {
                     setView("leads");
                     setMobileMenuOpen(false);
                   }}
-                  title="Website inquiries, trial signups, and prospective subscriber leads"
+                  title="Website inquiries, new signups, and prospective subscriber leads"
                 >
                   <span className="tab-icon">🎯</span>
                   <span>Sales Leads</span>
@@ -908,7 +973,25 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 2. Creative Hub */}
+                {/* 2. Opportunities */}
+                {canSeeTab("clients") && (
+                  <button
+                    className={effectiveViewFinal === "opportunities" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setLeadsStage(null);
+                      setOnboardingStage(null);
+                      setLeadsFilter("active");
+                      setView("opportunities");
+                      setMobileMenuOpen(false);
+                    }}
+                    title="View active wholesale opportunities"
+                  >
+                    <span className="tab-icon">🎯</span>
+                    <span>Opportunities</span>
+                  </button>
+                )}
+
+                {/* 3. Creative Hub */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
@@ -939,27 +1022,7 @@ export default function App() {
                   <span>Property Search</span>
                 </button>
 
-                {/* 3. Transaction Hub */}
-                {canSeeTab("documents") && (
-                  <button
-                    className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setView("documents");
-                      setMobileMenuOpen(false);
-                    }}
-                    title={hasTierAccess(effectiveTier, "documents") ? "Title, escrow, and contract transaction hub" : "Transaction Hub (Pro & Scale feature)"}
-                  >
-                    <span className="tab-icon">🤝</span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
-                      <span>Transaction Hub</span>
-                      {!hasTierAccess(effectiveTier, "documents") && (
-                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
-                      )}
-                    </span>
-                  </button>
-                )}
-
-                {/* 4. Offers Repository */}
+                {/* 4. Offers Repository (Moved above Title Hub) */}
                 {canSeeTab("offers") && (
                   <button
                     className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
@@ -973,6 +1036,71 @@ export default function App() {
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
                       <span>Offers Repository</span>
                       {!hasTierAccess(effectiveTier, "offers") && (
+                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
+                      )}
+                    </span>
+                  </button>
+                )}
+
+                {/* 5. Title Hub */}
+                {canSeeTab("documents") && (
+                  <button
+                    className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setView("documents");
+                      setMobileMenuOpen(false);
+                    }}
+                    title={hasTierAccess(effectiveTier, "documents") ? "Title, escrow, and contract transaction hub" : "Title Hub (Pro & Scale feature)"}
+                  >
+                    <span className="tab-icon">🤝</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Title Hub</span>
+                      {!hasTierAccess(effectiveTier, "documents") && (
+                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
+                      )}
+                    </span>
+                  </button>
+                )}
+
+                {/* Sub-menu under Title Hub: Deals and Contracts */}
+                {canSeeTab("documents") && (
+                  <button
+                    className={effectiveViewFinal === "contracts" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setView("contracts");
+                      setMobileMenuOpen(false);
+                    }}
+                    title={hasTierAccess(effectiveTier, "documents") ? "State-compliant purchase & assignment contracts, e-signatures, and agreements table" : "Deals & Contracts (Pro & Scale feature)"}
+                    style={{
+                      paddingLeft: "26px",
+                      position: "relative",
+                    }}
+                  >
+                    <span style={{ position: "absolute", left: "12px", color: "var(--muted)", fontSize: "11px", opacity: 0.75 }}>↳</span>
+                    <span className="tab-icon" style={{ fontSize: "14px" }}>📄</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Deals and Contracts</span>
+                      {!hasTierAccess(effectiveTier, "documents") && (
+                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
+                      )}
+                    </span>
+                  </button>
+                )}
+
+                {/* 6. Sold Hub */}
+                {canSeeTab("documents") && (
+                  <button
+                    className={effectiveViewFinal === "sold" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setView("sold");
+                      setMobileMenuOpen(false);
+                    }}
+                    title={hasTierAccess(effectiveTier, "documents") ? "Closed, funded, and recorded wholesale deals and realized assignment fee revenue" : "Sold Hub (Pro & Scale feature)"}
+                  >
+                    <span className="tab-icon">🏆</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Sold Hub</span>
+                      {!hasTierAccess(effectiveTier, "documents") && (
                         <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
                       )}
                     </span>
@@ -1397,6 +1525,16 @@ export default function App() {
             ownerOrg={isOwnerCockpit}
             isWholesale={isWholesale}
           />
+        ) : effectiveViewFinal === "opportunities" ? (
+          <Opportunities
+            onOpenCreativeHub={(opportunity) => {
+              setSelectedOpportunity(opportunity ?? null);
+              setLeadsStage(null);
+              setOnboardingStage(null);
+              setLeadsFilter("active");
+              setView("leads");
+            }}
+          />
         ) : effectiveViewFinal === "leads" ? (
           /* Owner request 2026-08-15 — the owner's Leads tab scopes to the
              FIRST stage only; client accounts (role=member) keep the full
@@ -1412,6 +1550,8 @@ export default function App() {
             canEdit={canEditTab("clients")}
             isWholesale={isWholesale}
             crmBusinessName={orgName}
+            autoOpenDealCalculator={isWholesale}
+            initialDealProperty={selectedOpportunity}
             onGoToBuyBox={() => setView("buybox")}
             onGoToTransactions={() => setView("documents")}
             verticalKey={verticalKey}
@@ -1469,7 +1609,6 @@ export default function App() {
             ownerOrgId={isOwnerOrg ? user.orgId : undefined}
             onViewAccount={isOwnerOrg ? handleImpersonate : undefined}
             isWholesale={isWholesale}
-            initialCreateOpen={createAccountOpen}
           />
         ) : effectiveViewFinal === "calendar" ? (
           /* Owner 2026-08-20 sales rework — the owner's Calendar view of
@@ -1491,6 +1630,25 @@ export default function App() {
              2026-08-29 option b keeps the tenant export in tenant Settings).
              Client-account management moved to the Clients tab (2026-08-18). */
           <Admin />
+        ) : effectiveViewFinal === "contracts" ? (
+          !hasTierAccess(effectiveTier, "documents") ? (
+            <UpgradeGate
+              featureName="Deals & Contracts Hub"
+              featureDescription="Generate state-compliant Purchase & Sale and Assignment Contracts with auto-included wholesale clauses, send for e-signatures, and track executed agreements seamlessly on the Pro Dealmaker and Scale & Brokerage packages."
+              requiredTier="pro"
+              currentTier={effectiveTier}
+            />
+          ) : (
+            <TransactionHub
+              crmBusinessName={orgName}
+              initialTab="contracts"
+              onTabChange={(tab) => {
+                if (tab !== "contracts") {
+                  setView("documents");
+                }
+              }}
+            />
+          )
         ) : effectiveViewFinal === "documents" ? (
           !hasTierAccess(effectiveTier, "documents") ? (
             <UpgradeGate
@@ -1500,9 +1658,28 @@ export default function App() {
               currentTier={effectiveTier}
             />
           ) : isWholesale ? (
-            <TransactionHub crmBusinessName={orgName} />
+            <TransactionHub
+              crmBusinessName={orgName}
+              initialTab="process"
+              onTabChange={(tab) => {
+                if (tab === "contracts") {
+                  setView("contracts");
+                }
+              }}
+            />
           ) : (
             <Documents verticalLabel={undefined} />
+          )
+        ) : effectiveViewFinal === "sold" ? (
+          !hasTierAccess(effectiveTier, "documents") ? (
+            <UpgradeGate
+              featureName="Sold Hub & Disposition Ledger"
+              featureDescription="Track closed, funded, and recorded wholesale deals, realized assignment fees, and settlement statements seamlessly on the Pro Dealmaker and Scale & Brokerage packages."
+              requiredTier="pro"
+              currentTier={effectiveTier}
+            />
+          ) : (
+            <SoldHub crmBusinessName={orgName} />
           )
         ) : effectiveViewFinal === "connections" ? (
           <Connections canEdit={canEditTab("connections")} />

@@ -385,34 +385,31 @@ if (wantDemo) {
 }
 
 // Demo CLIENT ORG (Phase 2 — per-tenant login demo). A separate org with its
-// own member login, so the owner can immediately test the product's multi-
-// tenancy: log out → log in as acme@demo.example / AcmeDemo123! → see ONLY
-// Acme Landscaping's data (nothing from Revzenta's own org).
-// Phase 3a: the demo org also gets landscaping-appropriate pipeline stages so
-// the owner can see per-vertical stage names right away.
+// own member login, so the owner can immediately test multi-tenancy while
+// seeing the same Wholesale Real Estate layout as the primary workspace.
 // Idempotent: skipped if the org already exists.
 const DEMO_CLIENT_ORG = {
-  name: "Acme Landscaping",
+  name: "Acme Wholesale Demo",
   email: "acme@demo.example",
   password: "AcmeDemo123!",
-  stages: ["Lead", "Site Visit", "Estimate", "Contract", "Active", "Completed"],
-  // Phase 3b: the demo tenant's own custom fields — landscaping-specific.
+  stages: ["Lead Sources", "Property Under Contract", "Marketing to Buyers", "Buyer Under Contract", "Closing"],
+  // Keep the demo tenant's fields aligned with the Wholesale Real Estate layout.
   customFields: [
-    { name: "Crew size", type: "number" },
-    { name: "Contract", type: "text" },
-    { name: "License #", type: "text" },
-    { name: "Yearly contract", type: "checkbox" },
+    { name: "Property address", type: "text" },
+    { name: "ARV", type: "text" },
+    { name: "Repair estimate", type: "text" },
+    { name: "Purchase price", type: "text" },
+    { name: "Max allowable offer (MAO)", type: "text" },
+    { name: "Assignment fee", type: "text" },
+    { name: "End buyer", type: "text" },
+    { name: "Closing date", type: "text" },
+    { name: "Motivated seller", type: "checkbox" },
+    { name: "Clear title", type: "checkbox" },
   ],
-  // Adaptive intake Phase 1: the demo tenant demos the adaptive intake form
-  // as a home-services company that services both residential + commercial
-  // and goes to the client (the spec's "HVAC-style" example flow). Phase 3
-  // fix: this vertical config is part of the DEFAULT seed path (not only
-  // SEED_DEMO=1), so fresh databases get it automatically and re-seeding an
-  // existing database re-syncs it (idempotent — see ensureDemoClientOrg).
-  serviceModel: "both",
-  deliveryType: "we_go",
-  industry: "home_services",
-  intakeOpts: ["business_llc_tab"],
+  serviceModel: "commercial_only",
+  deliveryType: "both",
+  industry: "professional",
+  intakeOpts: [],
 };
 
 const DEMO_CLIENT_ORG_CLIENTS = [
@@ -483,30 +480,30 @@ const DEMO_CLIENT_ORG_CLIENTS = [
 ];
 
 /**
- * Demo client org ("Acme Landscaping", Phase 2) — a separate org with its own
- * member login, so the owner can immediately test the product's multi-tenancy.
- * Runs on the DEFAULT seed path (not only SEED_DEMO=1): idempotent — if the
- * org already exists its adaptive-intake vertical config is re-synced to the
- * intended home-services values (service model both / we go to client /
- * home_services / business_llc_tab enabled), and nothing else is touched;
+ * Demo client org ("Acme Wholesale Demo", Phase 2) — a separate org with its
+ * member login, so the owner can immediately test multi-tenancy. Runs on the
+ * DEFAULT seed path (not only SEED_DEMO=1): idempotent — if the org already
+ * exists its vertical config is re-synced to the Wholesale Real Estate values,
+ * and nothing else is touched;
  * if it doesn't exist yet (fresh database), it is created with the org, its
  * member login and its 3 demo clients.
  */
 async function ensureDemoClientOrg() {
-  const existing = db.query("SELECT id FROM orgs WHERE name = ?").get(DEMO_CLIENT_ORG.name) as
+  const existing = db.query("SELECT id, name FROM orgs WHERE name IN (?, ?)").get("Acme Wholesale Demo", "Acme Landscaping") as
     | { id: number }
     | null;
   if (existing) {
-    // Keep the demo tenant's vertical config in sync even on re-seeds against
-    // an older database (idempotent — never touches clients or settings the
-    // owner may have customized beyond the vertical config).
+    // Migrate the former landscaping demo name and keep its layout in sync.
     db.query(
-      "UPDATE orgs SET service_model = ?, delivery_type = ?, industry = ?, intake_opts = ? WHERE id = ?",
+      "UPDATE orgs SET name = ?, service_model = ?, delivery_type = ?, industry = ?, intake_opts = ?, stages = ?, custom_fields = ? WHERE id = ?",
     ).run(
+      DEMO_CLIENT_ORG.name,
       DEMO_CLIENT_ORG.serviceModel,
       DEMO_CLIENT_ORG.deliveryType,
       DEMO_CLIENT_ORG.industry,
       JSON.stringify(DEMO_CLIENT_ORG.intakeOpts),
+      JSON.stringify(DEMO_CLIENT_ORG.stages),
+      JSON.stringify(DEMO_CLIENT_ORG.customFields),
       existing.id,
     );
     console.log(`[seed] demo client org "${DEMO_CLIENT_ORG.name}" already exists — vertical config re-synced.`);

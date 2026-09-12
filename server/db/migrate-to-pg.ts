@@ -1,6 +1,7 @@
-import { Database } from "bun:sqlite";
+import { SqliteCompat } from "../db";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { getPgPool, initPostgresSchema, getDatabaseConfig } from "./connection";
 
 /**
@@ -17,7 +18,8 @@ export async function migrateSqliteToPostgres(): Promise<{
     throw new Error("Cannot run migration: DATABASE_URL is not configured.");
   }
 
-  const dataDir = process.env.DATA_DIR ?? join(import.meta.dir, "..", "..", "data");
+  const dir = fileURLToPath(new URL(".", import.meta.url));
+  const dataDir = process.env.DATA_DIR ?? join(dir, "..", "..", "data");
   const sqlitePath = join(dataDir, "crm.db");
 
   if (!existsSync(sqlitePath)) {
@@ -32,7 +34,7 @@ export async function migrateSqliteToPostgres(): Promise<{
   await initPostgresSchema();
 
   console.log(`[migrate] Opening source SQLite database from ${sqlitePath}...`);
-  const sqlite = new Database(sqlitePath);
+  const sqlite = new SqliteCompat(sqlitePath);
 
   const pool = getPgPool();
   const client = await pool.connect();

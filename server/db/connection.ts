@@ -1,6 +1,7 @@
-﻿import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { Pool, type PoolClient, type QueryResultRow } from "pg";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface DatabaseConfig {
   connectionString?: string;
@@ -100,7 +101,8 @@ export async function initPostgresSchema(): Promise<{ initialized: boolean; mess
     return { initialized: false, message: "Skipping PostgreSQL schema init: DATABASE_URL not set." };
   }
 
-  const schemaPath = join(import.meta.dir, "schema.sql");
+  const dir = fileURLToPath(new URL(".", import.meta.url));
+  const schemaPath = join(dir, "schema.sql");
   if (!existsSync(schemaPath)) {
     throw new Error(`Schema file not found at ${schemaPath}`);
   }

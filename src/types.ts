@@ -106,23 +106,23 @@ export const PACKAGE_TIERS: PackageTier[] = ["starter", "pro", "scale"];
 
 export const TIER_LABELS: Record<PackageTier, string> = {
   "": "— Default / Unset —",
-  starter: "Starter Wholesaler — $79/mo",
-  pro: "Pro Dealmaker — $199/mo (Most Popular)",
-  scale: "Scale & Brokerage — $399/mo",
-  tier1: "Starter Wholesaler — $79/mo",
-  tier2: "Pro Dealmaker — $199/mo",
-  tier3: "Scale & Brokerage — $399/mo",
+  starter: "Starter Wholesaler — $24.99/mo",
+  pro: "Pro Dealmaker — $59.99/mo (Most Popular)",
+  scale: "Scale & Brokerage — $79/mo",
+  tier1: "Starter Wholesaler — $24.99/mo",
+  tier2: "Pro Dealmaker — $59.99/mo",
+  tier3: "Scale & Brokerage — $79/mo",
   tier4: "Custom Enterprise Package",
 };
 
 export const TIER_SHORT_LABELS: Record<PackageTier, string> = {
   "": "Standard",
-  starter: "Starter · $79",
-  pro: "Pro · $199",
-  scale: "Scale · $399",
-  tier1: "Starter · $79",
-  tier2: "Pro · $199",
-  tier3: "Scale · $399",
+  starter: "Starter · $24.99",
+  pro: "Pro · $59.99",
+  scale: "Scale · $79",
+  tier1: "Starter · $24.99",
+  tier2: "Pro · $59.99",
+  tier3: "Scale · $79",
   tier4: "Custom",
 };
 
@@ -713,6 +713,7 @@ export interface ProvisionEvent {
  *  the current session is an owner impersonation. */
 export interface MeResponse {
   user: User;
+  token?: string;
   impersonating: boolean;
   impersonatedFrom?: number;
 }
@@ -920,6 +921,7 @@ export interface Transaction {
   signedAt: string | null;
   signerName: string;
   customTerms: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
   daysLeftInspection: number | null;

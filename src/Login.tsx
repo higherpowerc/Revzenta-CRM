@@ -23,6 +23,7 @@ export default function Login({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [setupMsg, setSetupMsg] = useState<string | null>(null);
+  const [canceledMsg, setCanceledMsg] = useState<string | null>(null);
   const [forgotMsg, setForgotMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -30,6 +31,7 @@ export default function Login({
     e.preventDefault();
     setError(null);
     setSetupMsg(null);
+    setCanceledMsg(null);
     if (!email.trim() || !password) {
       setError("Enter your email and password.");
       return;
@@ -43,6 +45,10 @@ export default function Login({
         setSetupMsg(
           err.body?.message ??
             "No admin account exists yet. Set ADMIN_EMAIL and ADMIN_PASSWORD in the environment, then run `bun run seed`.",
+        );
+      } else if (err instanceof ApiError && err.status === 403 && err.body?.error === "account_canceled") {
+        setCanceledMsg(
+          err.body?.message ?? "This account has been canceled. Contact support if this was a mistake.",
         );
       } else {
         setError(err instanceof Error ? err.message : "Sign-in failed.");
@@ -77,13 +83,13 @@ export default function Login({
         <button
           type="button"
           onClick={onBackToWebsite}
-          className="btn btn-ghost btn-sm"
-          style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10, display: "flex", alignItems: "center", gap: "6px" }}
+          className="btn btn-ghost btn-sm login-back-btn"
+          style={{ position: "absolute", top: "max(12px, env(safe-area-inset-top, 0px))", left: "12px", zIndex: 10, display: "flex", alignItems: "center", gap: "6px" }}
         >
           ← Back to Revzenta Website
         </button>
       )}
-      <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
+      <div style={{ position: "absolute", top: "max(12px, env(safe-area-inset-top, 0px))", right: "12px", zIndex: 10 }}>
         <ThemeToggle />
       </div>
       <div className="login-glow" aria-hidden="true" />
@@ -116,6 +122,12 @@ export default function Login({
           <div className="alert alert-setup" role="alert">
             <strong>Setup required</strong>
             <p>{setupMsg}</p>
+          </div>
+        )}
+        {canceledMsg && (
+          <div className="alert alert-setup" role="alert">
+            <strong>Account canceled</strong>
+            <p>{canceledMsg}</p>
           </div>
         )}
         {error && (
