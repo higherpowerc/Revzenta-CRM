@@ -4,6 +4,8 @@ import type { Transaction, Client, Buyer } from "./types";
 
 interface Props {
   crmBusinessName?: string;
+  initialTab?: "process" | "clocks" | "contracts" | "title";
+  onTabChange?: (tab: "process" | "clocks" | "contracts" | "title") => void;
 }
 
 const STATE_OPTIONS = [
@@ -264,7 +266,7 @@ export function WholesaleStageBadge({
   );
 }
 
-export default function TransactionHub({ crmBusinessName }: Props) {
+export default function TransactionHub({ crmBusinessName, initialTab = "process", onTabChange }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [properties, setProperties] = useState<Client[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -272,9 +274,38 @@ export default function TransactionHub({ crmBusinessName }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title">("process");
+  const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title">(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  const handleSelectTab = (tab: "process" | "clocks" | "contracts" | "title") => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
   const [processViewMode, setProcessViewMode] = useState<"board" | "table">("board");
   const [stepFilter, setStepFilter] = useState<number | "all">("all");
+  const [processCollapsed, setProcessCollapsed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("revzenta_wholesale_process_collapsed");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleProcessCollapsed = () => {
+    setProcessCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("revzenta_wholesale_process_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Search & Filters
   const [search, setSearch] = useState("");
@@ -622,103 +653,160 @@ export default function TransactionHub({ crmBusinessName }: Props) {
       {/* ─────────────────────────────────────────────────────────────
           5-STEP WHOLESALE REAL ESTATE LIFECYCLE ROADMAP BANNER
          ───────────────────────────────────────────────────────────── */}
+      {/* Wholesaling Process Overview Ribbon */}
       <div
         style={{
           backgroundColor: "var(--panel)",
           border: "1px solid var(--border)",
           borderRadius: "10px",
-          padding: "16px 20px",
+          padding: processCollapsed ? "12px 18px" : "16px 20px",
           marginBottom: "20px",
           boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+          transition: "padding 0.2s ease",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div
+          onClick={toggleProcessCollapsed}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: processCollapsed ? "0" : "14px",
+            flexWrap: "wrap",
+            gap: "8px",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+          title={processCollapsed ? "Click to expand standard wholesaling process guide" : "Click to collapse guide"}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
             <span style={{ fontSize: "18px" }}>🧭</span>
             <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--fg)", letterSpacing: "0.02em", textTransform: "uppercase" }}>
               Standard Real Estate Wholesaling Process (Start to Finish)
             </span>
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-            Click any milestone step below to filter active pipeline deals:
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-            gap: "10px",
-          }}
-        >
-          {WHOLESALE_STEPS.map((s) => {
-            const count = transactions.filter((t) => getDealWholesaleStep(t) === s.step).length;
-            const isFiltered = stepFilter === s.step;
-
-            return (
-              <div
-                key={s.step}
-                onClick={() => {
-                  setStepFilter((prev) => (prev === s.step ? "all" : s.step));
-                  if (activeTab !== "process") setActiveTab("process");
-                }}
+            {processCollapsed && stepFilter !== "all" && (
+              <span
                 style={{
-                  padding: "12px 14px",
-                  borderRadius: "8px",
-                  border: isFiltered ? "2px solid var(--accent, #3b82f6)" : "1px solid var(--border)",
-                  backgroundColor: isFiltered
-                    ? "rgba(59, 130, 246, 0.08)"
-                    : "var(--card-bg, var(--panel))",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  position: "relative",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: "12px",
+                  backgroundColor: "rgba(59, 130, 246, 0.15)",
+                  color: "var(--accent, #3b82f6)",
                 }}
               >
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                    <span style={{ fontSize: "15px" }}>{s.icon}</span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        padding: "2px 7px",
-                        borderRadius: "10px",
-                        backgroundColor: count > 0 ? "rgba(59, 130, 246, 0.15)" : "var(--border)",
-                        color: count > 0 ? "var(--accent, #3b82f6)" : "var(--muted)",
-                      }}
-                    >
-                      {count} {count === 1 ? "Deal" : "Deals"}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--fg)", marginTop: "2px" }}>
-                    {s.title}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px", lineHeight: 1.35 }}>
-                    {s.description}
-                  </div>
-                </div>
+                Filtered: Step {stepFilter}
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+              {processCollapsed ? "Click to view 7-milestone walkthrough" : "Click any milestone step below to filter active pipeline deals"}
+            </span>
+            <button
+              type="button"
+              id="toggle-wholesale-process-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleProcessCollapsed();
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 10px",
+                borderRadius: "6px",
+                border: "1px solid var(--border)",
+                backgroundColor: "var(--card-bg, var(--panel))",
+                color: "var(--fg)",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <span>{processCollapsed ? "Expand Guide" : "Collapse"}</span>
+              <span style={{ fontSize: "10px" }}>{processCollapsed ? "▼" : "▲"}</span>
+            </button>
+          </div>
+        </div>
 
+        {!processCollapsed && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+              gap: "10px",
+            }}
+          >
+            {WHOLESALE_STEPS.map((s) => {
+              const count = transactions.filter((t) => getDealWholesaleStep(t) === s.step).length;
+              const isFiltered = stepFilter === s.step;
+
+              return (
                 <div
+                  key={s.step}
+                  onClick={() => {
+                    setStepFilter((prev) => (prev === s.step ? "all" : s.step));
+                    if (activeTab !== "process") handleSelectTab("process");
+                  }}
                   style={{
-                    marginTop: "10px",
-                    paddingTop: "6px",
-                    borderTop: "1px solid var(--border)",
+                    padding: "12px 14px",
+                    borderRadius: "8px",
+                    border: isFiltered ? "2px solid var(--accent, #3b82f6)" : "1px solid var(--border)",
+                    backgroundColor: isFiltered
+                      ? "rgba(59, 130, 246, 0.08)"
+                      : "var(--card-bg, var(--panel))",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
                     display: "flex",
+                    flexDirection: "column",
                     justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: "10px",
+                    position: "relative",
                   }}
                 >
-                  <span style={{ color: "var(--accent, #3b82f6)", fontWeight: 600 }}>{s.badge}</span>
-                  <span style={{ color: "var(--muted)" }}>{isFiltered ? "Active Filter ✕" : "Filter →"}</span>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "15px" }}>{s.icon}</span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "2px 7px",
+                          borderRadius: "10px",
+                          backgroundColor: count > 0 ? "rgba(59, 130, 246, 0.15)" : "var(--border)",
+                          color: count > 0 ? "var(--accent, #3b82f6)" : "var(--muted)",
+                        }}
+                      >
+                        {count} {count === 1 ? "Deal" : "Deals"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--fg)", marginTop: "2px" }}>
+                      {s.title}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px", lineHeight: 1.35 }}>
+                      {s.description}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      paddingTop: "6px",
+                      borderTop: "1px solid var(--border)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: "10px",
+                    }}
+                  >
+                    <span style={{ color: "var(--accent, #3b82f6)", fontWeight: 600 }}>{s.badge}</span>
+                    <span style={{ color: "var(--muted)" }}>{isFiltered ? "Active Filter ✕" : "Filter →"}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* KPI Stats Ribbon */}
@@ -824,7 +912,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
       >
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button
-            onClick={() => setActiveTab("process")}
+            onClick={() => handleSelectTab("process")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",
@@ -839,7 +927,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             🧭 5-Step Wholesale Process Board
           </button>
           <button
-            onClick={() => setActiveTab("clocks")}
+            onClick={() => handleSelectTab("clocks")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",
@@ -854,7 +942,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             ⏱️ Contingency Clocks &amp; Deals
           </button>
           <button
-            onClick={() => setActiveTab("contracts")}
+            onClick={() => handleSelectTab("contracts")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",
@@ -869,7 +957,7 @@ export default function TransactionHub({ crmBusinessName }: Props) {
             📄 Deals &amp; Contracts Table
           </button>
           <button
-            onClick={() => setActiveTab("title")}
+            onClick={() => handleSelectTab("title")}
             style={{
               padding: "8px 14px",
               borderRadius: "6px",

@@ -921,6 +921,7 @@ export interface Transaction {
   signedAt: string | null;
   signerName: string;
   customTerms: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
   daysLeftInspection: number | null;

@@ -1316,6 +1316,29 @@ legend.field-label {
   transform: translateY(-1px);
 }
 
+.brand-vertical {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+}
+
+.brand-workspace-block {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.brand-workspace-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--fg, var(--ink));
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
 .tabs {
   display: flex;
   gap: 4px;
