@@ -11,14 +11,21 @@
     "start": "bun ./server/index.ts",
     "start:local": "cross-env PORT=3001 bun ./server/index.ts",
     "dev": "cross-env PORT=3001 bun --watch ./server/index.ts",
+    "test": "bun test",
+    "smoke": "bun test",
     "seed": "bun ./server/seed.ts",
+    "db:migrate:pg": "bun ./server/db/migrate-to-pg.ts",
     "db:reset": "rm -f data/crm.db data/crm.db-shm data/crm.db-wal"
   },
   "dependencies": {
+    "@google/genai": "^2.22.0",
+    "@types/pg": "^8.23.1",
     "pdf-lib": "^1.17.1",
+    "pg": "^8.23.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "stripe": "^22.5.0"
+    "stripe": "^22.5.0",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",

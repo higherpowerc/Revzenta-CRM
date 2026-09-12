@@ -9,6 +9,8 @@ import { readOfferPdf } from "./offerPdf";
 import { readContractPdf } from "./contractPdf";
 import { renderContractSignPage, renderTitlePortalPage } from "./transactionPages";
 import { db } from "./db";
+import { getDatabaseConfig, initPostgresSchema } from "./db/connection";
+import { startDistressMonitor, stopDistressMonitor } from "./jobs/distressMonitor";
 
 /**
  * Revzenta CRM — single Bun server: serves the built React frontend from
@@ -76,6 +78,17 @@ function serveStatic(pathname: string): Response {
       "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable",
     },
   });
+}
+
+// If PostgreSQL is configured via DATABASE_URL, initialize & verify schema.
+const dbConfig = getDatabaseConfig();
+if (dbConfig.isPostgres) {
+  try {
+    const pgInit = await initPostgresSchema();
+    console.log(`[crm] ${pgInit.message}`);
+  } catch (err) {
+    console.error("[crm] PostgreSQL initialization failed:", err);
+  }
 }
 
 // Boot-time branding backfill (2026-08-18): "Elevate Studio" → "Revzenta".
@@ -216,7 +229,18 @@ const server = serve({
 });
 
 console.log(`[crm] Revzenta CRM listening on http://localhost:${PORT}`);
-console.log(`[crm] Database: ${process.env.DATA_DIR ?? join(import.meta.dir, "..", "data")}/crm.db`);
+if (dbConfig.isPostgres) {
+  const maskedConn = dbConfig.connectionString?.replace(/:[^:@]+@/, ":****@");
+  console.log(`[crm] Database: PostgreSQL (${maskedConn})`);
+} else {
+  console.log(`[crm] Database: SQLite (${process.env.DATA_DIR ?? join(import.meta.dir, "..", "data")}/crm.db)`);
+}
+
+// Start automated property distress monitor background worker
+startDistressMonitor(Number(process.env.DISTRESS_MONITOR_INTERVAL_MS || 15 * 60 * 1000));
 
 // Keep the process alive if all handlers detach (paranoia guard).
-process.on("SIGINT", () => server.stop(true));
+process.on("SIGINT", () => {
+  stopDistressMonitor();
+  server.stop(true);
+});

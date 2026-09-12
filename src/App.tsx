@@ -21,6 +21,7 @@ import Connections from "./Connections";
 import Compliance from "./Compliance";
 import Website from "./Website";
 import UpgradeGate from "./UpgradeGate";
+import PropertySearch from "./PropertySearch";
 import { api } from "./api";
 import { DEFAULT_STAGES, TENANT_TABS, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
@@ -42,7 +43,7 @@ import ThemeToggle from "./ThemeToggle";
  * (prospects), Onboarding = the MIDDLE stages (intake leads), Clients = the
  * terminal stage (sold). Client accounts (role=member) are unchanged: their
  * Leads tab keeps showing every stage except their terminal one. */
-type View = "dashboard" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections" | "compliance";
+type View = "dashboard" | "leads" | "properties" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "tickets" | "settings" | "buyers" | "connections" | "compliance";
 
 
 /** 3k — the emailed reset link is `<appUrl>/#/reset?token=...`; pull the
@@ -298,6 +299,8 @@ export default function App() {
     switch (v) {
       case "dashboard":
         return canSeeTab("dashboard");
+      case "properties":
+        return true;
       case "leads":
         return canSeeTab("clients");
       case "offers":
@@ -367,6 +370,7 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard";
+        case "properties": return "Property Search";
         case "leads": return "Creative Hub";
         case "documents": return "Transaction Hub";
         case "offers": return "Offers Repository";
@@ -382,6 +386,7 @@ export default function App() {
     }
     switch (effectiveViewFinal) {
       case "dashboard": return "Dashboard";
+      case "properties": return "Property Search";
       case "leads": return "Leads";
       case "clients": return "Clients";
       case "appointments": return "Appointments";
@@ -398,6 +403,7 @@ export default function App() {
     if (isOwnerCockpit) {
       switch (effectiveViewFinal) {
         case "dashboard": return "📊";
+        case "properties": return "🌐";
         case "finance": return "💰";
         case "clients": return "👥";
         case "onboarding": return "🚀";
@@ -415,6 +421,7 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "📊";
+        case "properties": return "🌐";
         case "leads": return "🏘️";
         case "offers": return "📑";
         case "documents": return "🤝";
@@ -731,6 +738,17 @@ export default function App() {
                   <span className="tab-icon">💰</span>
                   <span>Revenue &amp; Stripe</span>
                 </button>
+                <button
+                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("properties");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
+                >
+                  <span className="tab-icon">🌐</span>
+                  <span>Property Search</span>
+                </button>
 
                 {/* 2. Subscribers & Workspaces */}
                 <div className="nav-section-title">
@@ -907,6 +925,19 @@ export default function App() {
                     <span>Creative Hub</span>
                   </button>
                 )}
+
+                {/* 2.5 Property Intelligence */}
+                <button
+                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("properties");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
+                >
+                  <span className="tab-icon">🌐</span>
+                  <span>Property Search</span>
+                </button>
 
                 {/* 3. Transaction Hub */}
                 {canSeeTab("documents") && (
@@ -1384,6 +1415,16 @@ export default function App() {
             onGoToBuyBox={() => setView("buybox")}
             onGoToTransactions={() => setView("documents")}
             verticalKey={verticalKey}
+          />
+        ) : effectiveViewFinal === "properties" ? (
+          <PropertySearch
+            user={user}
+            onNavigateToLead={(clientId) => {
+              setLeadsStage(null);
+              setOnboardingStage(null);
+              setLeadsFilter("active");
+              setView("leads");
+            }}
           />
         ) : effectiveViewFinal === "offers" ? (
           !hasTierAccess(effectiveTier, "offers") ? (

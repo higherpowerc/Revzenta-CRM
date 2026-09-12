@@ -52,6 +52,7 @@ import {
   addSuppression,
   isPhoneSuppressed,
 } from "./db";
+import { checkDatabaseHealth } from "./db/connection";
 import {
   VERTICALS,
   VERTICAL_MAP,
@@ -91,6 +92,20 @@ import {
 } from "./agreements";
 import { randomBytes } from "node:crypto";
 import { lookupPropertyData, normalizeWebhookPayload } from "./propertyEnrichment";
+import { searchProperties, convertPropertyToLead, getPropertyById } from "./propertySearch";
+import {
+  createSavedSearch,
+  listSavedSearches,
+  getSavedSearchById,
+  executeSavedSearch,
+  deleteSavedSearch,
+  toggleSavedSearchAlert,
+} from "./savedSearches";
+import { translateNaturalLanguageSearch } from "./ai/queryTranslator";
+import { explainPropertyDeal } from "./ai/dealExplainer";
+import { getDevCommandCenterStatus, analyzeDevQuery } from "./ai/devCommandCenter";
+import { enrichProperty, getRegisteredProvidersStatus } from "./providers/enrichmentWorker";
+import { listDistressAlerts, markAlertsRead, runDistressCheck } from "./jobs/distressMonitor";
 
 export const SESSION_COOKIE = "elevate_session";
 /** Map a sendEmail result to the emailStatus vocabulary the UI renders:
@@ -2664,6 +2679,27 @@ function validateCustomIntakeGroups(
 async function handleApi(req: Request, url: URL, server?: { requestIP(req: Request): { address: string } | null } | null): Promise<Response> {
   const { pathname } = url;
   const method = req.method;
+
+  /* ── Production Health Observability ───────────────────────────────── */
+  if (pathname === "/api/health" && method === "GET") {
+    const dbHealth = await checkDatabaseHealth();
+    const isHealthy = dbHealth.status === "healthy";
+    return json({
+      status: isHealthy ? "healthy" : "degraded",
+      uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+      database: dbHealth,
+      ai: {
+        configured: Boolean(process.env.GEMINI_API_KEY),
+      },
+      providers: {
+        rentcast: Boolean(process.env.RENTCAST_API_KEY),
+        attom: Boolean(process.env.ATTOM_API_KEY),
+      },
+      version: "2.0.0",
+    }, isHealthy ? 200 : 503);
+  }
+
   /* Wholesale Document & Transaction Hub: Public e-signature submission */
   const signContractMatch = pathname.match(/^\/api\/public\/sign-contract\/([a-zA-Z0-9_-]+)$/);
   if (signContractMatch && method === "POST") {
@@ -8333,6 +8369,231 @@ ${businessName}
       message: `Consumer record for "${client.contact_name || client.address || "Contact"}" permanently purged under CCPA/CPRA. Phone number has been added to the Permanent Suppression Registry.`,
       purgedClient: { id: client.id, name: client.contact_name || client.company_name, phone: client.phone },
     });
+  }
+
+  /* ── Nationwide Property Search & Saved Searches ────────────────── */
+  if (pathname === "/api/properties/search" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = (await readBody(req)) || {};
+    try {
+      const results = await searchProperties(auth.orgId, body);
+      return json({ ok: true, ...results });
+    } catch (e: any) {
+      return err(e.message || "Failed to search properties.", 500);
+    }
+  }
+
+  const convertMatch = pathname.match(/^\/api\/properties\/(\d+)\/convert-to-lead$/);
+  if (convertMatch && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const propertyId = Number(convertMatch[1]);
+    const body = (await readBody(req)) || {};
+    try {
+      const result = await convertPropertyToLead(auth.orgId, propertyId, auth.userId, body);
+      return json({ ok: true, ...result });
+    } catch (e: any) {
+      return err(e.message || "Failed to convert property to lead.", 400);
+    }
+  }
+
+  if (pathname === "/api/properties/saved-searches" && method === "GET") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const savedSearches = listSavedSearches(auth.orgId);
+    return json({ ok: true, savedSearches });
+  }
+
+  if (pathname === "/api/properties/saved-searches" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = await readBody(req);
+    if (!body || typeof body.name !== "string" || !body.name.trim()) {
+      return err("Search name is required.", 400);
+    }
+    const filters = typeof body.filters === "object" && body.filters ? body.filters : {};
+    const naturalLanguageQuery = typeof body.naturalLanguageQuery === "string" ? body.naturalLanguageQuery : "";
+    try {
+      const savedSearch = createSavedSearch(auth.orgId, auth.userId, body.name, filters, naturalLanguageQuery);
+      return json({ ok: true, savedSearch }, 201);
+    } catch (e: any) {
+      return err(e.message || "Failed to save search.", 400);
+    }
+  }
+
+  const executeSavedSearchMatch = pathname.match(/^\/api\/properties\/saved-searches\/(\d+)\/execute$/);
+  if (executeSavedSearchMatch && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const id = Number(executeSavedSearchMatch[1]);
+    try {
+      const execResult = await executeSavedSearch(id, auth.orgId);
+      return json({ ok: true, ...execResult });
+    } catch (e: any) {
+      return err(e.message || "Failed to execute saved search.", 400);
+    }
+  }
+
+  const deleteSavedSearchMatch = pathname.match(/^\/api\/properties\/saved-searches\/(\d+)$/);
+  if (deleteSavedSearchMatch && method === "DELETE") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const id = Number(deleteSavedSearchMatch[1]);
+    const deleted = deleteSavedSearch(id, auth.orgId);
+    if (!deleted) return err("Saved search not found or access denied.", 404);
+    return json({ ok: true });
+  }
+
+  const toggleAlertMatch = pathname.match(/^\/api\/properties\/saved-searches\/(\d+)\/toggle-alert$/);
+  if (toggleAlertMatch && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const id = Number(toggleAlertMatch[1]);
+    const body = (await readBody(req)) || {};
+    try {
+      const enabled = body.enabled !== undefined ? Boolean(body.enabled) : undefined;
+      const updated = toggleSavedSearchAlert(id, auth.orgId, enabled);
+      return json({ ok: true, savedSearch: updated });
+    } catch (e: any) {
+      return err(e.message || "Failed to toggle saved search alert.", 400);
+    }
+  }
+
+  /* ── Revzenta AI & Deal Intelligence ────────────────────────────── */
+  if (pathname === "/api/ai/translate-search" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = (await readBody(req)) || {};
+    const prompt = typeof body.prompt === "string" ? body.prompt : "";
+    try {
+      const translation = await translateNaturalLanguageSearch(prompt);
+      return json({ ok: true, ...translation });
+    } catch (e: any) {
+      return err(e.message || "Failed to translate search query.", 500);
+    }
+  }
+
+  if (pathname === "/api/ai/explain-property" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = (await readBody(req)) || {};
+    try {
+      let property = body.property as any;
+      if (!property && body.propertyId) {
+        property = await getPropertyById(auth.orgId, Number(body.propertyId));
+        if (!property) {
+          return err("Property not found or access denied.", 404);
+        }
+      }
+      if (!property) {
+        return err("Property data or valid propertyId is required.", 400);
+      }
+      const explanation = await explainPropertyDeal(property);
+      return json({ ok: true, explanation });
+    } catch (e: any) {
+      return err(e.message || "Failed to analyze property deal.", 500);
+    }
+  }
+
+  /* ── Revzenta AI Dev Command Center & Observability ─────────────── */
+  if (pathname === "/api/ai/dev-command-center/status" && method === "GET") {
+    const auth = requireAdmin(req);
+    if (auth instanceof Response) return auth;
+    try {
+      const status = await getDevCommandCenterStatus();
+      return json({ ok: true, status });
+    } catch (e: any) {
+      return err(e.message || "Failed to get Dev Command Center status.", 500);
+    }
+  }
+
+  if (pathname === "/api/ai/dev-command-center/query-analysis" && method === "POST") {
+    const auth = requireAdmin(req);
+    if (auth instanceof Response) return auth;
+    const body = (await readBody(req)) || {};
+    if (!body.sql || typeof body.sql !== "string") {
+      return err("SQL query string is required.", 400);
+    }
+    const params = Array.isArray(body.params) ? body.params : [];
+    try {
+      const result = await analyzeDevQuery(body.sql, params);
+      return json({ ok: true, ...result });
+    } catch (e: any) {
+      return err(e.message || "Failed to execute query analysis.", 500);
+    }
+  }
+
+  /* ── Multi-Provider Data Ingestion & Property Enrichment ───────── */
+  if (pathname === "/api/properties/enrich" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = (await readBody(req)) || {};
+    const address = typeof body.address === "string" ? body.address.trim() : "";
+    if (!address) {
+      return err("Property address is required for enrichment.", 400);
+    }
+    try {
+      const result = await enrichProperty(address, {
+        orgId: auth.orgId,
+        propertyId: body.propertyId ? Number(body.propertyId) : undefined,
+        forceRefresh: Boolean(body.forceRefresh),
+      });
+      return json({ ok: true, ...result });
+    } catch (e: any) {
+      return err(e.message || "Failed to enrich property.", 500);
+    }
+  }
+
+  if (pathname === "/api/properties/providers" && method === "GET") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    try {
+      const providers = await getRegisteredProvidersStatus(auth.orgId);
+      return json({ ok: true, providers });
+    } catch (e: any) {
+      return err(e.message || "Failed to get provider statuses.", 500);
+    }
+  }
+
+  /* ── Property Distress Monitoring & Alert Engine ─────────────────── */
+  if (pathname === "/api/properties/alerts" && method === "GET") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    try {
+      const urlObj = new URL(req.url);
+      const unreadOnly = urlObj.searchParams.get("unread") === "1" || urlObj.searchParams.get("unread") === "true";
+      const limit = urlObj.searchParams.get("limit") ? Number(urlObj.searchParams.get("limit")) : 25;
+      const offset = urlObj.searchParams.get("offset") ? Number(urlObj.searchParams.get("offset")) : 0;
+      const result = listDistressAlerts(auth.orgId, { unreadOnly, limit, offset });
+      return json({ ok: true, ...result });
+    } catch (e: any) {
+      return err(e.message || "Failed to retrieve distress alerts.", 500);
+    }
+  }
+
+  if (pathname === "/api/properties/alerts/mark-read" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const body = (await readBody(req)) || {};
+    try {
+      const alertIds = Array.isArray(body.alertIds) ? body.alertIds.map((x: any) => Number(x)) : undefined;
+      const result = markAlertsRead(auth.orgId, alertIds);
+      return json({ ok: true, ...result });
+    } catch (e: any) {
+      return err(e.message || "Failed to mark alerts as read.", 500);
+    }
+  }
+
+  if (pathname === "/api/properties/alerts/check" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    try {
+      const result = await runDistressCheck(auth.orgId);
+      return json({ ok: true, ...result });
+    } catch (e: any) {
+      return err(e.message || "Failed to execute distress check.", 500);
+    }
   }
 
   return err("Not found.", 404);

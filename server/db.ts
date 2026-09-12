@@ -2007,6 +2007,90 @@ CREATE TABLE IF NOT EXISTS privacy_suppression_registry (
 );
 
 CREATE INDEX IF NOT EXISTS idx_privacy_suppression_org_phone ON privacy_suppression_registry(org_id, phone);
+
+CREATE TABLE IF NOT EXISTS properties (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  apn TEXT DEFAULT '',
+  address_line1 TEXT NOT NULL,
+  address_line2 TEXT DEFAULT '',
+  city TEXT NOT NULL,
+  state TEXT NOT NULL,
+  zip TEXT NOT NULL,
+  county TEXT DEFAULT '',
+  latitude REAL,
+  longitude REAL,
+  property_type TEXT DEFAULT 'Single Family',
+  bedrooms REAL,
+  bathrooms REAL,
+  square_feet INTEGER,
+  lot_size_sqft INTEGER,
+  year_built INTEGER,
+  stories REAL,
+  garage_spaces INTEGER,
+  estimated_value REAL DEFAULT 0,
+  value_range_low REAL DEFAULT 0,
+  value_range_high REAL DEFAULT 0,
+  estimated_equity REAL DEFAULT 0,
+  equity_percent REAL DEFAULT 0,
+  estimated_rent REAL DEFAULT 0,
+  last_sale_price REAL DEFAULT 0,
+  last_sale_date TEXT DEFAULT '',
+  mortgage_balance REAL DEFAULT 0,
+  tax_assessed_value REAL DEFAULT 0,
+  tax_delinquent INTEGER DEFAULT 0,
+  has_liens INTEGER DEFAULT 0,
+  is_foreclosure INTEGER DEFAULT 0,
+  is_pre_foreclosure INTEGER DEFAULT 0,
+  is_bankruptcy INTEGER DEFAULT 0,
+  is_probate INTEGER DEFAULT 0,
+  is_vacant INTEGER DEFAULT 0,
+  has_code_violations INTEGER DEFAULT 0,
+  is_absentee_owner INTEGER DEFAULT 0,
+  owner_name TEXT DEFAULT '',
+  revzenta_opportunity_score INTEGER DEFAULT 0,
+  opportunity_score_reasons TEXT DEFAULT '[]',
+  source_provider TEXT DEFAULT 'rentcast',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_properties_org ON properties(org_id);
+CREATE INDEX IF NOT EXISTS idx_properties_zip ON properties(org_id, zip);
+CREATE INDEX IF NOT EXISTS idx_properties_county ON properties(org_id, county);
+CREATE INDEX IF NOT EXISTS idx_properties_score ON properties(org_id, revzenta_opportunity_score DESC);
+
+CREATE TABLE IF NOT EXISTS saved_searches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  natural_language_query TEXT DEFAULT '',
+  filters TEXT NOT NULL DEFAULT '{}',
+  auto_refresh INTEGER DEFAULT 0,
+  alert_enabled INTEGER DEFAULT 0,
+  matching_count INTEGER DEFAULT 0,
+  last_executed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_searches_org ON saved_searches(org_id);
+
+CREATE TABLE IF NOT EXISTS property_distress_alerts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  saved_search_id INTEGER REFERENCES saved_searches(id) ON DELETE CASCADE,
+  property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
+  alert_type TEXT NOT NULL,
+  severity TEXT DEFAULT 'medium',
+  headline TEXT NOT NULL,
+  details TEXT DEFAULT '{}',
+  is_read INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_distress_alerts_org ON property_distress_alerts(org_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_distress_alerts_created ON property_distress_alerts(org_id, created_at DESC);
 `);
 
 export interface RentcastUsageInfo {

@@ -1,4 +1,4 @@
-import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, User, WebhookLog, WebhookSettings, WholesaleOffer } from "./types";
+import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem } from "./types";
 
 
 export class ApiError extends Error {
@@ -674,6 +674,111 @@ export const api = {
     request<{ ok: true; message: string; purgedClient: { id: number; name: string; phone: string } }>("/api/compliance/ccpa-purge", {
       method: "POST",
       body: JSON.stringify({ clientId, reason }),
+    }),
+
+  /* Nationwide Property Intelligence & Saved Searches */
+  searchProperties: (filters: any) =>
+    request<{ ok: true; properties: PropertyItem[]; total: number; limit: number; offset: number }>("/api/properties/search", {
+      method: "POST",
+      body: JSON.stringify(filters || {}),
+    }),
+  convertPropertyToLead: (propertyId: number, data?: { stage?: string; notes?: string }) =>
+    request<{ ok: true; success: boolean; duplicate: boolean; clientId: number; message: string }>(`/api/properties/${propertyId}/convert-to-lead`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }),
+  getSavedSearches: () =>
+    request<{ ok: true; savedSearches: SavedSearchItem[] }>("/api/properties/saved-searches"),
+  saveSearch: (name: string, filters: any, naturalLanguageQuery?: string) =>
+    request<{ ok: true; savedSearch: SavedSearchItem }>("/api/properties/saved-searches", {
+      method: "POST",
+      body: JSON.stringify({ name, filters, naturalLanguageQuery }),
+    }),
+  executeSavedSearch: (id: number) =>
+    request<{ ok: true; savedSearch: SavedSearchItem; properties: PropertyItem[]; total: number }>(`/api/properties/saved-searches/${id}/execute`, {
+      method: "POST",
+    }),
+  deleteSavedSearch: (id: number) =>
+    request<{ ok: true }>(`/api/properties/saved-searches/${id}`, {
+      method: "DELETE",
+    }),
+  toggleSavedSearchAlert: (id: number, enabled?: boolean) =>
+    request<{ ok: true; savedSearch: SavedSearchItem }>(`/api/properties/saved-searches/${id}/toggle-alert`, {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
+
+  /* Multi-Provider Enrichment & Ingestion */
+  enrichProperty: (address: string, options?: { propertyId?: number; forceRefresh?: boolean }) =>
+    request<{
+      ok: true;
+      success: boolean;
+      property: any;
+      savedPropertyId?: number;
+      sources: string[];
+      executionTimeMs: number;
+      message?: string;
+    }>("/api/properties/enrich", {
+      method: "POST",
+      body: JSON.stringify({ address, ...options }),
+    }),
+  getProviders: () =>
+    request<{ ok: true; providers: RegisteredProviderInfo[] }>("/api/properties/providers"),
+
+  /* Automated Distress Alerts & Monitoring */
+  getDistressAlerts: (options?: { unread?: boolean; limit?: number; offset?: number }) => {
+    const params = new URLSearchParams();
+    if (options?.unread) params.set("unread", "1");
+    if (options?.limit) params.set("limit", String(options.limit));
+    if (options?.offset) params.set("offset", String(options.offset));
+    const qs = params.toString();
+    return request<{ ok: true; alerts: DistressAlertItem[]; total: number; unreadCount: number }>(
+      `/api/properties/alerts${qs ? `?${qs}` : ""}`
+    );
+  },
+  markAlertsRead: (alertIds?: number[]) =>
+    request<{ ok: true; updatedCount: number }>("/api/properties/alerts/mark-read", {
+      method: "POST",
+      body: JSON.stringify({ alertIds }),
+    }),
+  runDistressCheck: () =>
+    request<{
+      ok: true;
+      scannedSearches: number;
+      scannedProperties: number;
+      newAlertsCreated: number;
+      alerts: DistressAlertItem[];
+      executionTimeMs: number;
+    }>("/api/properties/alerts/check", {
+      method: "POST",
+    }),
+
+  /* Gemini AI & Dev Command Center */
+  translateSearch: (prompt: string) =>
+    request<{
+      ok: true;
+      rawPrompt: string;
+      filters: any;
+      interpretation: string;
+      confidence: number;
+      detectedEntities: any;
+      usedAI: boolean;
+      model?: string;
+    }>("/api/ai/translate-search", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+    }),
+  explainProperty: (data: { propertyId?: number; property?: any }) =>
+    request<{ ok: true; explanation: PropertyDealExplanation }>("/api/ai/explain-property", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getDevCommandCenterStatus: () =>
+    request<{ ok: true; status: DevSystemStatus }>("/api/ai/dev-command-center/status"),
+  analyzeDevQuery: (sql: string, params?: any[]) =>
+    request<{ ok: true; allowed: boolean; executionTimeMs?: number; rowCount?: number; rows?: any[]; error?: string }>("/api/ai/dev-command-center/query-analysis", {
+      method: "POST",
+      body: JSON.stringify({ sql, params }),
     }),
 };
 

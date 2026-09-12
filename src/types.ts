@@ -1004,5 +1004,146 @@ export interface SuppressionRecord {
   referenceNotes: string;
 }
 
+export interface PropertyItem {
+  id: number;
+  org_id: number;
+  apn: string;
+  address_line1: string;
+  address_line2?: string;
+  city: string;
+  state: string;
+  zip: string;
+  county: string;
+  latitude?: number;
+  longitude?: number;
+  property_type: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  square_feet?: number;
+  lot_size_sqft?: number;
+  year_built?: number;
+  stories?: number;
+  garage_spaces?: number;
+  estimated_value: number;
+  value_range_low?: number;
+  value_range_high?: number;
+  estimated_equity: number;
+  equity_percent: number;
+  estimated_rent?: number;
+  last_sale_price?: number;
+  last_sale_date?: string;
+  mortgage_balance?: number;
+  tax_assessed_value?: number;
+  tax_delinquent: boolean;
+  has_liens: boolean;
+  is_foreclosure: boolean;
+  is_pre_foreclosure: boolean;
+  is_bankruptcy: boolean;
+  is_probate: boolean;
+  is_vacant: boolean;
+  has_code_violations: boolean;
+  is_absentee_owner: boolean;
+  owner_name?: string;
+  revzenta_opportunity_score: number;
+  opportunity_score_reasons: string[];
+  source_provider: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedSearchItem {
+  id: number;
+  org_id: number;
+  user_id: number;
+  name: string;
+  filters: any;
+  natural_language_query?: string;
+  auto_refresh?: boolean;
+  alert_enabled?: boolean;
+  matching_count?: number;
+  last_executed_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface RegisteredProviderInfo {
+  id: string;
+  name: string;
+  types: string[];
+  isAvailable: boolean;
+}
+
+export interface DistressAlertItem {
+  id: number;
+  org_id: number;
+  saved_search_id: number | null;
+  property_id: number | null;
+  alert_type: string;
+  severity: "low" | "medium" | "high" | "urgent";
+  headline: string;
+  details: any;
+  is_read: boolean;
+  created_at: string;
+  property?: PropertyItem | null;
+}
+
+export interface PropertyDealExplanation {
+  propertyId: number;
+  headline: string;
+  summary: string;
+  opportunityScoreBreakdown: {
+    totalScore: number;
+    equityScore: number;
+    distressScore: number;
+    spreadScore: number;
+    explanation: string;
+  };
+  keyStrengths: string[];
+  riskFactors: string[];
+  recommendedStrategies: Array<{
+    strategy: "Cash Wholesale" | "Wholetail" | "Subject-To" | "Seller Financing" | "Novation";
+    suitabilityScore: number;
+    rationale: string;
+  }>;
+  dataDisclaimer: string;
+  isAiGenerated: boolean;
+  model?: string;
+}
+
+export interface DevSystemStatus {
+  timestamp: string;
+  uptimeSeconds: number;
+  memoryUsage: {
+    rssMb: number;
+    heapTotalMb: number;
+    heapUsedMb: number;
+  };
+  database: {
+    driver: "postgres" | "sqlite";
+    isHealthy: boolean;
+    propertiesTotal: number;
+    savedSearchesTotal: number;
+  };
+  geminiAi: {
+    isConfigured: boolean;
+    model: string;
+    maskedApiKey: string;
+    requestsTotal: number;
+    errorsTotal: number;
+    lastUsedAt?: string;
+  };
+  providers: {
+    activeProviders: string[];
+    hasRentCast: boolean;
+    hasAttom: boolean;
+    hasMock: boolean;
+  };
+  security: {
+    secretsSanitized: boolean;
+    strictTenantIsolationEnforced: boolean;
+  };
+}
+
+
 
 
