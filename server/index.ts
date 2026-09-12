@@ -1,6 +1,7 @@
 import express from "express";
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { handleApi } from "./api";
 import { ensureAdmin } from "./auth";
 import { renderSignPage, readAgreementPdf, backfillSignedClients, backfillBrandRename } from "./agreements";
@@ -19,7 +20,10 @@ import { createServer as createViteServer } from "vite";
  */
 
 const PORT = Number(process.env.PORT ?? 3001);
-const DIST_DIR = join(import.meta.dirname ?? process.cwd(), "..", "dist");
+const projectRoot = existsSync(join(process.cwd(), "dist"))
+  ? process.cwd()
+  : join(fileURLToPath(new URL(".", import.meta.url)), "..");
+const DIST_DIR = join(projectRoot, "dist");
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -293,17 +297,22 @@ async function startServer() {
     next();
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV === "production" || existsSync(DIST_DIR)) {
+    app.use(express.static(DIST_DIR));
+    app.get("*all", (_req, res) => {
+      const indexPath = join(DIST_DIR, "index.html");
+      if (existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(200).send("Revzenta CRM starting...");
+      }
+    });
+  } else {
     const vite = await createViteServer({
       server: { middlewareMode: true, allowedHosts: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    app.use(express.static(DIST_DIR));
-    app.get("*all", (_req, res) => {
-      res.sendFile(join(DIST_DIR, "index.html"));
-    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {

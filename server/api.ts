@@ -2862,7 +2862,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         attom: Boolean(process.env.ATTOM_API_KEY),
       },
       version: "2.0.0",
-    }, isHealthy ? 200 : 503);
+    }, 200);
   }
 
   /* Wholesale Document & Transaction Hub: Public e-signature submission */
