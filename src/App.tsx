@@ -973,7 +973,20 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 2. Opportunities */}
+                {/* 2. Property Search */}
+                <button
+                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("properties");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
+                >
+                  <span className="tab-icon">🌐</span>
+                  <span>Property Search</span>
+                </button>
+
+                {/* 3. Opportunities */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "opportunities" ? "tab active" : "tab"}
@@ -991,7 +1004,7 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 3. Creative Hub */}
+                {/* 4. Creative Hub */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
@@ -1008,19 +1021,6 @@ export default function App() {
                     <span>Creative Hub</span>
                   </button>
                 )}
-
-                {/* 2.5 Property Intelligence */}
-                <button
-                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setView("properties");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
-                >
-                  <span className="tab-icon">🌐</span>
-                  <span>Property Search</span>
-                </button>
 
                 {/* 4. Offers Repository (Moved above Title Hub) */}
                 {canSeeTab("offers") && (
