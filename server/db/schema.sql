@@ -58,7 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 -- 3. NATIONWIDE PROPERTIES CATALOG
 CREATE TABLE IF NOT EXISTS properties (
     id SERIAL PRIMARY KEY,
-    organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     apn VARCHAR(100),
     address_line1 TEXT NOT NULL,
     address_line2 TEXT DEFAULT '',
@@ -109,20 +109,20 @@ CREATE TABLE IF NOT EXISTS properties (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_prop_org_id ON properties(organization_id);
-CREATE INDEX IF NOT EXISTS idx_prop_apn ON properties(organization_id, apn);
-CREATE INDEX IF NOT EXISTS idx_prop_address ON properties(organization_id, address_line1);
-CREATE INDEX IF NOT EXISTS idx_prop_zip ON properties(organization_id, zip);
-CREATE INDEX IF NOT EXISTS idx_prop_county ON properties(organization_id, county);
-CREATE INDEX IF NOT EXISTS idx_prop_state_city ON properties(organization_id, state, city);
-CREATE INDEX IF NOT EXISTS idx_prop_value ON properties(organization_id, estimated_value);
-CREATE INDEX IF NOT EXISTS idx_prop_equity ON properties(organization_id, estimated_equity);
-CREATE INDEX IF NOT EXISTS idx_prop_score ON properties(organization_id, revzenta_opportunity_score DESC);
+CREATE INDEX IF NOT EXISTS idx_prop_org_id ON properties(org_id);
+CREATE INDEX IF NOT EXISTS idx_prop_apn ON properties(org_id, apn);
+CREATE INDEX IF NOT EXISTS idx_prop_address ON properties(org_id, address_line1);
+CREATE INDEX IF NOT EXISTS idx_prop_zip ON properties(org_id, zip);
+CREATE INDEX IF NOT EXISTS idx_prop_county ON properties(org_id, county);
+CREATE INDEX IF NOT EXISTS idx_prop_state_city ON properties(org_id, state, city);
+CREATE INDEX IF NOT EXISTS idx_prop_value ON properties(org_id, estimated_value);
+CREATE INDEX IF NOT EXISTS idx_prop_equity ON properties(org_id, estimated_equity);
+CREATE INDEX IF NOT EXISTS idx_prop_score ON properties(org_id, revzenta_opportunity_score DESC);
 
 -- 4. PROPERTY OWNERS
 CREATE TABLE IF NOT EXISTS property_owners (
     id SERIAL PRIMARY KEY,
-    organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
     entity_name TEXT DEFAULT '',
@@ -141,14 +141,14 @@ CREATE TABLE IF NOT EXISTS property_owners (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_owners_org_id ON property_owners(organization_id);
+CREATE INDEX IF NOT EXISTS idx_owners_org_id ON property_owners(org_id);
 CREATE INDEX IF NOT EXISTS idx_owners_property_id ON property_owners(property_id);
-CREATE INDEX IF NOT EXISTS idx_owners_name ON property_owners(organization_id, full_name);
+CREATE INDEX IF NOT EXISTS idx_owners_name ON property_owners(org_id, full_name);
 
 -- 5. SAVED SEARCHES (NATURAL LANGUAGE & STRUCTURED)
 CREATE TABLE IF NOT EXISTS saved_searches (
     id SERIAL PRIMARY KEY,
-    organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     natural_language_query TEXT DEFAULT '',
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS saved_searches (
     last_executed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_saved_searches_org ON saved_searches(organization_id);
+CREATE INDEX IF NOT EXISTS idx_saved_searches_org ON saved_searches(org_id);
 
 -- 6. CLIENTS / CRM LEADS
 CREATE TABLE IF NOT EXISTS clients (
@@ -418,7 +418,7 @@ CREATE INDEX IF NOT EXISTS idx_privacy_suppression_org_phone ON privacy_suppress
 -- 15. AUDIT LOGS
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
-    organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
     entity_type VARCHAR(50) NOT NULL,
@@ -427,24 +427,24 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     ip_address VARCHAR(45) DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_audit_logs_org_action ON audit_logs(organization_id, action, created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_org_action ON audit_logs(org_id, action, created_at);
 
 -- 16. USAGE METERING
 CREATE TABLE IF NOT EXISTS usage_meter (
     id SERIAL PRIMARY KEY,
-    organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     metric VARCHAR(50) NOT NULL,
     quantity INTEGER NOT NULL DEFAULT 1,
     period_month VARCHAR(7) NOT NULL, -- 'YYYY-MM'
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_usage_meter_org_period ON usage_meter(organization_id, period_month);
+CREATE INDEX IF NOT EXISTS idx_usage_meter_org_period ON usage_meter(org_id, period_month);
 
 -- 17. PROPERTY DISTRESS ALERTS & MONITORING LOGS
 CREATE TABLE IF NOT EXISTS property_distress_alerts (
     id SERIAL PRIMARY KEY,
-    organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     saved_search_id INTEGER REFERENCES saved_searches(id) ON DELETE CASCADE,
     property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
     alert_type VARCHAR(100) NOT NULL,
@@ -454,5 +454,5 @@ CREATE TABLE IF NOT EXISTS property_distress_alerts (
     is_read BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_distress_alerts_org ON property_distress_alerts(organization_id, is_read);
-CREATE INDEX IF NOT EXISTS idx_distress_alerts_created ON property_distress_alerts(organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_distress_alerts_org ON property_distress_alerts(org_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_distress_alerts_created ON property_distress_alerts(org_id, created_at DESC);

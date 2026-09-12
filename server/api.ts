@@ -8735,7 +8735,7 @@ ${businessName}
     const body = (await readBody(req)) || {};
     try {
       const results = await searchProperties(auth.orgId, body);
-      return json({ ok: true, ...results });
+      return json({ ok: true, ...results, total: results.totalCount });
     } catch (e: any) {
       return err(e.message || "Failed to search properties.", 500);
     }
@@ -8786,7 +8786,13 @@ ${businessName}
     const id = Number(executeSavedSearchMatch[1]);
     try {
       const execResult = await executeSavedSearch(id, auth.orgId);
-      return json({ ok: true, ...execResult });
+      return json({
+        ok: true,
+        savedSearch: execResult.savedSearch,
+        properties: execResult.results.properties,
+        total: execResult.results.totalCount,
+        totalCount: execResult.results.totalCount,
+      });
     } catch (e: any) {
       return err(e.message || "Failed to execute saved search.", 400);
     }

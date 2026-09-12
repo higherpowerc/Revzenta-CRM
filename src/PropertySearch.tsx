@@ -112,8 +112,8 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
     try {
       const filters = customFilters || buildFiltersObject();
       const res = await api.searchProperties(filters);
-      setProperties(res.properties);
-      setTotalCount(res.total);
+      setProperties(res.properties || []);
+      setTotalCount(res.total ?? (res as any).totalCount ?? res.properties?.length ?? 0);
     } catch (err: any) {
       setError(err.message || "Failed to search properties.");
     } finally {
@@ -272,8 +272,8 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
     setShowSavedSearches(false);
     try {
       const res = await api.executeSavedSearch(s.id);
-      setProperties(res.properties);
-      setTotalCount(res.total);
+      setProperties(res.properties || []);
+      setTotalCount(res.total ?? (res as any).totalCount ?? res.properties?.length ?? 0);
       if (s.natural_language_query) setNaturalQuery(s.natural_language_query);
       setAiInterpretation(`Executed saved search "${s.name}"`);
     } catch (err: any) {

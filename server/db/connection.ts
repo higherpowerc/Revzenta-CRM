@@ -112,6 +112,32 @@ export async function initPostgresSchema(): Promise<{ initialized: boolean; mess
 
   try {
     await pool.query(ddl);
+
+    // Backward-compatibility: Ensure existing PostgreSQL tables use org_id
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'properties' AND column_name = 'organization_id') THEN
+          ALTER TABLE properties RENAME COLUMN organization_id TO org_id;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'saved_searches' AND column_name = 'organization_id') THEN
+          ALTER TABLE saved_searches RENAME COLUMN organization_id TO org_id;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'property_owners' AND column_name = 'organization_id') THEN
+          ALTER TABLE property_owners RENAME COLUMN organization_id TO org_id;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'property_distress_alerts' AND column_name = 'organization_id') THEN
+          ALTER TABLE property_distress_alerts RENAME COLUMN organization_id TO org_id;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'organization_id') THEN
+          ALTER TABLE audit_logs RENAME COLUMN organization_id TO org_id;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'usage_meter' AND column_name = 'organization_id') THEN
+          ALTER TABLE usage_meter RENAME COLUMN organization_id TO org_id;
+        END IF;
+      END $$;
+    `);
+
     return { initialized: true, message: "PostgreSQL schema successfully initialized and verified." };
   } catch (err: any) {
     console.error("[postgres] Schema initialization error:", err);
