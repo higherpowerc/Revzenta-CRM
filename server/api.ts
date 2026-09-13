@@ -4726,19 +4726,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       const activeOrgs = db.query("SELECT COUNT(*) AS c FROM orgs WHERE id != ? AND status != 'canceled'").get(orgId) as { c: number };
       const totalOrgs = db.query("SELECT COUNT(*) AS c FROM orgs WHERE id != ?").get(orgId) as { c: number };
 
-      // Platform-wide Wholesale Deals & Assignment Fee Volume across all client workspaces
-      const platformDealsRow = db.query("SELECT COUNT(*) AS c FROM clients WHERE org_id != ? AND archived = 0 AND lost = 0").get(orgId) as { c: number };
-      const platformVolumeRow = db.query("SELECT COALESCE(SUM(deal_value), 0) AS v FROM clients WHERE org_id != ? AND archived = 0 AND lost = 0").get(orgId) as { v: number };
-      const platformClosedVolumeRow = db.query(`
-        SELECT COALESCE(SUM(deal_value), 0) AS v FROM clients 
-        WHERE org_id != ? AND archived = 0 AND lost = 0 
-          AND (LOWER(TRIM(stage)) = 'sold' OR LOWER(TRIM(stage)) = 'closed')
-      `).get(orgId) as { v: number };
-
-      // Top subscriber organizations with workspace status, tier, and property count
+      // Top subscriber organizations (strictly zero-knowledge: no inspection of private tenant deals or client records)
       const subscriberOrgs = (db.query(`
         SELECT o.id, o.name, o.vertical_key, o.status, o.monthly_subscription_amount, o.created_at,
-               (SELECT COUNT(*) FROM clients c WHERE c.org_id = o.id AND c.archived = 0) AS property_count,
                (SELECT u.email FROM users u WHERE u.org_id = o.id AND u.role = 'admin' LIMIT 1) AS admin_email
         FROM orgs o
         WHERE o.id != ?
@@ -4751,7 +4741,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         status: o.status || "active",
         monthlySubscriptionAmount: o.monthly_subscription_amount || 0,
         createdAt: o.created_at || "",
-        propertyCount: o.property_count || 0,
+        propertyCount: 0,
         adminEmail: o.admin_email || "",
       }));
 
@@ -4789,9 +4779,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         totalSubscribers: totalOrgs.c,
         arpu,
         ltv,
-        platformDeals: platformDealsRow.c,
-        platformAssignmentVolume: platformVolumeRow.v,
-        platformClosedVolume: platformClosedVolumeRow.v,
+        platformDeals: 0,
+        platformAssignmentVolume: 0,
+        platformClosedVolume: 0,
         subscribersList: subscriberOrgs,
         salesLeads,
       };
