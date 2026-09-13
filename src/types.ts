@@ -531,7 +531,8 @@ export interface SaasMetrics {
   ltv: number;
   platformDeals: number;
   platformAssignmentVolume: number;
-  platformClosedVolume: number;
+  churnRate: number;
+  canceledSubscribers: number;
   subscribersList: OwnerSubscriberSummary[];
   salesLeads: OwnerSalesLead[];
 }

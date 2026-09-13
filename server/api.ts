@@ -4722,9 +4722,11 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
 
       const effectiveMrr = Math.max(mrrRow.v, directOrgMrr);
 
-      // Active and total subscriber orgs (excluding the owner org itself)
+      // Active, canceled, and total subscriber orgs (excluding the owner org itself)
       const activeOrgs = db.query("SELECT COUNT(*) AS c FROM orgs WHERE id != ? AND status != 'canceled'").get(orgId) as { c: number };
       const totalOrgs = db.query("SELECT COUNT(*) AS c FROM orgs WHERE id != ?").get(orgId) as { c: number };
+      const canceledOrgs = db.query("SELECT COUNT(*) AS c FROM orgs WHERE id != ? AND status = 'canceled'").get(orgId) as { c: number };
+      const churnRate = totalOrgs.c > 0 ? Math.round((canceledOrgs.c / totalOrgs.c) * 1000) / 10 : 0;
 
       // Top subscriber organizations (strictly zero-knowledge: no inspection of private tenant deals or client records)
       const subscriberOrgs = (db.query(`
@@ -4777,11 +4779,12 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         arr,
         activeSubscribers: activeSubCount,
         totalSubscribers: totalOrgs.c,
+        churnRate,
+        canceledSubscribers: canceledOrgs.c,
         arpu,
         ltv,
         platformDeals: 0,
         platformAssignmentVolume: 0,
-        platformClosedVolume: 0,
         subscribersList: subscriberOrgs,
         salesLeads,
       };

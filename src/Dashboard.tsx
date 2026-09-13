@@ -866,6 +866,8 @@ export default function Dashboard({
     arr: (data.clientMrr || 0) * 12,
     activeSubscribers: 0,
     totalSubscribers: 0,
+    churnRate: 0,
+    canceledSubscribers: 0,
     arpu: 0,
     ltv: 0,
     platformDeals: 0,
@@ -975,7 +977,9 @@ export default function Dashboard({
               </button>
             </span>
             <span className={`kpi-value lime${blur(moneyHidden)}`}>{money(saas.arpu)}/mo</span>
-            <span className="kpi-note">Est. LTV: {money(saas.ltv)} per subscriber</span>
+            <span className="kpi-note">
+              Est. LTV: {money(saas.ltv)} · <strong>{saas.churnRate ?? 0}% Churn</strong>
+            </span>
           </div>
 
           <div className="card kpi">
@@ -1715,9 +1719,9 @@ export default function Dashboard({
                     </div>
                   </div>
                   <div className="window-stat-card">
-                    <div className="window-stat-label">Gross Margin</div>
-                    <div className="window-stat-value" style={{ color: "var(--ink)" }}>
-                      92%
+                    <div className="window-stat-label">Churn Rate</div>
+                    <div className="window-stat-value" style={{ color: (saas.churnRate ?? 0) > 5 ? "var(--amber, #f59e0b)" : "var(--lime, #3fb950)" }}>
+                      {saas.churnRate ?? 0}%
                     </div>
                   </div>
                 </div>
@@ -1727,7 +1731,7 @@ export default function Dashboard({
                     <div style={{ maxWidth: "70%" }}>
                       <div className="window-item-title">Standard Wholesale Edition Tier</div>
                       <div className="window-item-sub">
-                        Base subscription pricing for real estate wholesaling operators ($297/mo - $497/mo)
+                        Average revenue per subscriber license across active wholesale accounts
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
@@ -1735,7 +1739,24 @@ export default function Dashboard({
                         {money(saas.arpu || 297)}/mo
                       </div>
                       <span className="badge tone-blue" style={{ fontSize: "0.68rem" }}>
-                        Avg License
+                        Avg Revenue
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="window-item-card" style={{ cursor: "default" }}>
+                    <div style={{ maxWidth: "70%" }}>
+                      <div className="window-item-title">Subscriber Retention &amp; Churn Rate</div>
+                      <div className="window-item-sub">
+                        {saas.canceledSubscribers || 0} cancellations across {saas.totalSubscribers || 0} total registered workspaces
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="window-item-val" style={{ color: (saas.churnRate ?? 0) > 5 ? "var(--amber, #f59e0b)" : "var(--lime, #3fb950)" }}>
+                        {saas.churnRate ?? 0}%
+                      </div>
+                      <span className={`badge ${(saas.churnRate ?? 0) > 5 ? "tone-amber" : "tone-lime"}`} style={{ fontSize: "0.68rem" }}>
+                        {(saas.churnRate ?? 0) === 0 ? "Zero Churn" : "Tracked"}
                       </span>
                     </div>
                   </div>
@@ -1761,7 +1782,7 @@ export default function Dashboard({
 
               <div className="dashboard-window-footer">
                 <span>Unit Economics</span>
-                <span>{money(saas.mrr)} MRR · 0% Churn · Highly Profitable Model</span>
+                <span>{money(saas.mrr)} MRR · {saas.churnRate ?? 0}% Churn · Highly Profitable Model</span>
               </div>
             </div>
           </div>
