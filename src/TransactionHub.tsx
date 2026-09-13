@@ -287,6 +287,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
     onTabChange?.(tab);
   };
   const [processViewMode, setProcessViewMode] = useState<"board" | "table">("board");
+  const [clocksViewMode, setClocksViewMode] = useState<"cards" | "table">("cards");
   const [stepFilter, setStepFilter] = useState<number | "all">("all");
   const [processCollapsed, setProcessCollapsed] = useState<boolean>(() => {
     try {
@@ -1249,8 +1250,8 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                   <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                     <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Property Address</th>
                     <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center", minWidth: "210px" }}>Wholesale Stage &amp; Progress</th>
-                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Type &amp; State</th>
                     <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Parties (Wholesaler &amp; Buyer)</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Type &amp; State</th>
                     <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Contract &amp; Fee</th>
                     <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Escrow / Clocks</th>
                     <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Status</th>
@@ -1282,24 +1283,6 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                               onStepChange={(newStep) => handleQuickChangeStep(tx, newStep)}
                             />
                           </td>
-                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                            <span
-                              style={{
-                                textTransform: "uppercase",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.1)" : "rgba(59, 130, 246, 0.1)",
-                                color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
-                              }}
-                            >
-                              {tx.contractType.toUpperCase()}
-                            </span>
-                            <span style={{ fontSize: "12px", color: "var(--muted)", marginLeft: "6px" }}>
-                              ({tx.stateJurisdiction})
-                            </span>
-                          </td>
                           <td style={{ padding: "12px 16px", color: "var(--fg)", textAlign: "center" }}>
                             {tx.contractType === "assignment" ? (
                               <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -1328,6 +1311,24 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                                 </div>
                               </div>
                             )}
+                          </td>
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <span
+                              style={{
+                                textTransform: "uppercase",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.1)" : "rgba(59, 130, 246, 0.1)",
+                                color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
+                              }}
+                            >
+                              {tx.contractType.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: "12px", color: "var(--muted)", marginLeft: "6px" }}>
+                              ({tx.stateJurisdiction})
+                            </span>
                           </td>
                           <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--fg)", textAlign: "center" }}>
                             ${tx.purchasePrice.toLocaleString()}
@@ -1780,7 +1781,65 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
          ───────────────────────────────────────────────────────────── */}
       {!loading && activeTab === "clocks" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {filtered.map((tx) => {
+          {/* Header Controls with View Mode Toggle */}
+          <div
+            style={{
+              backgroundColor: "var(--panel)",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              padding: "14px 18px",
+              fontSize: "13px",
+              color: "var(--fg)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <div>
+              <strong>Contingency Countdown &amp; Escrow Clocks:</strong> Real-time countdowns track inspection due diligence
+              and earnest money deposit (EMD) hard deadlines to protect wholesaler capital.
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ display: "inline-flex", borderRadius: "6px", border: "1px solid var(--border)", overflow: "hidden" }}>
+                <button
+                  type="button"
+                  onClick={() => setClocksViewMode("cards")}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: "none",
+                    backgroundColor: clocksViewMode === "cards" ? "var(--accent, #3b82f6)" : "var(--panel)",
+                    color: clocksViewMode === "cards" ? "#ffffff" : "var(--fg)",
+                  }}
+                >
+                  ⏱️ Cards View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClocksViewMode("table")}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: "none",
+                    backgroundColor: clocksViewMode === "table" ? "var(--accent, #3b82f6)" : "var(--panel)",
+                    color: clocksViewMode === "table" ? "#ffffff" : "var(--fg)",
+                  }}
+                >
+                  📊 Table View
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {clocksViewMode === "cards" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {filtered.map((tx) => {
             const urgencyColor =
               tx.inspectionUrgency === "urgent"
                 ? "#ef4444"
@@ -1807,22 +1866,9 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                 }}
               >
                 {/* Card Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
-                  <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+                  <div style={{ flex: "1 1 280px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <span
-                        style={{
-                          textTransform: "uppercase",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          padding: "2px 8px",
-                          borderRadius: "4px",
-                          backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.15)" : "rgba(59, 130, 246, 0.15)",
-                          color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
-                        }}
-                      >
-                        {tx.contractType === "assignment" ? "Assignment Agreement" : "Purchase & Sale (PSA)"}
-                      </span>
                       <span
                         style={{
                           fontSize: "11px",
@@ -1837,7 +1883,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                       </span>
                       <span style={{ fontSize: "12px", color: "var(--muted)" }}>State: {tx.stateJurisdiction}</span>
                     </div>
-                    <h2 style={{ margin: "8px 0 4px 0", fontSize: "18px", fontWeight: 700, color: "var(--fg)" }}>
+                    <h2 style={{ margin: "6px 0 4px 0", fontSize: "18px", fontWeight: 700, color: "var(--fg)" }}>
                       {tx.propertyAddress}
                     </h2>
                     <div style={{ fontSize: "13px", color: "var(--muted)" }}>
@@ -1861,8 +1907,46 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                     </div>
                   </div>
 
+                  {/* Centered Contract Type */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      padding: "10px 18px",
+                      borderRadius: "8px",
+                      backgroundColor: "var(--bg-soft, rgba(0,0,0,0.03))",
+                      border: "1px solid var(--border)",
+                      minWidth: "200px",
+                    }}
+                  >
+                    <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)", fontWeight: 700, marginBottom: "4px" }}>
+                      Contract Type
+                    </span>
+                    <span
+                      style={{
+                        textTransform: "uppercase",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        padding: "4px 12px",
+                        borderRadius: "6px",
+                        backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                        color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
+                        border: tx.contractType === "assignment" ? "1px solid rgba(147, 51, 234, 0.3)" : "1px solid rgba(59, 130, 246, 0.3)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {tx.contractType === "assignment" ? "📝 Assignment Agreement" : "📄 Purchase & Sale (PSA)"}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px" }}>
+                      Jurisdiction: <strong>{tx.stateJurisdiction}</strong>
+                    </span>
+                  </div>
+
                   {/* Financials pill */}
-                  <div style={{ textAlign: "right" }}>
+                  <div style={{ textAlign: "right", flex: "1 1 180px" }}>
                     <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--fg)" }}>
                       ${tx.purchasePrice.toLocaleString()}
                     </div>
@@ -2155,6 +2239,219 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
               </div>
             );
           })}
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  backgroundColor: "var(--card-bg, var(--panel))",
+                  border: "1px solid var(--border)",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  fontSize: "13px",
+                }}
+              >
+                <thead>
+                  <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Property Address</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center", minWidth: "190px" }}>Wholesale Stage</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Parties (Wholesaler &amp; Buyer)</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center", minWidth: "180px" }}>Contract Type</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center", minWidth: "220px" }}>Inspection Contingency Clock</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>EMD &amp; Escrow</th>
+                    <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "var(--muted)" }}>
+                        No transactions found matching your filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((tx) => {
+                      const stepNum = getDealWholesaleStep(tx);
+                      const urgencyColor =
+                        tx.inspectionUrgency === "urgent"
+                          ? "#ef4444"
+                          : tx.inspectionUrgency === "warning"
+                          ? "#f59e0b"
+                          : tx.inspectionUrgency === "safe"
+                          ? "#10b981"
+                          : "#64748b";
+                      const progressPct =
+                        tx.inspectionDays > 0 && tx.daysLeftInspection !== null
+                          ? Math.max(0, Math.min(100, Math.round(((tx.inspectionDays - tx.daysLeftInspection) / tx.inspectionDays) * 100)))
+                          : 100;
+                      return (
+                        <tr key={tx.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                          <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--fg)", textAlign: "center" }}>
+                            <div>{tx.propertyAddress}</div>
+                            <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 400, marginTop: "2px" }}>
+                              State: {tx.stateJurisdiction} &bull; ${tx.purchasePrice.toLocaleString()}
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <WholesaleStageBadge
+                              step={stepNum}
+                              interactive={true}
+                              onStepChange={(newStep) => handleQuickChangeStep(tx, newStep)}
+                            />
+                          </td>
+                          <td style={{ padding: "12px 16px", color: "var(--fg)", textAlign: "center" }}>
+                            {tx.contractType === "assignment" ? (
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#a855f7", textTransform: "uppercase" }}>
+                                    Wholesaler
+                                  </span>
+                                  <strong style={{ color: "var(--fg)" }}>{tx.sellerName || crmBusinessName || "Wholesaler"}</strong>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: "4px" }}>
+                                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "3px", backgroundColor: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", textTransform: "uppercase" }}>
+                                    Investor
+                                  </span>
+                                  <strong style={{ color: "var(--fg)" }}>{tx.buyerName || "Investor"}</strong>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                                <div>
+                                  <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Seller:</span>{" "}
+                                  <strong>{tx.sellerName || "Seller"}</strong>
+                                </div>
+                                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+                                  <span style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase" }}>Buyer:</span>{" "}
+                                  {tx.buyerName || "Buyer"}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          {/* Centered Contract Type Column */}
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                              <span
+                                style={{
+                                  textTransform: "uppercase",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  padding: "3px 8px",
+                                  borderRadius: "4px",
+                                  backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                                  color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
+                                  border: tx.contractType === "assignment" ? "1px solid rgba(147, 51, 234, 0.3)" : "1px solid rgba(59, 130, 246, 0.3)",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {tx.contractType === "assignment" ? "📝 Assignment" : "📄 PSA"}
+                              </span>
+                              <span style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase" }}>
+                                {tx.status}
+                              </span>
+                            </div>
+                          </td>
+                          {/* Inspection Contingency Clock */}
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <div style={{ minWidth: "160px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: 600, marginBottom: "4px" }}>
+                                <span style={{ color: "var(--muted)" }}>Inspection</span>
+                                <span style={{ color: urgencyColor }}>
+                                  {tx.inspectionStatus === "passed"
+                                    ? "Passed / Waived"
+                                    : tx.daysLeftInspection !== null
+                                    ? tx.daysLeftInspection < 0
+                                      ? "Expired"
+                                      : `${tx.daysLeftInspection}d left`
+                                    : "No deadline"}
+                                </span>
+                              </div>
+                              <div style={{ height: "6px", width: "100%", backgroundColor: "var(--border)", borderRadius: "3px", overflow: "hidden" }}>
+                                <div
+                                  style={{
+                                    height: "100%",
+                                    width: `${progressPct}%`,
+                                    backgroundColor: urgencyColor,
+                                  }}
+                                />
+                              </div>
+                              <div style={{ fontSize: "10px", color: "var(--muted)", marginTop: "3px" }}>
+                                Ends: {tx.inspectionDeadline || "Not set"} ({tx.inspectionDays}d period)
+                              </div>
+                            </div>
+                          </td>
+                          {/* EMD & Escrow */}
+                          <td style={{ padding: "12px 16px", textAlign: "center", fontSize: "12px" }}>
+                            <div>
+                              EMD: <strong style={{ color: tx.emdStatus === "hard" ? "#10b981" : "inherit" }}>${tx.earnestMoney.toLocaleString()}</strong> ({tx.emdStatus})
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
+                              Hard: {tx.emdDueDate || "TBD"}
+                            </div>
+                          </td>
+                          {/* Actions */}
+                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                            <div style={{ display: "flex", gap: "6px", justifyContent: "center", flexWrap: "wrap" }}>
+                              <button
+                                onClick={() => setEditingTx(tx)}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid var(--border)",
+                                  backgroundColor: "var(--panel)",
+                                  color: "var(--fg)",
+                                  fontSize: "12px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Manage
+                              </button>
+                              <a
+                                href={tx.titlePortalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  backgroundColor: "var(--panel)",
+                                  border: "1px solid var(--border)",
+                                  color: "var(--fg)",
+                                  fontSize: "12px",
+                                  textDecoration: "none",
+                                }}
+                              >
+                                Title
+                              </a>
+                              {tx.inspectionStatus === "active" && (
+                                <button
+                                  onClick={() => handlePassInspection(tx)}
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #10b981",
+                                    backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                    color: "#10b981",
+                                    fontSize: "11px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                  }}
+                                  title="Mark inspection contingency passed"
+                                >
+                                  ✅ Pass
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -2194,8 +2491,8 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                 <tr style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Property Address</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center", minWidth: "190px" }}>Wholesale Stage</th>
-                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Type &amp; State</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Parties (Wholesaler &amp; Investor / Seller &amp; Buyer)</th>
+                  <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Type &amp; State</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Contract Price</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>E-Sign Status</th>
                   <th style={{ padding: "12px 16px", color: "var(--muted)", textAlign: "center" }}>Actions</th>
@@ -2216,24 +2513,6 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                         interactive={true}
                         onStepChange={(newStep) => handleQuickChangeStep(tx, newStep)}
                       />
-                    </td>
-                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                      <span
-                        style={{
-                          textTransform: "uppercase",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.1)" : "rgba(59, 130, 246, 0.1)",
-                          color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
-                        }}
-                      >
-                        {tx.contractType.toUpperCase()}
-                      </span>
-                      <span style={{ fontSize: "12px", color: "var(--muted)", marginLeft: "6px" }}>
-                        ({tx.stateJurisdiction})
-                      </span>
                     </td>
                     <td style={{ padding: "12px 16px", color: "var(--fg)", textAlign: "center" }}>
                       {tx.contractType === "assignment" ? (
@@ -2263,6 +2542,24 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                           </div>
                         </div>
                       )}
+                    </td>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                      <span
+                        style={{
+                          textTransform: "uppercase",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          backgroundColor: tx.contractType === "assignment" ? "rgba(147, 51, 234, 0.1)" : "rgba(59, 130, 246, 0.1)",
+                          color: tx.contractType === "assignment" ? "#a855f7" : "#3b82f6",
+                        }}
+                      >
+                        {tx.contractType.toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: "12px", color: "var(--muted)", marginLeft: "6px" }}>
+                        ({tx.stateJurisdiction})
+                      </span>
                     </td>
                     <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--fg)", textAlign: "center" }}>
                       ${tx.purchasePrice.toLocaleString()}
