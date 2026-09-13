@@ -6,9 +6,19 @@ interface LegalPageProps {
   onLaunchApp: () => void;
   onNavigateTerms?: () => void;
   onNavigateSecurity?: () => void;
+  onNavigateCookies?: () => void;
+  onNavigateSla?: () => void;
 }
 
-export default function PrivacyPolicy({ onBack, onSignIn, onLaunchApp, onNavigateTerms, onNavigateSecurity }: LegalPageProps) {
+export default function PrivacyPolicy({
+  onBack,
+  onSignIn,
+  onLaunchApp,
+  onNavigateTerms,
+  onNavigateSecurity,
+  onNavigateCookies,
+  onNavigateSla,
+}: LegalPageProps) {
   return (
     <div className="rw-page" style={{ minHeight: "100vh", backgroundColor: "var(--rw-bg)", color: "var(--rw-text)" }}>
       {/* ── Top Navigation Bar ── */}
@@ -63,11 +73,11 @@ export default function PrivacyPolicy({ onBack, onSignIn, onLaunchApp, onNavigat
             Privacy Policy
           </h1>
           <div style={{ fontSize: "14px", color: "var(--rw-text-dim)" }}>
-            Effective Date: <strong>September 7, 2026</strong> · Last Reviewed: September 2026
+            Effective Date: <strong>September 13, 2026</strong> · Zero-Knowledge Multi-Tenant Architecture
           </div>
 
           {/* Quick Legal Nav Tabs */}
-          <div style={{ display: "flex", gap: "10px", marginTop: "18px" }}>
+          <div style={{ display: "flex", gap: "10px", marginTop: "18px", flexWrap: "wrap" }}>
             <span style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 700, backgroundColor: "var(--rw-primary)", color: "var(--rw-primary-ink)" }}>
               Privacy Policy
             </span>
@@ -89,6 +99,24 @@ export default function PrivacyPolicy({ onBack, onSignIn, onLaunchApp, onNavigat
                 Security &amp; Safeguards →
               </button>
             )}
+            {onNavigateCookies && (
+              <button
+                type="button"
+                onClick={onNavigateCookies}
+                style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, backgroundColor: "var(--rw-surface)", border: "1px solid var(--rw-border)", color: "var(--rw-text)", cursor: "pointer" }}
+              >
+                Cookie Policy →
+              </button>
+            )}
+            {onNavigateSla && (
+              <button
+                type="button"
+                onClick={onNavigateSla}
+                style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, backgroundColor: "var(--rw-surface)", border: "1px solid var(--rw-border)", color: "var(--rw-text)", cursor: "pointer" }}
+              >
+                SLA (99.9%) →
+              </button>
+            )}
           </div>
         </div>
 
@@ -104,10 +132,10 @@ export default function PrivacyPolicy({ onBack, onSignIn, onLaunchApp, onNavigat
           }}
         >
           <div style={{ fontWeight: 700, fontSize: "16px", marginBottom: "6px", color: "var(--rw-text)" }}>
-            🛡️ Revzenta Non-Sale of Data Pledge
+            🛡️ Revzenta Non-Sale of Data &amp; Zero-Knowledge Isolation Pledge
           </div>
           <p style={{ margin: 0, fontSize: "14px", color: "var(--rw-text-dim)", lineHeight: 1.6 }}>
-            Revzenta CRM operates solely as an enterprise software provider. <strong>We do not sell, rent, commercialize, broker, or monetize your lead lists, seller contact records, buyer buy boxes, or property notes under any circumstances.</strong> Your proprietary real estate data belongs exclusively to your account.
+            Revzenta CRM operates solely as an enterprise software provider. <strong>We do not sell, rent, commercialize, broker, or monetize your lead lists, seller contact records, buyer rosters, or assignment fee margins under any circumstances.</strong> Furthermore, our multi-tenant architecture strictly enforces Zero-Knowledge isolation: platform administrators cannot inspect or aggregate your private contract financials or property deals.
           </p>
         </div>
 

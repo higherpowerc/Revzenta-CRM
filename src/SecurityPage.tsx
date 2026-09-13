@@ -6,9 +6,19 @@ interface LegalPageProps {
   onLaunchApp: () => void;
   onNavigatePrivacy?: () => void;
   onNavigateTerms?: () => void;
+  onNavigateCookies?: () => void;
+  onNavigateSla?: () => void;
 }
 
-export default function SecurityPage({ onBack, onSignIn, onLaunchApp, onNavigatePrivacy, onNavigateTerms }: LegalPageProps) {
+export default function SecurityPage({
+  onBack,
+  onSignIn,
+  onLaunchApp,
+  onNavigatePrivacy,
+  onNavigateTerms,
+  onNavigateCookies,
+  onNavigateSla,
+}: LegalPageProps) {
   return (
     <div className="rw-page" style={{ minHeight: "100vh", backgroundColor: "var(--rw-bg)", color: "var(--rw-text)" }}>
       {/* ── Top Navigation Bar ── */}
@@ -63,11 +73,11 @@ export default function SecurityPage({ onBack, onSignIn, onLaunchApp, onNavigate
             Security &amp; Data Protection
           </h1>
           <div style={{ fontSize: "14px", color: "var(--rw-text-dim)" }}>
-            Revzenta CRM Technical Safeguards, Multi-Tenant Architecture &amp; Privacy Shield
+            Revzenta CRM Technical Safeguards, Zero-Knowledge Multi-Tenant Architecture &amp; Privacy Shield
           </div>
 
           {/* Quick Legal Nav Tabs */}
-          <div style={{ display: "flex", gap: "10px", marginTop: "18px" }}>
+          <div style={{ display: "flex", gap: "10px", marginTop: "18px", flexWrap: "wrap" }}>
             {onNavigatePrivacy && (
               <button
                 type="button"
@@ -86,10 +96,47 @@ export default function SecurityPage({ onBack, onSignIn, onLaunchApp, onNavigate
                 Terms of Service →
               </button>
             )}
+            {onNavigateCookies && (
+              <button
+                type="button"
+                onClick={onNavigateCookies}
+                style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, backgroundColor: "var(--rw-surface)", border: "1px solid var(--rw-border)", color: "var(--rw-text)", cursor: "pointer" }}
+              >
+                Cookie Policy →
+              </button>
+            )}
+            {onNavigateSla && (
+              <button
+                type="button"
+                onClick={onNavigateSla}
+                style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, backgroundColor: "var(--rw-surface)", border: "1px solid var(--rw-border)", color: "var(--rw-text)", cursor: "pointer" }}
+              >
+                SLA (99.9%) →
+              </button>
+            )}
             <span style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 700, backgroundColor: "var(--rw-primary)", color: "var(--rw-primary-ink)" }}>
               Security &amp; Safeguards
             </span>
           </div>
+        </div>
+
+        {/* Zero-Knowledge Isolation Guarantee */}
+        <div
+          style={{
+            padding: "20px 24px",
+            borderRadius: "10px",
+            backgroundColor: "var(--rw-surface)",
+            border: "1px solid var(--rw-border)",
+            borderLeft: "4px solid var(--rw-primary)",
+            marginBottom: "32px",
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: "16px", marginBottom: "6px", color: "var(--rw-text)" }}>
+            🛡️ Zero-Knowledge Multi-Tenant Privacy Guarantee
+          </div>
+          <p style={{ margin: 0, fontSize: "14px", color: "var(--rw-text-dim)", lineHeight: 1.6 }}>
+            Revzenta operates under a strict Zero-Knowledge confidentiality standard. <strong>Platform administrators and system engineers cannot view, query, or aggregate your private wholesale leads, property contract values, or assignment fee spreads.</strong> Every workspace is strictly partitioned at the database layer.
+          </p>
         </div>
 
         {/* Security Summary Cards */}

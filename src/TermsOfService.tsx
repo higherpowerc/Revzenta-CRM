@@ -6,9 +6,19 @@ interface LegalPageProps {
   onLaunchApp: () => void;
   onNavigatePrivacy?: () => void;
   onNavigateSecurity?: () => void;
+  onNavigateCookies?: () => void;
+  onNavigateSla?: () => void;
 }
 
-export default function TermsOfService({ onBack, onSignIn, onLaunchApp, onNavigatePrivacy, onNavigateSecurity }: LegalPageProps) {
+export default function TermsOfService({
+  onBack,
+  onSignIn,
+  onLaunchApp,
+  onNavigatePrivacy,
+  onNavigateSecurity,
+  onNavigateCookies,
+  onNavigateSla,
+}: LegalPageProps) {
   return (
     <div className="rw-page" style={{ minHeight: "100vh", backgroundColor: "var(--rw-bg)", color: "var(--rw-text)" }}>
       {/* ── Top Navigation Bar ── */}
@@ -63,11 +73,11 @@ export default function TermsOfService({ onBack, onSignIn, onLaunchApp, onNaviga
             Terms of Service
           </h1>
           <div style={{ fontSize: "14px", color: "var(--rw-text-dim)" }}>
-            Effective Date: <strong>September 7, 2026</strong> · Version 2.4
+            Effective Date: <strong>September 13, 2026</strong> · Version 2.5
           </div>
 
           {/* Quick Legal Nav Tabs */}
-          <div style={{ display: "flex", gap: "10px", marginTop: "18px" }}>
+          <div style={{ display: "flex", gap: "10px", marginTop: "18px", flexWrap: "wrap" }}>
             {onNavigatePrivacy && (
               <button
                 type="button"
@@ -87,6 +97,24 @@ export default function TermsOfService({ onBack, onSignIn, onLaunchApp, onNaviga
                 style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, backgroundColor: "var(--rw-surface)", border: "1px solid var(--rw-border)", color: "var(--rw-text)", cursor: "pointer" }}
               >
                 Security &amp; Safeguards →
+              </button>
+            )}
+            {onNavigateCookies && (
+              <button
+                type="button"
+                onClick={onNavigateCookies}
+                style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, backgroundColor: "var(--rw-surface)", border: "1px solid var(--rw-border)", color: "var(--rw-text)", cursor: "pointer" }}
+              >
+                Cookie Policy →
+              </button>
+            )}
+            {onNavigateSla && (
+              <button
+                type="button"
+                onClick={onNavigateSla}
+                style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, backgroundColor: "var(--rw-surface)", border: "1px solid var(--rw-border)", color: "var(--rw-text)", cursor: "pointer" }}
+              >
+                SLA (99.9%) →
               </button>
             )}
           </div>

@@ -86,7 +86,19 @@ export default function App() {
   const [showLogin, setShowLogin] = useState<boolean>(() => window.location.hash.startsWith("#/login"));
   const isWebsiteOrLegalHash = (h: string) => {
     const l = h.toLowerCase();
-    return l.startsWith("#/website") || l.includes("privacy") || l.includes("terms") || l.includes("security") || l.includes("agreement");
+    return (
+      l.startsWith("#/website") ||
+      l.includes("privacy") ||
+      l.includes("terms") ||
+      l.includes("security") ||
+      l.includes("agreement") ||
+      l.includes("cookie") ||
+      l.includes("sla") ||
+      l.includes("status") ||
+      l.includes("contact") ||
+      l.includes("docs") ||
+      l.includes("kb")
+    );
   };
   const isSignupHash = (h: string) => h.startsWith("#/signup") && !h.startsWith("#/signup-success");
   const isSignupSuccessHash = (h: string) => h.startsWith("#/signup-success");

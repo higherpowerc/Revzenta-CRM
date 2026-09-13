@@ -4,6 +4,12 @@ import PrivacyPolicy from "./PrivacyPolicy";
 import TermsOfService from "./TermsOfService";
 import SecurityPage from "./SecurityPage";
 import CustomerAgreement from "./CustomerAgreement";
+import CookiePolicy from "./CookiePolicy";
+import CookieBanner from "./CookieBanner";
+import SlaPage from "./SlaPage";
+import StatusPage from "./StatusPage";
+import ContactPage from "./ContactPage";
+import KnowledgeBase from "./KnowledgeBase";
 import revzentaLogo from "./assets/revzenta-logo.png";
 
 interface WebsiteProps {
@@ -11,29 +17,51 @@ interface WebsiteProps {
   onLaunchApp: (tier?: "starter" | "pro" | "scale" | any) => void;
 }
 
+type SubPage =
+  | "privacy"
+  | "terms"
+  | "security"
+  | "agreement"
+  | "cookies"
+  | "sla"
+  | "status"
+  | "contact"
+  | "docs"
+  | null;
+
 export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
-  // Active Legal Page state
-  const [activeLegalPage, setActiveLegalPage] = useState<"privacy" | "terms" | "security" | "agreement" | null>(() => {
-    const h = window.location.hash.toLowerCase();
-    if (h.includes("privacy")) return "privacy";
-    if (h.includes("terms")) return "terms";
-    if (h.includes("security")) return "security";
-    if (h.includes("agreement")) return "agreement";
+  const resolvePageFromHash = (h: string): SubPage => {
+    const l = h.toLowerCase();
+    if (l.includes("privacy")) return "privacy";
+    if (l.includes("terms")) return "terms";
+    if (l.includes("security")) return "security";
+    if (l.includes("agreement")) return "agreement";
+    if (l.includes("cookie")) return "cookies";
+    if (l.includes("sla")) return "sla";
+    if (l.includes("status")) return "status";
+    if (l.includes("contact") || l.includes("support")) return "contact";
+    if (l.includes("docs") || l.includes("kb") || l.includes("knowledge") || l.includes("help")) return "docs";
     return null;
-  });
+  };
+
+  // Active SubPage state
+  const [activeLegalPage, setActiveLegalPage] = useState<SubPage>(() =>
+    resolvePageFromHash(window.location.hash)
+  );
 
   useEffect(() => {
     const handleHash = () => {
-      const h = window.location.hash.toLowerCase();
-      if (h.includes("privacy")) setActiveLegalPage("privacy");
-      else if (h.includes("terms")) setActiveLegalPage("terms");
-      else if (h.includes("security")) setActiveLegalPage("security");
-      else if (h.includes("agreement")) setActiveLegalPage("agreement");
-      else setActiveLegalPage(null);
+      setActiveLegalPage(resolvePageFromHash(window.location.hash));
     };
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
+
+  const navigateTo = (page: SubPage, hash: string) => {
+    setActiveLegalPage(page);
+    window.location.hash = hash;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // ROI Calculator State
   const [leadsPerMonth, setLeadsPerMonth] = useState(60);
@@ -59,26 +87,76 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
     setOpenFaq(openFaq === index ? null : index);
   };
 
+  if (activeLegalPage === "cookies") {
+    return (
+      <CookiePolicy
+        onBack={() => navigateTo(null, "")}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onNavigatePrivacy={() => navigateTo("privacy", "#privacy")}
+        onNavigateTerms={() => navigateTo("terms", "#terms")}
+        onNavigateSecurity={() => navigateTo("security", "#security")}
+        onNavigateSla={() => navigateTo("sla", "#sla")}
+      />
+    );
+  }
+
+  if (activeLegalPage === "sla") {
+    return (
+      <SlaPage
+        onBack={() => navigateTo(null, "")}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onNavigatePrivacy={() => navigateTo("privacy", "#privacy")}
+        onNavigateTerms={() => navigateTo("terms", "#terms")}
+        onNavigateSecurity={() => navigateTo("security", "#security")}
+        onNavigateCookies={() => navigateTo("cookies", "#cookies")}
+      />
+    );
+  }
+
+  if (activeLegalPage === "status") {
+    return (
+      <StatusPage
+        onBack={() => navigateTo(null, "")}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onOpenContact={() => navigateTo("contact", "#contact")}
+      />
+    );
+  }
+
+  if (activeLegalPage === "contact") {
+    return (
+      <ContactPage
+        onBack={() => navigateTo(null, "")}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+      />
+    );
+  }
+
+  if (activeLegalPage === "docs") {
+    return (
+      <KnowledgeBase
+        onBack={() => navigateTo(null, "")}
+        onSignIn={onSignIn}
+        onLaunchApp={onLaunchApp}
+        onOpenContact={() => navigateTo("contact", "#contact")}
+      />
+    );
+  }
+
   if (activeLegalPage === "privacy") {
     return (
       <PrivacyPolicy
-        onBack={() => {
-          setActiveLegalPage(null);
-          window.location.hash = "";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onBack={() => navigateTo(null, "")}
         onSignIn={onSignIn}
         onLaunchApp={onLaunchApp}
-        onNavigateTerms={() => {
-          setActiveLegalPage("terms");
-          window.location.hash = "#terms";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
-        onNavigateSecurity={() => {
-          setActiveLegalPage("security");
-          window.location.hash = "#security";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onNavigateTerms={() => navigateTo("terms", "#terms")}
+        onNavigateSecurity={() => navigateTo("security", "#security")}
+        onNavigateCookies={() => navigateTo("cookies", "#cookies")}
+        onNavigateSla={() => navigateTo("sla", "#sla")}
       />
     );
   }
@@ -86,23 +164,13 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
   if (activeLegalPage === "terms") {
     return (
       <TermsOfService
-        onBack={() => {
-          setActiveLegalPage(null);
-          window.location.hash = "";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onBack={() => navigateTo(null, "")}
         onSignIn={onSignIn}
         onLaunchApp={onLaunchApp}
-        onNavigatePrivacy={() => {
-          setActiveLegalPage("privacy");
-          window.location.hash = "#privacy";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
-        onNavigateSecurity={() => {
-          setActiveLegalPage("security");
-          window.location.hash = "#security";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onNavigatePrivacy={() => navigateTo("privacy", "#privacy")}
+        onNavigateSecurity={() => navigateTo("security", "#security")}
+        onNavigateCookies={() => navigateTo("cookies", "#cookies")}
+        onNavigateSla={() => navigateTo("sla", "#sla")}
       />
     );
   }
@@ -110,23 +178,13 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
   if (activeLegalPage === "security") {
     return (
       <SecurityPage
-        onBack={() => {
-          setActiveLegalPage(null);
-          window.location.hash = "";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onBack={() => navigateTo(null, "")}
         onSignIn={onSignIn}
         onLaunchApp={onLaunchApp}
-        onNavigatePrivacy={() => {
-          setActiveLegalPage("privacy");
-          window.location.hash = "#privacy";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
-        onNavigateTerms={() => {
-          setActiveLegalPage("terms");
-          window.location.hash = "#terms";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onNavigatePrivacy={() => navigateTo("privacy", "#privacy")}
+        onNavigateTerms={() => navigateTo("terms", "#terms")}
+        onNavigateCookies={() => navigateTo("cookies", "#cookies")}
+        onNavigateSla={() => navigateTo("sla", "#sla")}
       />
     );
   }
@@ -134,28 +192,12 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
   if (activeLegalPage === "agreement") {
     return (
       <CustomerAgreement
-        onBack={() => {
-          setActiveLegalPage(null);
-          window.location.hash = "";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onBack={() => navigateTo(null, "")}
         onSignIn={onSignIn}
         onLaunchApp={onLaunchApp}
-        onNavigatePrivacy={() => {
-          setActiveLegalPage("privacy");
-          window.location.hash = "#privacy";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
-        onNavigateTerms={() => {
-          setActiveLegalPage("terms");
-          window.location.hash = "#terms";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
-        onNavigateSecurity={() => {
-          setActiveLegalPage("security");
-          window.location.hash = "#security";
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onNavigatePrivacy={() => navigateTo("privacy", "#privacy")}
+        onNavigateTerms={() => navigateTo("terms", "#terms")}
+        onNavigateSecurity={() => navigateTo("security", "#security")}
       />
     );
   }
@@ -187,11 +229,47 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
           <ul className="rw-nav-links">
             <li><a href="#features" className="rw-nav-link">Features</a></li>
             <li><a href="#lead-engine" className="rw-nav-link">Lead Engine</a></li>
-            <li><a href="#buy-box" className="rw-nav-link">Buy Box Matcher</a></li>
-            <li><a href="#transactions" className="rw-nav-link">Transaction Hub</a></li>
-            <li><a href="#calculator" className="rw-nav-link">ROI Calculator</a></li>
+            <li><a href="#buy-box" className="rw-nav-link">Buy Box</a></li>
+            <li><a href="#transactions" className="rw-nav-link">Transactions</a></li>
             <li><a href="#pricing" className="rw-nav-link">Pricing</a></li>
-            <li><a href="#faq" className="rw-nav-link">FAQ</a></li>
+            <li>
+              <a
+                href="#docs"
+                className="rw-nav-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateTo("docs", "#docs");
+                }}
+              >
+                Docs
+              </a>
+            </li>
+            <li>
+              <a
+                href="#status"
+                className="rw-nav-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateTo("status", "#status");
+                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 6px #10b981" }} />
+                Status
+              </a>
+            </li>
+            <li>
+              <a
+                href="#contact"
+                className="rw-nav-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateTo("contact", "#contact");
+                }}
+              >
+                Contact
+              </a>
+            </li>
           </ul>
 
           <div className="rw-nav-actions">
@@ -812,6 +890,58 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
             </div>
 
             <div className="rw-footer-col">
+              <h4>Resources &amp; Operations</h4>
+              <ul className="rw-footer-links">
+                <li>
+                  <a
+                    href="#docs"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateTo("docs", "#docs");
+                    }}
+                  >
+                    Documentation &amp; Guides
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#status"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateTo("status", "#status");
+                    }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#10b981" }} />
+                    Live System Status
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#contact"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateTo("contact", "#contact");
+                    }}
+                  >
+                    Contact &amp; Support Desk
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#sla"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateTo("sla", "#sla");
+                    }}
+                  >
+                    Service Level Agreement (SLA)
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div className="rw-footer-col">
               <h4>Trust &amp; Legal</h4>
               <ul className="rw-footer-links">
                 <li>
@@ -819,9 +949,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                     href="#privacy"
                     onClick={(e) => {
                       e.preventDefault();
-                      setActiveLegalPage("privacy");
-                      window.location.hash = "#privacy";
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      navigateTo("privacy", "#privacy");
                     }}
                   >
                     Privacy Policy
@@ -832,9 +960,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                     href="#terms"
                     onClick={(e) => {
                       e.preventDefault();
-                      setActiveLegalPage("terms");
-                      window.location.hash = "#terms";
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      navigateTo("terms", "#terms");
                     }}
                   >
                     Terms of Service
@@ -842,12 +968,21 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 </li>
                 <li>
                   <a
+                    href="#cookies"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateTo("cookies", "#cookies");
+                    }}
+                  >
+                    Cookie Policy
+                  </a>
+                </li>
+                <li>
+                  <a
                     href="#security"
                     onClick={(e) => {
                       e.preventDefault();
-                      setActiveLegalPage("security");
-                      window.location.hash = "#security";
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      navigateTo("security", "#security");
                     }}
                   >
                     Security &amp; Compliance
@@ -858,15 +993,12 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                     href="#agreement"
                     onClick={(e) => {
                       e.preventDefault();
-                      setActiveLegalPage("agreement");
-                      window.location.hash = "#agreement";
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      navigateTo("agreement", "#agreement");
                     }}
                   >
                     Customer Agreement
                   </a>
                 </li>
-                <li><a href="#faq">Legal MLS FAQ</a></li>
               </ul>
             </div>
 
@@ -875,21 +1007,29 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <ul className="rw-footer-links">
                 <li><a href="#" onClick={(e) => { e.preventDefault(); onSignIn(); }}>Sign In</a></li>
                 <li><a href="#" onClick={(e) => { e.preventDefault(); onLaunchApp(); }}>Launch CRM</a></li>
-                <li><a href="mailto:support@revzenta.com">Contact Support</a></li>
+                <li>
+                  <a
+                    href="#contact"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateTo("contact", "#contact");
+                    }}
+                  >
+                    Submit Support Ticket
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
 
           <div className="rw-footer-bottom">
-            <div>© {new Date().getFullYear()} Revzenta LLC. All rights reserved.</div>
-            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+            <div>© {new Date().getFullYear()} Revzenta LLC. All rights reserved. · Zero-Knowledge Wholesale Architecture</div>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center" }}>
               <a
                 href="#agreement"
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveLegalPage("agreement");
-                  window.location.hash = "#agreement";
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  navigateTo("agreement", "#agreement");
                 }}
                 style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
               >
@@ -899,9 +1039,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 href="#privacy"
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveLegalPage("privacy");
-                  window.location.hash = "#privacy";
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  navigateTo("privacy", "#privacy");
                 }}
                 style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
               >
@@ -911,30 +1049,59 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
                 href="#terms"
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveLegalPage("terms");
-                  window.location.hash = "#terms";
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  navigateTo("terms", "#terms");
                 }}
                 style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
               >
                 Terms of Service
               </a>
               <a
+                href="#cookies"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateTo("cookies", "#cookies");
+                }}
+                style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
+              >
+                Cookie Policy
+              </a>
+              <a
                 href="#security"
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveLegalPage("security");
-                  window.location.hash = "#security";
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  navigateTo("security", "#security");
                 }}
                 style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
               >
                 Security
               </a>
+              <a
+                href="#sla"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateTo("sla", "#sla");
+                }}
+                style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
+              >
+                SLA (99.9%)
+              </a>
+              <a
+                href="#status"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateTo("status", "#status");
+                }}
+                style={{ color: "inherit", textDecoration: "none", cursor: "pointer" }}
+              >
+                System Status
+              </a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Cookie Consent Banner */}
+      <CookieBanner onOpenCookiePolicy={() => navigateTo("cookies", "#cookies")} />
     </div>
   );
 }
