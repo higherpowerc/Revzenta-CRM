@@ -325,9 +325,12 @@ export default function App() {
     if (user?.permissions?.[tab] !== undefined) return true;
     // Backwards compatibility for users with legacy 5-tab grants
     if (tab === "dashboard" || tab === "appointments") return true;
+    if (tab === "documents" && user?.permissions?.["clients"] !== undefined) {
+      return true;
+    }
     if (isWholesale) {
       if (
-        (tab === "offers" || tab === "documents" || tab === "buybox" || tab === "investors") &&
+        (tab === "offers" || tab === "buybox" || tab === "investors") &&
         user?.permissions?.["clients"] !== undefined
       ) {
         return true;
@@ -342,9 +345,12 @@ export default function App() {
     if (isOwnerOrg) return true;
     if (user?.isOrgAdmin === true) return true;
     if (user?.permissions?.[tab] !== undefined) return user?.permissions?.[tab]?.edit === true;
+    if (tab === "documents" && user?.permissions?.["clients"] !== undefined) {
+      return user?.permissions?.["clients"]?.edit === true;
+    }
     if (isWholesale) {
       if (
-        (tab === "offers" || tab === "documents" || tab === "buybox" || tab === "investors") &&
+        (tab === "offers" || tab === "buybox" || tab === "investors") &&
         user?.permissions?.["clients"] !== undefined
       ) {
         return user?.permissions?.["clients"]?.edit === true;
@@ -363,9 +369,9 @@ export default function App() {
       case "dashboard":
         return canSeeTab("dashboard");
       case "properties":
-        return true;
+        return !isOwnerCockpit;
       case "leads":
-        return canSeeTab("clients");
+        return !isOwnerCockpit && canSeeTab("clients");
       case "opportunities":
         return isWholesale && canSeeTab("clients");
       case "offers":
@@ -392,11 +398,11 @@ export default function App() {
       case "admin":
         return isOwnerCockpit;
       case "documents":
-        return isOwnerCockpit || canSeeTab("documents");
+        return !isOwnerCockpit && canSeeTab("documents");
       case "contracts":
-        return isWholesale ? canSeeTab("documents") : isOwnerCockpit;
+        return isWholesale ? canSeeTab("documents") : false;
       case "sold":
-        return isWholesale ? (canSeeTab("documents") || canSeeTab("clients")) : isOwnerCockpit;
+        return isWholesale ? (canSeeTab("documents") || canSeeTab("clients")) : false;
       case "buyers":
         return isWholesale && (canSeeTab("investors") || canSeeTab("tasks"));
       case "connections":
@@ -415,7 +421,27 @@ export default function App() {
      wholesale-only view is somehow active), fall back to the Dashboard. */
   const viewWholesaleAllowed = (v: View): boolean => {
     if (!isWholesale) {
-      return v !== "buyers" && (isOwnerCockpit ? true : v !== "documents") && v !== "offers" && v !== "buybox" && v !== "connections" && v !== "sold" && v !== "contracts";
+      if (isOwnerCockpit) {
+        return (
+          v !== "buyers" &&
+          v !== "documents" &&
+          v !== "offers" &&
+          v !== "buybox" &&
+          v !== "connections" &&
+          v !== "sold" &&
+          v !== "contracts" &&
+          v !== "properties" &&
+          v !== "leads"
+        );
+      }
+      return (
+        v !== "buyers" &&
+        v !== "offers" &&
+        v !== "buybox" &&
+        v !== "connections" &&
+        v !== "sold" &&
+        v !== "contracts"
+      );
     }
     return !(v === "appointments" || v === "finance");
   };
@@ -428,15 +454,12 @@ export default function App() {
     if (isOwnerCockpit) {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard & ROI";
+        case "messages": return "Message Hub";
         case "finance": return "Revenue & Stripe";
         case "clients": return "Subscribers";
-        case "leads": return "Sales Leads";
         case "marketing": return "Marketing & Attribution Suite";
         case "tasks": return "Tasks";
         case "tickets": return "Support Tickets";
-        case "documents": return "Signed Agreements";
-        case "sold": return "Sold Hub";
-        case "messages": return "Message Hub";
         case "admin": return "Template & Admin";
         case "compliance": return "Compliance & DNC";
         case "settings": return "Settings";
@@ -473,6 +496,7 @@ export default function App() {
       case "tasks": return "Tasks";
       case "tickets": return "Support";
       case "messages": return "Message Hub";
+      case "documents": return "Signed Agreements";
       case "finance": return "Finance";
       case "settings": return "Settings";
       default: return "Menu";
@@ -484,17 +508,12 @@ export default function App() {
     if (isOwnerCockpit) {
       switch (effectiveViewFinal) {
         case "dashboard": return "📊";
-        case "properties": return "🌐";
+        case "messages": return "💬";
         case "finance": return "💰";
         case "clients": return "👥";
-        case "onboarding": return "🚀";
-        case "leads": return "🎯";
-        case "appointments": return "📅";
         case "tasks": return "📋";
         case "tickets": return "🎫";
-        case "documents": return "📑";
-        case "sold": return "🏆";
-        case "messages": return "💬";
+        case "marketing": return "📈";
         case "admin": return "📝";
         case "compliance": return "🛡️";
         case "settings": return "⚙️";
@@ -522,7 +541,20 @@ export default function App() {
         default: return "☰";
       }
     }
-    return "☰";
+    switch (effectiveViewFinal) {
+      case "dashboard": return "📊";
+      case "properties": return "🌐";
+      case "leads": return "🎯";
+      case "clients": return "👥";
+      case "appointments": return "📅";
+      case "tasks": return "📋";
+      case "tickets": return "🎫";
+      case "messages": return "💬";
+      case "documents": return "📑";
+      case "finance": return "💰";
+      case "settings": return "⚙️";
+      default: return "☰";
+    }
   }, [previewVertical, isOwnerCockpit, effectiveViewFinal, isWholesale]);
 
   const handleLogout = useCallback(async () => {
@@ -905,35 +937,10 @@ export default function App() {
                   <span>Subscribers</span>
                 </button>
 
-                {/* 3. Sales & Growth Pipeline */}
+                {/* 3. Marketing & Operations */}
                 <div className="nav-section-title">
-                  <span>Sales &amp; Growth</span>
+                  <span>Marketing &amp; Operations</span>
                 </div>
-                <button
-                  className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setLeadsStage(null);
-                    setOnboardingStage(null);
-                    setLeadsFilter("active");
-                    setView("leads");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Website inquiries, new signups, and prospective subscriber leads"
-                >
-                  <span className="tab-icon">🎯</span>
-                  <span>Sales Leads</span>
-                </button>
-                <button
-                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setView("properties");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
-                >
-                  <span className="tab-icon">🌐</span>
-                  <span>Property Search</span>
-                </button>
                 <button
                   className={effectiveViewFinal === "marketing" ? "tab active" : "tab"}
                   onClick={() => {
@@ -1008,17 +1015,6 @@ export default function App() {
                 <div className="nav-section-title">
                   <span>Legal &amp; System</span>
                 </div>
-                <button
-                  className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setView("documents");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Audit trail and signed Master SaaS Agreements for all subscribers"
-                >
-                  <span className="tab-icon">📑</span>
-                  <span>Signed Agreements</span>
-                </button>
                 <button
                   className={effectiveViewFinal === "admin" ? "tab active" : "tab"}
                   onClick={() => {
@@ -1407,6 +1403,17 @@ export default function App() {
                   <span className="tab-icon">💬</span>
                   <span>Message Hub</span>
                 </button>
+                <button
+                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("properties");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
+                >
+                  <span className="tab-icon">🌐</span>
+                  <span>Property Search</span>
+                </button>
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
@@ -1444,6 +1451,19 @@ export default function App() {
                   <span className="tab-icon">📅</span>
                   <span>Appointments</span>
                 </button>
+                {canSeeTab("documents") && (
+                  <button
+                    className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setView("documents");
+                      setMobileMenuOpen(false);
+                    }}
+                    title="Audit trail and signed agreements"
+                  >
+                    <span className="tab-icon">📑</span>
+                    <span>Signed Agreements</span>
+                  </button>
+                )}
                 {canSeeTab("tasks") && (
                   <button
                     className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
