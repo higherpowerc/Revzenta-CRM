@@ -869,17 +869,6 @@ export default function App() {
                   <span className="tab-icon">💰</span>
                   <span>Revenue &amp; Stripe</span>
                 </button>
-                <button
-                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setView("properties");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
-                >
-                  <span className="tab-icon">🌐</span>
-                  <span>Property Search</span>
-                </button>
 
                 {/* 2. Subscribers & Workspaces */}
                 <div className="nav-section-title">
@@ -914,6 +903,17 @@ export default function App() {
                 >
                   <span className="tab-icon">🎯</span>
                   <span>Sales Leads</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("properties");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Nationwide property intelligence, AI-translated searches & opportunity scores"
+                >
+                  <span className="tab-icon">🌐</span>
+                  <span>Property Search</span>
                 </button>
                 <button
                   className={effectiveViewFinal === "marketing" ? "tab active" : "tab"}
