@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { api } from "./api";
-import type { Transaction, Client, Buyer } from "./types";
+import type { Transaction, Client, Buyer, TransactionNote } from "./types";
 
 interface Props {
   crmBusinessName?: string;
@@ -327,6 +327,44 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
   const [cancelPropertyLead, setCancelPropertyLead] = useState(true);
   const [cancellingBusy, setCancellingBusy] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Escrow & Title Notes Modal State
+  const [notesModalTx, setNotesModalTx] = useState<Transaction | null>(null);
+  const [txNotes, setTxNotes] = useState<TransactionNote[]>([]);
+  const [loadingTxNotes, setLoadingTxNotes] = useState(false);
+  const [newNoteMessage, setNewNoteMessage] = useState("");
+  const [sendingNote, setSendingNote] = useState(false);
+
+  const openNotesModal = async (tx: Transaction) => {
+    setNotesModalTx(tx);
+    setLoadingTxNotes(true);
+    setNewNoteMessage("");
+    try {
+      const res = await api.getTransactionNotes(tx.id);
+      if (res.ok) setTxNotes(res.notes);
+    } catch {
+      setTxNotes([]);
+    } finally {
+      setLoadingTxNotes(false);
+    }
+  };
+
+  const submitNote = async () => {
+    if (!notesModalTx || !newNoteMessage.trim()) return;
+    setSendingNote(true);
+    try {
+      const res = await api.postTransactionNote(notesModalTx.id, { message: newNoteMessage.trim() });
+      if (res.ok) {
+        setTxNotes((prev) => [...prev, res.note]);
+        setNewNoteMessage("");
+        notify("success", "Note posted to escrow file.");
+      }
+    } catch (e: any) {
+      notify("error", e?.message || "Failed to post note.");
+    } finally {
+      setSendingNote(false);
+    }
+  };
 
   // Load Data
   const loadData = async () => {
@@ -2565,6 +2603,25 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                     >
                       Email Officer
                     </button>
+                    <button
+                      onClick={() => openNotesModal(tx)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid var(--accent, #38bdf8)",
+                        backgroundColor: "rgba(56, 189, 248, 0.12)",
+                        color: "var(--accent, #38bdf8)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      title="Open two-way escrow notes with title officer"
+                    >
+                      💬 Escrow Notes
+                    </button>
                   </div>
                 </div>
               );
@@ -2719,6 +2776,209 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
               >
                 {cancellingBusy ? "Cancelling..." : "Confirm Cancel Deal"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: TWO-WAY ESCROW & TITLE NOTES
+         ───────────────────────────────────────────────────────────── */}
+      {notesModalTx && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--panel)",
+              borderRadius: "12px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "680px",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              border: "1px solid var(--border)",
+              boxShadow: "0 20px 30px rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "20px" }}>💬</span>
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--fg)" }}>
+                    Title &amp; Escrow Coordination Notes
+                  </h3>
+                </div>
+                <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "4px" }}>
+                  {notesModalTx.propertyAddress} &bull; Escrow File #{notesModalTx.escrowFileNumber || "N/A"}
+                </div>
+              </div>
+              <button
+                onClick={() => setNotesModalTx(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--muted)",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Wire Fraud Warning Banner */}
+            <div
+              style={{
+                backgroundColor: "rgba(245, 158, 11, 0.1)",
+                border: "1px solid #f59e0b",
+                borderRadius: "8px",
+                padding: "12px 14px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#f59e0b",
+                lineHeight: 1.4,
+              }}
+            >
+              <strong>⚠️ Mandatory Security Notice (Wire Fraud Warning):</strong> Revzenta will NEVER modify wire instructions or solicit wire transfers via notes. Always verbally verify wiring instructions directly with your title officer ({notesModalTx.escrowOfficerName || "escrow agent"}) over the phone prior to sending funds.
+            </div>
+
+            {/* Notes List */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                padding: "8px 0",
+                minHeight: "180px",
+                maxHeight: "340px",
+              }}
+            >
+              {loadingTxNotes ? (
+                <div style={{ textAlign: "center", color: "var(--muted)", padding: "20px" }}>Loading escrow notes...</div>
+              ) : txNotes.length === 0 ? (
+                <div style={{ textAlign: "center", color: "var(--muted)", padding: "30px", fontStyle: "italic" }}>
+                  No escrow notes yet. Use the form below to send an update or instruction to the title officer.
+                </div>
+              ) : (
+                txNotes.map((n) => {
+                  const isTitleOfficer = n.authorRole === "title_officer";
+                  const isSubscriber = n.authorRole === "subscriber";
+                  return (
+                    <div
+                      key={n.id}
+                      style={{
+                        padding: "12px 14px",
+                        borderRadius: "8px",
+                        backgroundColor: isTitleOfficer ? "rgba(56, 189, 248, 0.08)" : isSubscriber ? "rgba(16, 185, 129, 0.08)" : "var(--card-bg, rgba(255,255,255,0.03))",
+                        borderLeft: `4px solid ${isTitleOfficer ? "#38bdf8" : isSubscriber ? "#10b981" : "#64748b"}`,
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              backgroundColor: isTitleOfficer ? "rgba(56, 189, 248, 0.2)" : isSubscriber ? "rgba(16, 185, 129, 0.2)" : "rgba(100, 116, 139, 0.2)",
+                              color: isTitleOfficer ? "#38bdf8" : isSubscriber ? "#10b981" : "#94a3b8",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {isTitleOfficer ? "Title Officer" : isSubscriber ? "You (Acquisitions)" : "System"}
+                          </span>
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--fg)" }}>{n.authorName}</span>
+                        </div>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{n.createdAt}</span>
+                      </div>
+                      <div style={{ fontSize: "13px", color: "var(--fg)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                        {n.message}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Message Input & Form */}
+            <div style={{ marginTop: "16px", borderTop: "1px solid var(--border)", paddingTop: "14px" }}>
+              <textarea
+                value={newNoteMessage}
+                onChange={(e) => setNewNoteMessage(e.target.value)}
+                placeholder="Leave an instruction or note for the title officer (e.g. 'EMD wire initiated; please confirm receipt upon deposit')..."
+                rows={3}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--input-bg, var(--panel))",
+                  color: "var(--fg)",
+                  fontSize: "13px",
+                  resize: "vertical",
+                }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px", flexWrap: "wrap", gap: "8px" }}>
+                <div style={{ fontSize: "11px", color: "var(--muted)" }}>
+                  🔒 Notes are immutably logged to the transaction audit record.
+                </div>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setNotesModalTx(null)}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border)",
+                      backgroundColor: "transparent",
+                      color: "var(--fg)",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitNote}
+                    disabled={sendingNote || !newNoteMessage.trim()}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: "6px",
+                      border: "none",
+                      backgroundColor: "var(--accent, #3b82f6)",
+                      color: "#ffffff",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: sendingNote || !newNoteMessage.trim() ? "not-allowed" : "pointer",
+                      opacity: sendingNote || !newNoteMessage.trim() ? 0.6 : 1,
+                    }}
+                  >
+                    {sendingNote ? "Posting..." : "Send Note"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

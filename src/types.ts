@@ -935,6 +935,16 @@ export interface Transaction {
   titlePortalUrl: string;
 }
 
+export interface TransactionNote {
+  id: number;
+  transactionId: number;
+  authorRole: "subscriber" | "title_officer" | "system";
+  authorName: string;
+  authorEmail: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface WebhookLog {
   id: number;
   orgId: number;

@@ -2974,6 +2974,134 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     return json({ ok: true, titleStatus });
   }
 
+  /* Wholesale Document & Transaction Hub: Public Title Portal notes list & creation */
+  const titleNotesMatch = pathname.match(/^\/api\/public\/title-portal\/([a-zA-Z0-9_-]+)\/notes$/);
+  if (titleNotesMatch && method === "GET") {
+    const token = titleNotesMatch[1];
+    const isDemoToken = token === "demo" || token === "sample" || token === "b904aed3cbdccdd77764bdc2813f15a8" || token === "fefb9091d6e9b3900473fba91fbbea21";
+    const tx = getTransactionByToken(token);
+    if (!tx && !isDemoToken) return err("Title file not found.", 404);
+
+    if (isDemoToken && !tx) {
+      return json({
+        ok: true,
+        notes: [
+          {
+            id: 1,
+            authorRole: "system",
+            authorName: "System",
+            authorEmail: "",
+            message: "Escrow file opened. Preliminary title commitment ordered.",
+            createdAt: "2026-09-12 10:15:00",
+          },
+          {
+            id: 2,
+            authorRole: "title_officer",
+            authorName: "Sarah Jenkins (Escrow Officer)",
+            authorEmail: "sjenkins@firstamtitle.com",
+            message: "Preliminary title commitment issued. No junior mechanics or tax liens found. Payoff demand ordered for senior mortgage.",
+            createdAt: "2026-09-12 14:30:00",
+          },
+          {
+            id: 3,
+            authorRole: "subscriber",
+            authorName: "Revzenta Acquisitions",
+            authorEmail: "acquisitions@revzenta.com",
+            message: "Buyer earnest money deposit wire scheduled for delivery by 12:00 PM tomorrow.",
+            createdAt: "2026-09-13 09:00:00",
+          },
+        ],
+      });
+    }
+
+    if (!tx) return err("Title file not found.", 404);
+
+    const notes = db.query(
+      "SELECT * FROM transaction_notes WHERE transaction_id = ? ORDER BY id ASC"
+    ).all(tx.id) as any[];
+
+    return json({
+      ok: true,
+      notes: notes.map((n) => ({
+        id: n.id,
+        transactionId: n.transaction_id,
+        authorRole: n.author_role,
+        authorName: n.author_name,
+        authorEmail: n.author_email,
+        message: n.message,
+        createdAt: n.created_at,
+      })),
+    });
+  }
+
+  if (titleNotesMatch && method === "POST") {
+    const token = titleNotesMatch[1];
+    const isDemoToken = token === "demo" || token === "sample" || token === "b904aed3cbdccdd77764bdc2813f15a8" || token === "fefb9091d6e9b3900473fba91fbbea21";
+    const tx = getTransactionByToken(token);
+    if (!tx && !isDemoToken) return err("Title file not found.", 404);
+
+    const body = await readBody(req);
+    if (!body) return err("Invalid JSON body.", 400);
+    const message = typeof body.message === "string" ? body.message.trim() : "";
+    if (!message) return err("Note message is required.", 400);
+
+    const authorName = (typeof body.authorName === "string" && body.authorName.trim()) || (tx ? tx.escrow_officer_name : "") || "Escrow Officer";
+    const authorEmail = tx ? tx.escrow_officer_email : "";
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "127.0.0.1";
+
+    if (isDemoToken && !tx) {
+      return json({
+        ok: true,
+        note: {
+          id: Date.now(),
+          transactionId: 0,
+          authorRole: "title_officer",
+          authorName,
+          authorEmail,
+          message,
+          createdAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+        },
+      });
+    }
+
+    if (!tx) return err("Title file not found.", 404);
+
+    const ins = db.query(`
+      INSERT INTO transaction_notes (transaction_id, org_id, author_role, author_name, author_email, message, ip_address)
+      VALUES (?, ?, 'title_officer', ?, ?, ?, ?)
+    `).run(tx.id, tx.org_id, authorName, authorEmail, message, clientIp);
+
+    const note = db.query("SELECT * FROM transaction_notes WHERE id = ?").get(ins.lastInsertRowid) as any;
+
+    try {
+      const orgOwner = db.query("SELECT email FROM users WHERE org_id = ? AND role = 'admin' LIMIT 1").get(tx.org_id) as { email: string } | null;
+      if (orgOwner?.email) {
+        const appUrl = appUrlFrom(req);
+        sendEmail({
+          to: orgOwner.email,
+          subject: `[Revzenta Escrow Alert] Title Note Posted for ${tx.property_address}`,
+          text: `Hello,\n\nYour escrow officer, ${authorName}, just posted a new note regarding ${tx.property_address}:\n\n"${message}"\n\nSign in to view and coordinate: ${appUrl}#/transactions`,
+          fromName: "Revzenta Escrow Alerts",
+        }).catch((e) => console.warn("[titleNoteNotification] send error:", e));
+      }
+    } catch (e) {
+      console.warn("[titleNoteNotification] lookup error:", e);
+    }
+
+    return json({
+      ok: true,
+      note: {
+        id: note.id,
+        transactionId: note.transaction_id,
+        authorRole: note.author_role,
+        authorName: note.author_name,
+        authorEmail: note.author_email,
+        message: note.message,
+        createdAt: note.created_at,
+      },
+    });
+  }
+
   /* Authenticated property underwriting lookup. Cotality credentials remain server-side. */
   if (pathname === "/api/underwriting/cotality" && method === "POST") {
     const auth = requireAuth(req);
@@ -7371,6 +7499,68 @@ ${businessName}
     db.query("UPDATE transactions SET status = 'sent', updated_at = datetime('now') WHERE id = ?").run(txId);
 
     return json({ ok: true, emailStatus: emailStatusOf(sendRes), signUrl });
+  }
+
+  // GET /api/transactions/:id/notes — fetch all notes for a transaction
+  const txNotesGetMatch = pathname.match(/^\/api\/transactions\/(\d+)\/notes$/);
+  if (txNotesGetMatch && method === "GET") {
+    const txId = Number(txNotesGetMatch[1]);
+    const tx = db.query("SELECT id FROM transactions WHERE id = ? AND org_id = ?").get(txId, orgId);
+    if (!tx) return err("Transaction not found.", 404);
+
+    const notes = db.query(
+      "SELECT * FROM transaction_notes WHERE transaction_id = ? AND org_id = ? ORDER BY id ASC"
+    ).all(txId, orgId) as any[];
+
+    return json({
+      ok: true,
+      notes: notes.map((n) => ({
+        id: n.id,
+        transactionId: n.transaction_id,
+        authorRole: n.author_role,
+        authorName: n.author_name,
+        authorEmail: n.author_email,
+        message: n.message,
+        createdAt: n.created_at,
+      })),
+    });
+  }
+
+  // POST /api/transactions/:id/notes — subscriber post a note to transaction / escrow officer
+  if (txNotesGetMatch && method === "POST") {
+    const txId = Number(txNotesGetMatch[1]);
+    const tx = db.query("SELECT * FROM transactions WHERE id = ? AND org_id = ?").get(txId, orgId) as any;
+    if (!tx) return err("Transaction not found.", 404);
+
+    const body = await readBody(req);
+    if (!body) return err("Invalid JSON body.", 400);
+    const message = typeof body.message === "string" ? body.message.trim() : "";
+    if (!message) return err("Note message is required.", 400);
+
+    const user = getUserById(auth.userId);
+    const authorName = (typeof body.authorName === "string" && body.authorName.trim()) || user?.email?.split("@")[0] || "Escrow Coordinator";
+    const authorEmail = user?.email || "";
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "127.0.0.1";
+
+    const ins = db.query(`
+      INSERT INTO transaction_notes (transaction_id, org_id, author_role, author_name, author_email, message, ip_address)
+      VALUES (?, ?, 'subscriber', ?, ?, ?, ?)
+    `).run(txId, orgId, authorName, authorEmail, message, clientIp);
+
+    const note = db.query("SELECT * FROM transaction_notes WHERE id = ?").get(ins.lastInsertRowid) as any;
+
+    return json({
+      ok: true,
+      note: {
+        id: note.id,
+        transactionId: note.transaction_id,
+        authorRole: note.author_role,
+        authorName: note.author_name,
+        authorEmail: note.author_email,
+        message: note.message,
+        createdAt: note.created_at,
+      },
+    });
   }
 
   /* Calendar — the owner's demo-call appointments. OWNER-ONLY (requireAdmin).

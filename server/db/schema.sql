@@ -368,6 +368,22 @@ CREATE INDEX IF NOT EXISTS idx_transactions_org_id ON transactions(org_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_client_id ON transactions(client_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_token_hash ON transactions(token_hash);
 
+-- 11b. TRANSACTION & ESCROW NOTES
+CREATE TABLE IF NOT EXISTS transaction_notes (
+    id SERIAL PRIMARY KEY,
+    transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    author_role VARCHAR(50) NOT NULL DEFAULT 'subscriber',
+    author_name TEXT NOT NULL DEFAULT '',
+    author_email VARCHAR(255) NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT '',
+    ip_address VARCHAR(50) NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tx_notes_tx ON transaction_notes(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_tx_notes_org ON transaction_notes(org_id);
+CREATE INDEX IF NOT EXISTS idx_tx_notes_created ON transaction_notes(created_at);
+
 -- 12. CASH BUYERS
 CREATE TABLE IF NOT EXISTS buyers (
     id SERIAL PRIMARY KEY,

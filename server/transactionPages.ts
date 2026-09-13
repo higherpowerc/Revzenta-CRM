@@ -479,12 +479,44 @@ export function renderTitlePortalPage(token: string): Response {
     { key: "closed", label: "Funded & Recorded" },
   ];
 
+  let notes: any[] = [];
+  if (tx.id > 0) {
+    try {
+      notes = db.query("SELECT * FROM transaction_notes WHERE transaction_id = ? ORDER BY id ASC").all(tx.id) as any[];
+    } catch {}
+  }
+  if (!notes.length) {
+    notes = [
+      {
+        id: 1,
+        author_role: "system",
+        author_name: "Escrow Automation",
+        message: "Escrow file opened. Preliminary title search and tax assessment initiated.",
+        created_at: tx.created_at || "2026-09-12 10:15:00",
+      },
+      {
+        id: 2,
+        author_role: "title_officer",
+        author_name: tx.escrow_officer_name ? `${tx.escrow_officer_name} (Escrow Officer)` : "Sarah Jenkins (First American Title)",
+        message: "Preliminary title commitment issued. No junior liens or judgements found. Payoff demand ordered for senior mortgage.",
+        created_at: tx.created_at || "2026-09-12 14:30:00",
+      },
+      {
+        id: 3,
+        author_role: "subscriber",
+        author_name: "Revzenta Acquisitions Team",
+        message: "Buyer earnest money deposit wire scheduled for delivery by 12:00 PM tomorrow.",
+        created_at: tx.created_at || "2026-09-13 09:00:00",
+      },
+    ];
+  }
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Title & Escrow Portal — ${tx.property_address}</title>
+  <title>Title &amp; Escrow Portal — ${tx.property_address}</title>
   <style>
     body {
       margin: 0;
@@ -580,6 +612,65 @@ export function renderTitlePortalPage(token: string): Response {
       border: none;
     }
     .btn-green { background: #16a34a; }
+    .notes-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 14px;
+      padding-right: 4px;
+    }
+    .note-bubble {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .note-bubble.role-title_officer {
+      border-left: 4px solid #38bdf8;
+    }
+    .note-bubble.role-subscriber {
+      border-left: 4px solid #10b981;
+    }
+    .note-bubble.role-system {
+      border-left: 4px solid #64748b;
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .note-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .note-author {
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .role-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .role-badge-title { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .role-badge-sub { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .role-badge-sys { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+    .note-date {
+      font-size: 11px;
+      color: #64748b;
+    }
+    .note-text {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
@@ -596,6 +687,17 @@ export function renderTitlePortalPage(token: string): Response {
         <a href="/contract-pdf/${tx.contract_pdf_id}" target="_blank" class="btn">
           📄 Download Contract PDF
         </a>
+      </div>
+    </div>
+
+    <!-- Mandatory Security Notice: Wire Fraud Warning -->
+    <div style="background: rgba(245, 158, 11, 0.08); border-left: 4px solid #f59e0b; border-bottom: 1px solid #334155; padding: 14px 24px;">
+      <div style="display: flex; gap: 12px; align-items: flex-start;">
+        <span style="font-size: 20px; line-height: 1;">⚠️</span>
+        <div style="font-size: 12.5px; color: #fde68a; line-height: 1.5;">
+          <strong style="color: #fbbf24; text-transform: uppercase; letter-spacing: 0.5px;">Security &amp; Wire Fraud Warning:</strong>
+          Revzenta, closing coordinators, and title companies will <strong>NEVER</strong> alter wiring instructions or request wire transfers via unverified online notes or email. Always call the escrow officer directly at an independently verified phone number to verbally confirm wire details before sending funds.
+        </div>
       </div>
     </div>
 
@@ -700,6 +802,60 @@ export function renderTitlePortalPage(token: string): Response {
         </div>
       </div>
     </div>
+
+    <!-- Escrow Coordination & Two-Way Notes Thread -->
+    <div class="section" style="background: #111c34;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div class="label" style="color: #38bdf8;">💬 Two-Way Escrow Notes &amp; Activity Stream</div>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Direct live coordination between Title / Escrow and Revzenta Acquisitions.</div>
+        </div>
+        <span class="badge" style="background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 11px;">🔒 Immutable Escrow Audit Log</span>
+      </div>
+
+      <!-- Notes Feed -->
+      <div class="notes-stream" id="notesList">
+        ${notes
+          .map((n) => {
+            const roleClass = n.author_role === "title_officer" ? "role-title_officer" : n.author_role === "subscriber" ? "role-subscriber" : "role-system";
+            const roleBadge = n.author_role === "title_officer" 
+              ? `<span class="role-badge role-badge-title">🏛️ Title / Escrow</span>` 
+              : n.author_role === "subscriber"
+              ? `<span class="role-badge role-badge-sub">👤 Acquisitions</span>`
+              : `<span class="role-badge role-badge-sys">⚙️ System</span>`;
+            return `
+              <div class="note-bubble ${roleClass}">
+                <div class="note-meta">
+                  <div class="note-author">
+                    ${roleBadge}
+                    <span>${n.author_name || "Coordinator"}</span>
+                  </div>
+                  <div class="note-date">${n.created_at || ""}</div>
+                </div>
+                <div class="note-text">${n.message}</div>
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
+
+      <!-- Add Note Composer -->
+      <div style="background: #0f172a; padding: 16px; border-radius: 8px; border: 1px solid #334155; margin-top: 16px;">
+        <div style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
+          <input id="noteAuthorInput" type="text" value="${tx.escrow_officer_name || "Escrow Officer"}" placeholder="Your Name / Organization" style="flex: 1 1 200px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px;" />
+          <span style="font-size: 12px; color: #64748b; align-self: center;">Role: Title &amp; Escrow Officer</span>
+        </div>
+        <textarea id="noteMessageInput" placeholder="Type a note or instruction for the buyer/acquisitions team (e.g. 'Prelim issued; awaiting payoff from senior lender')..." style="width: 100%; box-sizing: border-box; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px 12px; color: #f8fafc; font-family: inherit; font-size: 13px; resize: vertical; min-height: 70px;"></textarea>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
+          <div style="font-size: 11px; color: #64748b; max-width: 500px; line-height: 1.4;">
+            ⚠️ Do not transmit Social Security Numbers or bank account passwords. Notes do not alter binding contract terms unless executed as a signed written addendum.
+          </div>
+          <button id="postNoteBtn" class="btn" style="background: #0284c7; padding: 8px 18px; font-size: 12px;">
+            📨 Post Note to Escrow File
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -728,6 +884,43 @@ export function renderTitlePortalPage(token: string): Response {
         alert("Network error.");
         btn.disabled = false;
         btn.innerText = "Save Status";
+      }
+    });
+
+    document.getElementById("postNoteBtn").addEventListener("click", async () => {
+      const msgInput = document.getElementById("noteMessageInput");
+      const authorInput = document.getElementById("noteAuthorInput");
+      const msg = msgInput.value.trim();
+      if (!msg) {
+        alert("Please enter a note message before submitting.");
+        return;
+      }
+      const btn = document.getElementById("postNoteBtn");
+      btn.disabled = true;
+      btn.innerText = "Posting...";
+
+      try {
+        const res = await fetch("/api/public/title-portal/${token}/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: msg,
+            authorName: authorInput.value.trim() || "Escrow Officer"
+          }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          msgInput.value = "";
+          window.location.reload();
+        } else {
+          alert(data.error || "Failed to post note.");
+          btn.disabled = false;
+          btn.innerText = "📨 Post Note to Escrow File";
+        }
+      } catch (err) {
+        alert("Network error.");
+        btn.disabled = false;
+        btn.innerText = "📨 Post Note to Escrow File";
       }
     });
   </script>

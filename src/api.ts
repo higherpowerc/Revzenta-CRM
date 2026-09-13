@@ -1,4 +1,4 @@
-import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem } from "./types";
+import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, TransactionNote, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem } from "./types";
 import type { UnifiedPropertyFinancialProfile } from "./underwritingEngine";
 
 
@@ -707,6 +707,13 @@ export const api = {
     request<{ ok: true; emailStatus: string; signUrl: string }>(`/api/transactions/${id}/send-signature-request`, {
       method: "POST",
       body: JSON.stringify(data || {}),
+    }),
+  getTransactionNotes: (id: number) =>
+    request<{ ok: true; notes: TransactionNote[] }>(`/api/transactions/${id}/notes`),
+  postTransactionNote: (id: number, data: { message: string; authorName?: string }) =>
+    request<{ ok: true; note: TransactionNote }>(`/api/transactions/${id}/notes`, {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
   /* Wholesale Inbound Webhooks & Property Lead Engine */
   webhookSettings: () => request<WebhookSettings>("/api/webhooks/settings"),

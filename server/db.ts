@@ -1968,6 +1968,27 @@ CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_a
 }
 
 /**
+ * Two-Way Escrow & Title Notes Table
+ */
+db.exec(`
+CREATE TABLE IF NOT EXISTS transaction_notes (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+  org_id         INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  author_role    TEXT NOT NULL DEFAULT 'subscriber',
+  author_name    TEXT NOT NULL DEFAULT '',
+  author_email   TEXT NOT NULL DEFAULT '',
+  message        TEXT NOT NULL DEFAULT '',
+  ip_address     TEXT NOT NULL DEFAULT '',
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_tx_notes_tx ON transaction_notes(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_tx_notes_org ON transaction_notes(org_id);
+CREATE INDEX IF NOT EXISTS idx_tx_notes_created ON transaction_notes(created_at);
+`);
+
+/**
  * Inbound Webhooks & Property Data Ingestion Migration
  */
 db.exec(`
