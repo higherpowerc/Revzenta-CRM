@@ -595,6 +595,7 @@ function OwnerActionsMenu({ client, busy, onEdit, onDemo, onFlag }: {
 export default function Clients({ stages, scope = "all", ownerOrg = false, initialStage = null, initialFilter, canEdit = true, isWholesale: isWholesaleProp = false, crmBusinessName, onGoToBuyBox, onGoToTransactions, verticalKey = "", autoOpenDealCalculator = false, initialDealProperty = null }: Props) {
   const isWholesale = Boolean(isWholesaleProp || verticalKey === "wholesalebiz" || verticalKey === "wholesale");
   const [clients, setClients] = useState<Client[] | null>(null);
+  const [expandedPropertyId, setExpandedPropertyId] = useState<number | null>(null);
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([]);
   /* Adaptive intake Phase 1/2: the org's account-level vertical config —
      drives which sections the client form shows. Loaded with settings. */
@@ -2630,187 +2631,335 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                   const propClass = getPropertyClass(c);
 
                   return (
-                    <tr key={c.id} className={c.archived ? "row-archived" : ""}>
-                      {/* 1. Address */}
-                      <td className="cell-strong" data-label="Address" style={{ textAlign: "left" }}>
-                        <div className="cell-company" style={{ justifyContent: "flex-start", textAlign: "left" }}>
-                          <span
-                            className={`cell-name${blurPii(pii)}`}
-                            style={{ cursor: "pointer", fontWeight: 700 }}
-                            title={c.address || primaryName(false, c)}
-                            onClick={() => setModal({ mode: "edit", client: c })}
-                          >
-                            {c.address || primaryName(false, c)}
-                          </span>
-                          {c.lost && <span className="chip chip-lost">Lost</span>}
-                          {c.dnc && <span className="chip chip-dnc">DNC</span>}
-                          {c.archived && <span className="chip chip-archived">archived</span>}
-                        </div>
-                        {(c.city || c.state || c.zip) && (
-                          <div className={`cell-sub addr-line${blurPii(pii)}`} style={{ textAlign: "left" }}>
-                            {[c.city, c.state, c.zip].filter(Boolean).join(", ")}
-                          </div>
-                        )}
-                        <div style={{ marginTop: "4px", display: "flex", gap: "6px", alignItems: "center" }}>
-                          <span
-                            className="chip"
-                            style={{
-                              fontSize: "10.5px",
-                              fontWeight: 700,
-                              background: "rgba(214, 255, 63, 0.12)",
-                              color: "var(--lime, #d6ff3f)",
-                              border: "1px solid rgba(214, 255, 63, 0.3)",
-                              padding: "1px 6px",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            {c.stage}
-                          </span>
-                          {c.leadSource && (
+                    <Fragment key={c.id}>
+                      <tr className={c.archived ? "row-archived" : ""}>
+                        {/* 1. Address */}
+                        <td className="cell-strong" data-label="Address" style={{ textAlign: "left" }}>
+                          <div className="cell-company" style={{ justifyContent: "flex-start", textAlign: "left" }}>
                             <span
-                              className="chip chip-lead-source"
+                              className={`cell-name${blurPii(pii)}`}
+                              style={{ cursor: "pointer", fontWeight: 700 }}
+                              title={c.address || primaryName(false, c)}
+                              onClick={() => setModal({ mode: "edit", client: c })}
+                            >
+                              {c.address || primaryName(false, c)}
+                            </span>
+                            {c.lost && <span className="chip chip-lost">Lost</span>}
+                            {c.dnc && <span className="chip chip-dnc">DNC</span>}
+                            {c.archived && <span className="chip chip-archived">archived</span>}
+                          </div>
+                          {(c.city || c.state || c.zip) && (
+                            <div className={`cell-sub addr-line${blurPii(pii)}`} style={{ textAlign: "left" }}>
+                              {[c.city, c.state, c.zip].filter(Boolean).join(", ")}
+                            </div>
+                          )}
+                          <div style={{ marginTop: "4px", display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                            <span
+                              className="chip"
                               style={{
                                 fontSize: "10.5px",
-                                fontWeight: 600,
-                                background: "rgba(14, 165, 233, 0.12)",
-                                color: "#0284c7",
-                                border: "1px solid rgba(14, 165, 233, 0.25)",
+                                fontWeight: 700,
+                                background: "rgba(214, 255, 63, 0.12)",
+                                color: "var(--lime, #d6ff3f)",
+                                border: "1px solid rgba(214, 255, 63, 0.3)",
                                 padding: "1px 6px",
                                 borderRadius: "4px",
                               }}
-                              title={`Lead Source: ${c.leadSource}`}
                             >
-                              📡 {c.leadSource}
+                              {c.stage}
                             </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 2. Owner First Name */}
-                      <td data-label="Owner First Name" style={{ textAlign: "center" }}>
-                        <span className={`cell-contact${blurPii(pii)}`} style={{ fontWeight: 600 }}>
-                          {firstName}
-                        </span>
-                      </td>
-
-                      {/* 3. Owner Last Name */}
-                      <td data-label="Owner Last Name" style={{ textAlign: "center" }}>
-                        <span className={`cell-contact${blurPii(pii)}`} style={{ fontWeight: 600 }}>
-                          {lastName}
-                        </span>
-                      </td>
-
-                      {/* 4. Estimated Value */}
-                      <td className="num cell-strong" data-label="Estimated Value" style={{ textAlign: "center" }}>
-                        <span style={{ fontWeight: 700, color: estValue !== "—" ? "var(--lime, #d6ff3f)" : undefined }}>
-                          {estValue}
-                        </span>
-                      </td>
-
-                      {/* 5. Estimated Equity */}
-                      <td className="num" data-label="Estimated Equity" style={{ textAlign: "center" }}>
-                        <span style={{ fontWeight: 600, color: estEquity !== "—" ? "#10b981" : undefined }}>
-                          {estEquity}
-                        </span>
-                      </td>
-
-                      {/* 6. Open Mortgage Balance */}
-                      <td className="num" data-label="Open Mortgage Balance" style={{ textAlign: "center" }}>
-                        <span style={{ fontWeight: 500, color: mortgageBal !== "—" ? "#f59e0b" : undefined }}>
-                          {mortgageBal}
-                        </span>
-                      </td>
-
-                      {/* 7. Bedrooms */}
-                      <td data-label="Bedrooms" style={{ textAlign: "center" }}>
-                        <span style={{ fontWeight: 600 }}>{beds}</span>
-                      </td>
-
-                      {/* 8. Bathrooms */}
-                      <td data-label="Bathrooms" style={{ textAlign: "center" }}>
-                        <span style={{ fontWeight: 600 }}>{baths}</span>
-                      </td>
-
-                      {/* 9. Square Footage */}
-                      <td data-label="Square Footage" style={{ textAlign: "center" }}>
-                        <span style={{ fontWeight: 500 }}>{sqft}</span>
-                      </td>
-
-                      {/* 10. Year Built */}
-                      <td data-label="Year Built" style={{ textAlign: "center" }}>
-                        <span style={{ fontWeight: 500 }}>{yearBuilt}</span>
-                      </td>
-
-                      {/* 11. Property Class */}
-                      <td data-label="Property Class" style={{ textAlign: "center" }}>
-                        <span
-                          className="chip"
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: "6px",
-                            background: "rgba(148, 163, 184, 0.12)",
-                            border: "1px solid rgba(148, 163, 184, 0.25)",
-                            color: "var(--ink, #f8fafc)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {propClass}
-                        </span>
-                      </td>
-
-                      {/* Actions (Edit & More Menu — Create Offer and Cancellation Notice removed) */}
-                      <td data-label="Actions" style={{ textAlign: "center" }}>
-                        <div className="row-actions" style={{ justifyContent: "center", alignItems: "center" }}>
-                          {canEdit && (
+                            {c.leadSource && (
+                              <span
+                                className="chip chip-lead-source"
+                                style={{
+                                  fontSize: "10.5px",
+                                  fontWeight: 600,
+                                  background: "rgba(14, 165, 233, 0.12)",
+                                  color: "#0284c7",
+                                  border: "1px solid rgba(14, 165, 233, 0.25)",
+                                  padding: "1px 6px",
+                                  borderRadius: "4px",
+                                }}
+                                title={`Lead Source: ${c.leadSource}`}
+                              >
+                                📡 {c.leadSource}
+                              </span>
+                            )}
                             <button
-                              className="icon-btn"
-                              title="Underwrite this property in Revzenta Deal Underwriter"
-                              aria-label={`Underwrite ${c.address || c.companyName}`}
-                              onClick={() => setCalcProperty(c)}
-                              style={{ color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.45)", fontWeight: 700 }}
-                            >
-                              📐 Underwrite
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              className="icon-btn"
-                              title="Edit"
-                              aria-label={`Edit ${c.address || c.companyName}`}
-                              onClick={() => setModal({ mode: "edit", client: c })}
-                            >
-                              Edit
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              className={`icon-btn${c.dnc ? " danger" : ""}`}
-                              title={c.dnc ? "Clear Do-Not-Call status" : "Flag lead as Do-Not-Call (TCPA compliance)"}
-                              aria-label={c.dnc ? "Clear DNC" : "Flag DNC"}
-                              onClick={() => handleFlag(c, "dnc")}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedPropertyId(expandedPropertyId === c.id ? null : c.id);
+                              }}
                               style={{
-                                color: c.dnc ? "#f87171" : undefined,
-                                fontWeight: c.dnc ? 700 : undefined,
+                                fontSize: "10.5px",
+                                fontWeight: 700,
+                                background: expandedPropertyId === c.id ? "rgba(56, 189, 248, 0.2)" : "rgba(255, 255, 255, 0.06)",
+                                color: expandedPropertyId === c.id ? "#38bdf8" : "var(--ink-dim, #94a3b8)",
+                                border: expandedPropertyId === c.id ? "1px solid #38bdf8" : "1px solid var(--border, #30363d)",
+                                padding: "1px 7px",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                              }}
+                              title="Show all property data (APN, lot size, taxes, distress indicators, comps)"
+                            >
+                              <span>{expandedPropertyId === c.id ? "▲" : "▼"}</span>
+                              <span>{expandedPropertyId === c.id ? "Hide Specs" : "All Property Data"}</span>
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* 2. Owner First Name */}
+                        <td data-label="Owner First Name" style={{ textAlign: "center" }}>
+                          <span className={`cell-contact${blurPii(pii)}`} style={{ fontWeight: 600 }}>
+                            {firstName}
+                          </span>
+                        </td>
+
+                        {/* 3. Owner Last Name */}
+                        <td data-label="Owner Last Name" style={{ textAlign: "center" }}>
+                          <span className={`cell-contact${blurPii(pii)}`} style={{ fontWeight: 600 }}>
+                            {lastName}
+                          </span>
+                        </td>
+
+                        {/* 4. Estimated Value */}
+                        <td className="num cell-strong" data-label="Estimated Value" style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: estValue !== "—" ? "var(--lime, #d6ff3f)" : undefined }}>
+                            {estValue}
+                          </span>
+                        </td>
+
+                        {/* 5. Estimated Equity */}
+                        <td className="num" data-label="Estimated Equity" style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 600, color: estEquity !== "—" ? "#10b981" : undefined }}>
+                            {estEquity}
+                          </span>
+                        </td>
+
+                        {/* 6. Open Mortgage Balance */}
+                        <td className="num" data-label="Open Mortgage Balance" style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 500, color: mortgageBal !== "—" ? "#f59e0b" : undefined }}>
+                            {mortgageBal}
+                          </span>
+                        </td>
+
+                        {/* 7. Bedrooms */}
+                        <td data-label="Bedrooms" style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 600 }}>{beds}</span>
+                        </td>
+
+                        {/* 8. Bathrooms */}
+                        <td data-label="Bathrooms" style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 600 }}>{baths}</span>
+                        </td>
+
+                        {/* 9. Square Footage */}
+                        <td data-label="Square Footage" style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 500 }}>{sqft}</span>
+                        </td>
+
+                        {/* 10. Year Built */}
+                        <td data-label="Year Built" style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 500 }}>{yearBuilt}</span>
+                        </td>
+
+                        {/* 11. Property Class */}
+                        <td data-label="Property Class" style={{ textAlign: "center" }}>
+                          <span
+                            className="chip"
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              background: "rgba(148, 163, 184, 0.12)",
+                              border: "1px solid rgba(148, 163, 184, 0.25)",
+                              color: "var(--ink, #f8fafc)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {propClass}
+                          </span>
+                        </td>
+
+                        {/* Actions (Edit & More Menu) */}
+                        <td data-label="Actions" style={{ textAlign: "center" }}>
+                          <div className="row-actions" style={{ justifyContent: "center", alignItems: "center" }}>
+                            {canEdit && (
+                              <button
+                                className="icon-btn"
+                                title="Underwrite this property in Revzenta Deal Underwriter"
+                                aria-label={`Underwrite ${c.address || c.companyName}`}
+                                onClick={() => setCalcProperty(c)}
+                                style={{ color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.45)", fontWeight: 700 }}
+                              >
+                                📐 Underwrite
+                              </button>
+                            )}
+                            {canEdit && (
+                              <button
+                                className="icon-btn"
+                                title="Edit"
+                                aria-label={`Edit ${c.address || c.companyName}`}
+                                onClick={() => setModal({ mode: "edit", client: c })}
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canEdit && (
+                              <button
+                                className={`icon-btn${c.dnc ? " danger" : ""}`}
+                                title={c.dnc ? "Clear Do-Not-Call status" : "Flag lead as Do-Not-Call (TCPA compliance)"}
+                                aria-label={c.dnc ? "Clear DNC" : "Flag DNC"}
+                                onClick={() => handleFlag(c, "dnc")}
+                                style={{
+                                  color: c.dnc ? "#f87171" : undefined,
+                                  fontWeight: c.dnc ? 700 : undefined,
+                                }}
+                              >
+                                {c.dnc ? "Clear DNC" : "DNC"}
+                              </button>
+                            )}
+                            {canEdit && (
+                              <button
+                                className="icon-btn danger"
+                                title="Delete"
+                                aria-label={`Delete ${c.address || c.companyName}`}
+                                onClick={() => setDeleting(c)}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expandable Comprehensive Property Dossier */}
+                      {expandedPropertyId === c.id && (
+                        <tr key={`expanded-${c.id}`} style={{ background: "rgba(15, 23, 42, 0.75)" }}>
+                          <td colSpan={13} style={{ padding: "18px 24px", borderBottom: "2px solid rgba(56, 189, 248, 0.4)" }}>
+                            <div
+                              style={{
+                                background: "var(--panel, #121216)",
+                                border: "1px solid rgba(56, 189, 248, 0.3)",
+                                borderRadius: "10px",
+                                padding: "18px 22px",
+                                boxShadow: "0 6px 20px rgba(0,0,0,0.3)",
                               }}
                             >
-                              {c.dnc ? "Clear DNC" : "DNC"}
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              className="icon-btn danger"
-                              title="Delete"
-                              aria-label={`Delete ${c.address || c.companyName}`}
-                              onClick={() => setDeleting(c)}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--border, #30363d)", paddingBottom: "10px", flexWrap: "wrap", gap: "10px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  <span style={{ fontSize: "16px" }}>🏛️</span>
+                                  <strong style={{ fontSize: "14px", color: "var(--ink, #f8fafc)" }}>
+                                    Complete Property Intelligence Dossier: {c.address || c.companyName}
+                                  </strong>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCalcProperty(c)}
+                                    style={{
+                                      padding: "6px 12px",
+                                      borderRadius: "6px",
+                                      background: "rgba(56, 189, 248, 0.15)",
+                                      border: "1px solid #38bdf8",
+                                      color: "#38bdf8",
+                                      fontSize: "12px",
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    📐 Open Deal Underwriter
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setModal({ mode: "edit", client: c })}
+                                    style={{
+                                      padding: "6px 12px",
+                                      borderRadius: "6px",
+                                      background: "var(--panel-2, #16161b)",
+                                      border: "1px solid var(--border, #30363d)",
+                                      color: "var(--ink, #f8fafc)",
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    ✏️ Edit Lead Specs
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+                                {/* 1. Physical Specs */}
+                                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px 14px" }}>
+                                  <div style={{ fontSize: "11px", fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", marginBottom: "8px" }}>
+                                    🏡 Physical Characteristics
+                                  </div>
+                                  <div style={{ fontSize: "12.5px", display: "flex", flexDirection: "column", gap: "4px", color: "var(--ink, #f8fafc)" }}>
+                                    <div><strong>Layout:</strong> {beds} Beds / {baths} Baths</div>
+                                    <div><strong>Living Area:</strong> {sqft}</div>
+                                    <div><strong>Year Built:</strong> {yearBuilt}</div>
+                                    <div><strong>Class:</strong> {propClass}</div>
+                                    <div><strong>APN:</strong> {c.customFields?.find(f => f.name.toLowerCase() === 'apn')?.value || "—"}</div>
+                                    <div><strong>County:</strong> {c.customFields?.find(f => f.name.toLowerCase() === 'county')?.value || "—"}</div>
+                                    <div><strong>Lot Size:</strong> {c.customFields?.find(f => f.name.toLowerCase() === 'lot size')?.value || "—"}</div>
+                                    <div><strong>Stories:</strong> {c.customFields?.find(f => f.name.toLowerCase() === 'stories')?.value || "—"}</div>
+                                  </div>
+                                </div>
+
+                                {/* 2. Financial & Valuation */}
+                                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px 14px" }}>
+                                  <div style={{ fontSize: "11px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", marginBottom: "8px" }}>
+                                    💰 Financial &amp; Equity Profile
+                                  </div>
+                                  <div style={{ fontSize: "12.5px", display: "flex", flexDirection: "column", gap: "4px", color: "var(--ink, #f8fafc)" }}>
+                                    <div><strong>Estimated Value:</strong> <span style={{ color: "var(--lime, #d6ff3f)", fontWeight: 700 }}>{estValue}</span></div>
+                                    <div><strong>Estimated Equity:</strong> <span style={{ color: "#10b981", fontWeight: 700 }}>{estEquity}</span></div>
+                                    <div><strong>Mortgage Balance:</strong> <span style={{ color: "#f59e0b", fontWeight: 600 }}>{mortgageBal}</span></div>
+                                    <div><strong>Tax Assessed:</strong> {c.customFields?.find(f => f.name.toLowerCase().includes('tax assessed'))?.value || "—"}</div>
+                                    <div><strong>Last Sale Price:</strong> {c.customFields?.find(f => f.name.toLowerCase().includes('last sale price'))?.value || "—"}</div>
+                                    <div><strong>Last Sale Date:</strong> {c.customFields?.find(f => f.name.toLowerCase().includes('last sale date'))?.value || "—"}</div>
+                                  </div>
+                                </div>
+
+                                {/* 3. Motivation & Distress */}
+                                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px 14px" }}>
+                                  <div style={{ fontSize: "11px", fontWeight: 800, color: "#c084fc", textTransform: "uppercase", marginBottom: "8px" }}>
+                                    ⚡ Opportunity &amp; Distress
+                                  </div>
+                                  <div style={{ fontSize: "12.5px", display: "flex", flexDirection: "column", gap: "4px", color: "var(--ink, #f8fafc)" }}>
+                                    <div><strong>Opportunity Score:</strong> <span style={{ color: "#c084fc", fontWeight: 700 }}>{c.customFields?.find(f => f.name.toLowerCase().includes('opportunity score'))?.value || "—"}</span></div>
+                                    <div><strong>Reasons:</strong> {c.customFields?.find(f => f.name.toLowerCase().includes('opportunity reasons'))?.value || "—"}</div>
+                                    <div><strong>Distress Badges:</strong> {c.customFields?.find(f => f.name.toLowerCase().includes('distress indicators'))?.value || "None detected"}</div>
+                                    <div><strong>Owner Occupied:</strong> {c.customFields?.find(f => f.name.toLowerCase().includes('owner occupied'))?.value || "—"}</div>
+                                  </div>
+                                </div>
+
+                                {/* 4. Owner & Outreach */}
+                                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px 14px" }}>
+                                  <div style={{ fontSize: "11px", fontWeight: 800, color: "#f43f5e", textTransform: "uppercase", marginBottom: "8px" }}>
+                                    👤 Owner &amp; Outreach
+                                  </div>
+                                  <div style={{ fontSize: "12.5px", display: "flex", flexDirection: "column", gap: "4px", color: "var(--ink, #f8fafc)" }}>
+                                    <div><strong>Owner Name:</strong> {contactPrimary(c, true)}</div>
+                                    <div><strong>Phone:</strong> {c.phone || "—"}</div>
+                                    <div><strong>Email:</strong> {c.email || "—"}</div>
+                                    <div><strong>Property Address:</strong> {[c.address, c.city, c.state, c.zip].filter(Boolean).join(", ")}</div>
+                                    <div><strong>Pipeline Stage:</strong> {c.stage}</div>
+                                    <div><strong>Lead Source:</strong> {c.leadSource || "Property Intelligence"}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 }
 

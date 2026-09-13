@@ -720,6 +720,13 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     "creative",
   ]);
   const [closingDays, setClosingDays] = useState<number>(14);
+  const [inspectionDays, setInspectionDays] = useState<number>(() => {
+    const cfInsp = property?.customFields?.find((c) =>
+      c.name.toLowerCase().includes("inspection")
+    )?.value;
+    const num = Number(String(cfInsp).replace(/[^0-9.]/g, ""));
+    return !isNaN(num) && num > 0 ? num : 10;
+  });
   const [earnestMoneyDeposit, setEarnestMoneyDeposit] = useState<number>(() => {
     const cfEmd = property?.customFields?.find((c) => c.name.toLowerCase().includes("earnest"))?.value;
     const num = Number(String(cfEmd).replace(/[^0-9.]/g, ""));
@@ -915,6 +922,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       acquisitionsCompany,
       selectedOptions: selectedProposalOptions,
       closingDays,
+      inspectionDays,
       earnestMoney: earnestMoneyDeposit,
       cashMetrics,
       subtoMetrics,
@@ -961,6 +969,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     acquisitionsCompany,
     selectedProposalOptions,
     closingDays,
+    inspectionDays,
     earnestMoneyDeposit,
     cashMetrics,
     subtoMetrics,
@@ -1011,6 +1020,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       acquisitionsCompany,
       selectedOptions: ["subto"],
       closingDays,
+      inspectionDays,
       earnestMoney: earnestMoneyDeposit,
       cashMetrics,
       subtoMetrics,
@@ -1056,6 +1066,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     recipientType,
     acquisitionsCompany,
     closingDays,
+    inspectionDays,
     earnestMoneyDeposit,
     cashMetrics,
     subtoMetrics,
@@ -1108,6 +1119,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         subtoMonthlyPayment: subtoMetrics.totalMonthlyDebtService,
         creativePurchasePrice: 0,
         closingDays,
+        inspectionDays,
         earnestMoneyDeposit,
         status: "Sent",
         notes: subtoProposalData.plainText,
@@ -1175,6 +1187,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         subtoPurchasePrice: selectedProposalOptions.includes("subto") ? subtoPrice : 0,
         creativePurchasePrice: selectedProposalOptions.includes("creative") ? creativePrice : 0,
         closingDays,
+        inspectionDays,
+        inspectionPeriodDays: inspectionDays,
+        closingPeriodDays: closingDays,
         earnestMoneyDeposit,
         status: "Sent",
         notes: previewMessage || proposalData.plainText,
@@ -1189,6 +1204,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           { name: "LOI", value: "Sent" },
           { name: "Offer Sent", value: todayStr },
           { name: "Cash Offer", value: String(cashMetrics.netWholesaleOffer) },
+          { name: "Closing Timeline", value: `${closingDays} Days` },
+          { name: "Inspection Period", value: `${inspectionDays} Days` },
+          { name: "Earnest Money", value: `$${earnestMoneyDeposit.toLocaleString()}` },
         ]);
         return res.offer;
       }
@@ -1200,6 +1218,12 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
       setGeneratingOffer(false);
     }
   };
+
+  useEffect(() => {
+    if (showPreviewModal) {
+      setPreviewMessage(proposalData.plainText);
+    }
+  }, [proposalData.plainText, showPreviewModal]);
 
   const handleOpenPreviewOffer = () => {
     const targetEmail = recipientType === "agent" ? (agentEmail || recipientEmail) : recipientEmail;
@@ -1225,7 +1249,12 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     try {
       // 1. Ensure offer is recorded in repository and PDF generated with latest terms
       let offer = generatedOffer;
-      if (!offer || offer.earnestMoneyDeposit !== earnestMoneyDeposit) {
+      if (
+        !offer ||
+        offer.earnestMoneyDeposit !== earnestMoneyDeposit ||
+        offer.closingDays !== closingDays ||
+        (offer as any).inspectionDays !== inspectionDays
+      ) {
         offer = await handleGenerateFormalLoi();
       }
       if (!offer || !offer.id) {
@@ -2318,7 +2347,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </label>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                       <div>
                         <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
                           Closing Timeline (Days)
@@ -2329,6 +2358,19 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                           max={90}
                           value={closingDays}
                           onChange={(e) => setClosingDays(Number(e.target.value) || 14)}
+                          style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
+                        />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px", color: "var(--ink, #f8fafc)" }}>
+                          Inspection Period (Days)
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={inspectionDays}
+                          onChange={(e) => setInspectionDays(Number(e.target.value) || 10)}
                           style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "6px", border: "1px solid var(--border, #30363d)", background: "var(--panel, #121216)", color: "var(--ink, #f8fafc)", outline: "none", fontSize: "13px" }}
                         />
                       </div>
@@ -4000,10 +4042,36 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </div>
                     </div>
 
-                    <div style={{ background: "rgba(214, 255, 63, 0.08)", border: "1px solid rgba(214, 255, 63, 0.2)", borderRadius: "8px", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "10px", color: "var(--lime, #d6ff3f)", fontWeight: 800 }}>TIMELINE</div>
-                      <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
-                        {closingDays} Days
+                    <div style={{ background: "rgba(214, 255, 63, 0.08)", border: "1.5px solid rgba(214, 255, 63, 0.35)", borderRadius: "8px", padding: "7px 10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: "10px", color: "var(--lime, #d6ff3f)", fontWeight: 800 }}>TIMELINE</div>
+                        <span style={{ fontSize: "9px", color: "var(--lime, #d6ff3f)", fontWeight: 600 }}>✏️ Edit</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "2px" }}>
+                        <input
+                          type="number"
+                          min={1}
+                          max={180}
+                          value={closingDays || ""}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setClosingDays(val);
+                          }}
+                          placeholder="14"
+                          title="Set closing timeline before sending offer"
+                          style={{
+                            width: "48px",
+                            background: "transparent",
+                            border: "none",
+                            borderBottom: "1px dashed rgba(214, 255, 63, 0.6)",
+                            color: "var(--ink, #f8fafc)",
+                            fontSize: "14px",
+                            fontWeight: 800,
+                            padding: "0 2px",
+                            outline: "none",
+                          }}
+                        />
+                        <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>Days</span>
                       </div>
                     </div>
 
@@ -4039,10 +4107,36 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </div>
                     </div>
 
-                    <div style={{ background: "rgba(244, 63, 94, 0.08)", border: "1px solid rgba(244, 63, 94, 0.2)", borderRadius: "8px", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "10px", color: "#fb7185", fontWeight: 800 }}>INSPECTION</div>
-                      <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "2px" }}>
-                        10 Days
+                    <div style={{ background: "rgba(244, 63, 94, 0.08)", border: "1.5px solid rgba(244, 63, 94, 0.35)", borderRadius: "8px", padding: "7px 10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: "10px", color: "#fb7185", fontWeight: 800 }}>INSPECTION</div>
+                        <span style={{ fontSize: "9px", color: "#fb7185", fontWeight: 600 }}>✏️ Edit</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "2px" }}>
+                        <input
+                          type="number"
+                          min={1}
+                          max={90}
+                          value={inspectionDays || ""}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setInspectionDays(val);
+                          }}
+                          placeholder="10"
+                          title="Set inspection period before sending offer"
+                          style={{
+                            width: "48px",
+                            background: "transparent",
+                            border: "none",
+                            borderBottom: "1px dashed rgba(251, 113, 133, 0.6)",
+                            color: "var(--ink, #f8fafc)",
+                            fontSize: "14px",
+                            fontWeight: 800,
+                            padding: "0 2px",
+                            outline: "none",
+                          }}
+                        />
+                        <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>Days</span>
                       </div>
                     </div>
                   </div>

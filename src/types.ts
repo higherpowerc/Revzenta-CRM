@@ -860,6 +860,9 @@ export interface WholesaleOffer {
   creativeBalloonYears: number;
   creativeTotalPaid: number;
   closingDays: number;
+  closingPeriodDays?: number;
+  inspectionDays?: number;
+  inspectionPeriodDays?: number;
   earnestMoneyDeposit?: number;
   emailStatus: "sent" | "failed" | string;
   status: OfferStatus | string;
@@ -1230,3 +1233,50 @@ export interface MarketingOverviewData {
   campaigns: MarketingCampaign[];
   recentConversions: MarketingRecentConversion[];
 }
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * MESSAGE HUB — Internal & Omnichannel CRM Communications
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export interface InternalMessage {
+  id: number;
+  orgId: number;
+  channel: string;
+  senderId?: number | null;
+  senderName: string;
+  senderRole: string;
+  recipientId?: number | null;
+  recipientName?: string | null;
+  messageType: "chat" | "sms" | "email" | "escrow_note" | "deal_alert" | "system";
+  subject?: string | null;
+  body: string;
+  clientId?: number | null;
+  clientName?: string | null;
+  transactionId?: number | null;
+  propertyAddress?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  direction: "internal" | "outbound" | "inbound";
+  status: "sent" | "delivered" | "read" | "unread" | "draft" | "failed";
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamMember {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+}
+
+export interface GetMessagesResponse {
+  ok: true;
+  messages: InternalMessage[];
+  members: TeamMember[];
+  orgId: number;
+  orgName: string;
+  currentUserId: number;
+}
+

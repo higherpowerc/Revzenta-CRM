@@ -1,4 +1,4 @@
-import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, TransactionNote, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem, MarketingCampaign, MarketingOverviewData } from "./types";
+import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, TransactionNote, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem, MarketingCampaign, MarketingOverviewData, InternalMessage, TeamMember, GetMessagesResponse } from "./types";
 import type { UnifiedPropertyFinancialProfile } from "./underwritingEngine";
 
 
@@ -866,6 +866,66 @@ export const api = {
   deleteMarketingCampaign: (id: number) =>
     request<{ ok: true }>(`/api/owner/marketing/campaigns/${id}`, {
       method: "DELETE",
+    }),
+
+  /* Message Hub — Internal & Omnichannel CRM Communications */
+  getMessages: (params?: {
+    channel?: string;
+    type?: string;
+    search?: string;
+    direction?: string;
+    pinned?: boolean;
+    clientId?: number;
+    transactionId?: number;
+    dmUserId?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.channel) q.set("channel", params.channel);
+    if (params?.type) q.set("type", params.type);
+    if (params?.search) q.set("search", params.search);
+    if (params?.direction) q.set("direction", params.direction);
+    if (params?.pinned) q.set("pinned", "true");
+    if (params?.clientId) q.set("clientId", String(params.clientId));
+    if (params?.transactionId) q.set("transactionId", String(params.transactionId));
+    if (params?.dmUserId) q.set("dmUserId", String(params.dmUserId));
+    const qs = q.toString();
+    return request<GetMessagesResponse>(`/api/messages${qs ? `?${qs}` : ""}`);
+  },
+  createMessage: (data: {
+    channel?: string;
+    body: string;
+    messageType?: "chat" | "sms" | "email" | "escrow_note" | "deal_alert" | "system";
+    subject?: string;
+    senderName?: string;
+    senderRole?: string;
+    recipientId?: number;
+    recipientName?: string;
+    clientId?: number;
+    clientName?: string;
+    transactionId?: number;
+    propertyAddress?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    direction?: "internal" | "outbound" | "inbound";
+    status?: "sent" | "delivered" | "read" | "unread";
+    isPinned?: boolean;
+  }) =>
+    request<{ ok: true; message: InternalMessage }>("/api/messages", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateMessage: (id: number, data: { isPinned?: boolean; status?: string; body?: string }) =>
+    request<{ ok: true; message: InternalMessage }>(`/api/messages/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteMessage: (id: number) =>
+    request<{ ok: true }>(`/api/messages/${id}`, {
+      method: "DELETE",
+    }),
+  markAllMessagesRead: () =>
+    request<{ ok: true }>("/api/messages/mark-all-read", {
+      method: "POST",
     }),
 };
 

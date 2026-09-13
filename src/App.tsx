@@ -26,6 +26,7 @@ import Website from "./Website";
 import UpgradeGate from "./UpgradeGate";
 import PropertySearch from "./PropertySearch";
 import MarketingSuite from "./MarketingSuite";
+import MessageHub from "./MessageHub";
 import { api } from "./api";
 import { DEFAULT_STAGES, TENANT_TABS, type Client, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
@@ -47,7 +48,7 @@ import ThemeToggle from "./ThemeToggle";
  * (prospects), Onboarding = the MIDDLE stages (intake leads), Clients = the
  * terminal stage (sold). Client accounts (role=member) are unchanged: their
  * Leads tab keeps showing every stage except their terminal one. */
-type View = "dashboard" | "opportunities" | "properties" | "leads" | "marketing" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "contracts" | "tickets" | "settings" | "buyers" | "connections" | "compliance" | "sold";
+type View = "dashboard" | "opportunities" | "properties" | "leads" | "marketing" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "contracts" | "tickets" | "settings" | "buyers" | "connections" | "compliance" | "sold" | "messages";
 
 
 /** 3k — the emailed reset link is `<appUrl>/#/reset?token=...`; pull the
@@ -404,6 +405,8 @@ export default function App() {
         return isWholesale ? (canSeeTab("settings") || canSeeTab("clients")) : isOwnerCockpit;
       case "marketing":
         return isOwnerCockpit;
+      case "messages":
+        return true;
     }
   };
   const effectiveView: View = viewAllowed(view) ? view : "dashboard";
@@ -433,6 +436,7 @@ export default function App() {
         case "tickets": return "Support Tickets";
         case "documents": return "Signed Agreements";
         case "sold": return "Sold Hub";
+        case "messages": return "Message Hub";
         case "admin": return "Template & Admin";
         case "compliance": return "Compliance & DNC";
         case "settings": return "Settings";
@@ -449,6 +453,7 @@ export default function App() {
         case "documents": return "Title Hub";
         case "contracts": return "Deals & Contracts";
         case "sold": return "Sold Hub";
+        case "messages": return "Message Hub";
         case "buybox": return "Buy Box";
         case "clients": return "Investors";
         case "connections": return "Connections";
@@ -467,6 +472,7 @@ export default function App() {
       case "appointments": return "Appointments";
       case "tasks": return "Tasks";
       case "tickets": return "Support";
+      case "messages": return "Message Hub";
       case "finance": return "Finance";
       case "settings": return "Settings";
       default: return "Menu";
@@ -488,6 +494,7 @@ export default function App() {
         case "tickets": return "🎫";
         case "documents": return "📑";
         case "sold": return "🏆";
+        case "messages": return "💬";
         case "admin": return "📝";
         case "compliance": return "🛡️";
         case "settings": return "⚙️";
@@ -504,6 +511,7 @@ export default function App() {
         case "documents": return "🤝";
         case "contracts": return "📄";
         case "sold": return "🏆";
+        case "messages": return "💬";
         case "buybox": return "🎯";
         case "clients": return "💼";
         case "connections": return "🔌";
@@ -859,6 +867,17 @@ export default function App() {
                   <span>Dashboard &amp; ROI</span>
                 </button>
                 <button
+                  className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("messages");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Unified internal team communications, SMS, emails, and deal alerts"
+                >
+                  <span className="tab-icon">💬</span>
+                  <span>Message Hub</span>
+                </button>
+                <button
                   className={effectiveViewFinal === "finance" ? "tab active" : "tab"}
                   onClick={() => {
                     setView("finance");
@@ -1070,6 +1089,19 @@ export default function App() {
                     <span>Dashboard</span>
                   </button>
                 )}
+
+                {/* Message Hub */}
+                <button
+                  className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("messages");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Unified internal team communications, SMS, emails, and deal alerts"
+                >
+                  <span className="tab-icon">💬</span>
+                  <span>Message Hub</span>
+                </button>
 
                 {/* 2. Property Search */}
                 <button
@@ -1363,6 +1395,17 @@ export default function App() {
                 >
                   <span className="tab-icon">📊</span>
                   <span>Dashboard</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("messages");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Unified internal team communications, SMS, emails, and deal alerts"
+                >
+                  <span className="tab-icon">💬</span>
+                  <span>Message Hub</span>
                 </button>
                 {canSeeTab("clients") && (
                   <button
@@ -1859,6 +1902,15 @@ export default function App() {
           <Compliance
             onNavigateToConnections={() => setView("connections")}
             onNavigateToLeads={() => setView("leads")}
+          />
+        ) : effectiveViewFinal === "messages" ? (
+          <MessageHub
+            crmBusinessName={orgName}
+            onNavigateToLead={() => setView("leads")}
+            onNavigateToTransaction={() => setView("documents")}
+            onNavigateToProperty={() => {
+              setView("properties");
+            }}
           />
         ) : effectiveViewFinal === "tickets" ? (
           <Tickets ownerOrg={isOwnerCockpit} canEdit={canEditTab("support")} />

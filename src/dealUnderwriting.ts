@@ -574,6 +574,7 @@ export interface ProposalGeneratorInput {
   acquisitionsCompany: string;
   selectedOptions: Array<'cash' | 'subto' | 'creative'>;
   closingDays: number;
+  inspectionDays?: number;
   earnestMoney?: number;
   cashMetrics: CashDealMetrics;
   subtoMetrics: SubjectToMetrics;
@@ -644,32 +645,59 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
   let optIdx = 1;
 
   const earnestVal = input.earnestMoney != null && !isNaN(input.earnestMoney) ? input.earnestMoney : 2500;
+  const inspDays = input.inspectionDays != null && !isNaN(input.inspectionDays) ? input.inspectionDays : 10;
+  const closeDays = input.closingDays != null && !isNaN(input.closingDays) ? input.closingDays : 14;
+
+  const optionLabels: { id: string; label: string; summary: string }[] = [];
 
   if (input.selectedOptions.includes('cash')) {
-    text += `OPTION ${optIdx++}: IMMEDIATE ALL-CASH SETTLEMENT\n`;
+    const cashTitle = `OPTION ${optIdx++}: IMMEDIATE ALL-CASH SETTLEMENT`;
+    optionLabels.push({
+      id: 'cash',
+      label: cashTitle,
+      summary: `$${input.cashMetrics.netWholesaleOffer.toLocaleString()} Net Cash Walkaway (${closeDays}-day close, ${inspDays}-day inspection)`,
+    });
+    text += `${cashTitle}\n`;
     text += `• Net Cash Purchase Price: $${input.cashMetrics.netWholesaleOffer.toLocaleString()} (Net Walkaway to Seller)\n`;
     text += `• Earnest Money Deposit: $${earnestVal.toLocaleString()} (Escrow deposited within 48 business hours)\n`;
-    text += `• Closing Timeline: ${input.closingDays} Days (or flexible date of Seller's choice)\n`;
+    text += `• Inspection Period: ${inspDays} Calendar Days (Full access for professional inspection and due diligence)\n`;
+    text += `• Closing Timeline: ${closeDays} Days (or flexible date of Seller's choice)\n`;
     text += `• Condition: Sold 100% strictly "As-Is, Where-Is" (Zero repairs, cleaning, or debris removal required)\n`;
     text += `• Closing Costs: Buyer pays 100% of customary escrow and closing costs. Zero agent fees or commissions.\n\n`;
   }
 
   if (input.selectedOptions.includes('subto')) {
-    text += `OPTION ${optIdx++}: SUBJECT-TO DEBT RELIEF & CASH AT CLOSE\n`;
+    const subtoTitle = `OPTION ${optIdx++}: SUBJECT-TO DEBT RELIEF & CASH AT CLOSE`;
+    optionLabels.push({
+      id: 'subto',
+      label: subtoTitle,
+      summary: `$${input.subtoInput.cashToSeller.toLocaleString()} Cash Upfront + $${input.subtoMetrics.totalExistingDebt.toLocaleString()} Debt Relieved ($${Math.round(input.subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo serviced)`,
+    });
+    text += `${subtoTitle}\n`;
     text += `• Upfront Cash Walkaway to Seller: $${input.subtoInput.cashToSeller.toLocaleString()}\n`;
     text += `• Mortgage Debt Relieved & Assumed: $${input.subtoMetrics.totalExistingDebt.toLocaleString()}\n`;
     text += `• Monthly Debt Service Maintained by Buyer: $${Math.round(input.subtoMetrics.totalMonthlyDebtService).toLocaleString()}/month\n`;
+    text += `• Inspection Period: ${inspDays} Calendar Days (Due diligence & loan verification)\n`;
+    text += `• Closing Timeline: ${closeDays} Days (Subject to escrow and title clearance)\n`;
     text += `• Servicing Standard: Professionally handled via third-party licensed loan servicing agency\n`;
     text += `• Seller Credit Benefit: Timely continuous payments to protect and enhance seller credit rating\n`;
     text += `• As-Is Conveyance: Buyer assumes all property taxes, insurance, and future maintenance\n\n`;
   }
 
   if (input.selectedOptions.includes('creative')) {
-    text += `OPTION ${optIdx++}: PREMIUM SELLER FINANCING (MAXIMUM RETURN)\n`;
+    const creativeTitle = `OPTION ${optIdx++}: PREMIUM SELLER FINANCING (MAXIMUM RETURN)`;
+    optionLabels.push({
+      id: 'creative',
+      label: creativeTitle,
+      summary: `$${input.creativeInput.purchasePrice.toLocaleString()} Valuation ($${input.creativeInput.downPayment.toLocaleString()} down, $${Math.round(input.creativeMetrics.monthlyDebtService).toLocaleString()}/mo passive income)`,
+    });
+    text += `${creativeTitle}\n`;
     text += `• Full Purchase Price: $${input.creativeInput.purchasePrice.toLocaleString()} (Top Dollar Valuation)\n`;
     text += `• Upfront Down Payment: $${input.creativeInput.downPayment.toLocaleString()} at closing\n`;
     text += `• Ongoing Monthly Income: $${Math.round(input.creativeMetrics.monthlyDebtService).toLocaleString()}/month\n`;
     text += `• Note Terms: ${input.creativeInput.annualInterestRate.toFixed(2)}% annual interest, ${input.creativeInput.balloonMaturityYears}-year balloon term\n`;
+    text += `• Inspection Period: ${inspDays} Calendar Days (Property due diligence & note documentation)\n`;
+    text += `• Closing Timeline: ${closeDays} Days (Escrow & deed of trust settlement)\n`;
     text += `• Total Cumulative Proceeds to Seller: $${Math.round(input.creativeMetrics.totalPayoutToSeller).toLocaleString()} (+$${Math.round(input.creativeMetrics.sellerGainOverList).toLocaleString()} above target)\n\n`;
   }
 
@@ -678,10 +706,22 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
     text += `Buyer reserves the right to assign or vest equitable contract title to an affiliated investment trust or qualified principal. Seller acknowledges that Seller's sole financial compensation is the agreed-upon net purchase price and terms stated herein, with zero deductions or commissions.\n\n`;
   }
 
-  text += `NEXT STEPS & ACCEPTANCE:\n`;
-  text += `Please sign below or reply via email with your chosen option. Our title partner will promptly issue state-approved bilateral contracts.\n\n`;
+  text += `HOW TO SELECT YOUR PREFERRED DEAL & ACCEPTANCE:\n`;
+  if (optionLabels.length > 1) {
+    text += `This proposal contains multiple structured purchase options. To accept your preferred terms:\n`;
+    text += `  1. Mark [X] next to your chosen option below:\n`;
+    optionLabels.forEach((opt) => {
+      text += `     [   ] ${opt.label} — ${opt.summary}\n`;
+    });
+    text += `  2. Sign and date below, or simply reply to this email with your chosen option (e.g. "I accept Option 1").\n`;
+    text += `  3. Our acquisitions team will immediately send state-approved bilateral contracts via DocuSign to open title and escrow.\n\n`;
+  } else {
+    text += `To accept this offer, sign below or reply to this email confirming acceptance. Our title partner will promptly issue state-approved bilateral contracts.\n\n`;
+  }
+
   text += `Accepted & Agreed: _______________________ Date: ____________\n`;
   text += `${seller} (Owner of Record)\n\n`;
+  text += `Chosen Option: ___________________________________________\n\n`;
   text += `Sincerely,\nAcquisitions Division\n${company}\n`;
 
   const htmlMarkup = `
@@ -734,9 +774,10 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
               <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #047857;">
                 <li>Net cash walkaway at closing</li>
                 <li>Earnest Money Deposit: $${earnestVal.toLocaleString()} (escrow deposited within 48 business hours)</li>
-                <li>Closing within ${input.closingDays} business days</li>
+                <li>Inspection Period: ${inspDays} calendar days (full due diligence & property access)</li>
+                <li>Closing within ${closeDays} business days (or seller's choice)</li>
                 <li>Sold 100% strictly "As-Is" — zero repairs or cleaning</li>
-                <li>Buyer pays all standard closing costs</li>
+                <li>Buyer pays all standard escrow and closing costs</li>
               </ul>
             </div>
           ` : ''}
@@ -750,6 +791,8 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
               <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #1e40af;">
                 <li>Buyer assumes payment of $${input.subtoMetrics.totalExistingDebt.toLocaleString()} mortgage debt</li>
                 <li>Monthly payments ($${Math.round(input.subtoMetrics.totalMonthlyDebtService).toLocaleString()}/mo) maintained by Buyer</li>
+                <li>Inspection Period: ${inspDays} calendar days (due diligence & loan verification)</li>
+                <li>Closing within ${closeDays} business days</li>
                 <li>Serviced through licensed third-party escrow servicing</li>
                 <li>Protects and builds Seller credit profile</li>
               </ul>
@@ -765,12 +808,87 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
               <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #5b21b6;">
                 <li>$${input.creativeInput.downPayment.toLocaleString()} down payment at closing</li>
                 <li>$${Math.round(input.creativeMetrics.monthlyDebtService).toLocaleString()}/mo ongoing passive income</li>
+                <li>Inspection Period: ${inspDays} calendar days</li>
+                <li>Closing within ${closeDays} business days</li>
                 <li>Total projected seller yield: $${Math.round(input.creativeMetrics.totalPayoutToSeller).toLocaleString()}</li>
                 <li>${input.creativeInput.annualInterestRate}% interest with ${input.creativeInput.balloonMaturityYears}-year balloon term</li>
               </ul>
             </div>
           ` : ''}
         </div>
+
+        ${optionLabels.length > 1 ? `
+          <!-- Seller Option Selection & Acceptance Box -->
+          <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 18px 20px; background: #f8fafc; margin: 24px 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <strong style="font-size: 14px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.03em;">
+                ☑️ How to Select Your Preferred Deal
+              </strong>
+              <span style="font-size: 11px; background: #e2e8f0; color: #334155; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
+                ${optionLabels.length} Options Available
+              </span>
+            </div>
+            <p style="font-size: 13px; color: #475569; margin: 0 0 14px 0; line-height: 1.5;">
+              To select your desired purchase structure, choose either of the following two simple methods:
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+              ${optionLabels.map((opt, i) => `
+                <div style="display: flex; align-items: flex-start; gap: 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px;">
+                  <span style="display: inline-block; width: 18px; height: 18px; border: 2px solid #0284c7; border-radius: 4px; background: #ffffff; text-align: center; line-height: 16px; font-weight: 800; font-size: 11px; color: #0284c7; flex-shrink: 0; margin-top: 1px;">
+                    ${i + 1}
+                  </span>
+                  <div style="font-size: 12.5px; color: #1e293b;">
+                    <strong>${opt.label}</strong>
+                    <div style="color: #64748b; font-size: 12px; margin-top: 2px;">${opt.summary}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 12px 14px; font-size: 12.5px; color: #334155; line-height: 1.6;">
+              <div style="margin-bottom: 6px;">
+                <strong>Method 1 (Fast Email Reply):</strong> Reply directly to this email or message indicating your chosen option (e.g., <em>"I accept Option 1 - All Cash"</em>).
+              </div>
+              <div>
+                <strong>Method 2 (Sign & Return):</strong> Check your desired option above, sign below, and reply with an attached scan or photo.
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 12.5px;">
+              <div>
+                <div style="color: #64748b; margin-bottom: 4px;">Seller Signature:</div>
+                <div style="border-bottom: 1px solid #94a3b8; height: 26px;"></div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${seller} (Property Owner)</div>
+              </div>
+              <div>
+                <div style="color: #64748b; margin-bottom: 4px;">Date:</div>
+                <div style="border-bottom: 1px solid #94a3b8; height: 26px;"></div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Chosen Option: ____________</div>
+              </div>
+            </div>
+          </div>
+        ` : `
+          <!-- Single Offer Acceptance Box -->
+          <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 16px 20px; background: #f8fafc; margin: 24px 0;">
+            <strong style="font-size: 13.5px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 8px;">
+              ☑️ Acceptance & Next Steps
+            </strong>
+            <p style="font-size: 13px; color: #475569; margin: 0 0 14px 0; line-height: 1.5;">
+              To accept this offer, reply directly to this email or sign below. Bilateral state-approved contracts will be issued via DocuSign to open escrow.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12.5px;">
+              <div>
+                <div style="color: #64748b; margin-bottom: 4px;">Seller Signature:</div>
+                <div style="border-bottom: 1px solid #94a3b8; height: 26px;"></div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${seller} (Property Owner)</div>
+              </div>
+              <div>
+                <div style="color: #64748b; margin-bottom: 4px;">Date:</div>
+                <div style="border-bottom: 1px solid #94a3b8; height: 26px;"></div>
+              </div>
+            </div>
+          </div>
+        `}
 
         <div style="border-top: 1px solid #e2e8f0; padding-top: 18px; margin-top: 24px; font-size: 12px; color: #64748b;">
           <p style="margin: 0 0 6px 0;"><strong>Closing Agent:</strong> Third-Party Licensed Title & Escrow Company.</p>

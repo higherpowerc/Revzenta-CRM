@@ -634,6 +634,8 @@ db.exec(`
     creative_balloon_years   REAL NOT NULL DEFAULT 0,
     creative_total_paid      REAL NOT NULL DEFAULT 0,
     closing_days             INTEGER NOT NULL DEFAULT 14,
+    inspection_days          INTEGER NOT NULL DEFAULT 10,
+    earnest_money_deposit    REAL NOT NULL DEFAULT 2500,
     email_status             TEXT NOT NULL DEFAULT 'sent',
     status                   TEXT NOT NULL DEFAULT 'Sent',
     notes                    TEXT NOT NULL DEFAULT '',
@@ -1965,6 +1967,14 @@ CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_a
   if (!txCols.some((c) => c.name === "custom_terms")) {
     db.exec("ALTER TABLE transactions ADD COLUMN custom_terms TEXT NOT NULL DEFAULT ''");
   }
+
+  const offerCols = db.query("PRAGMA table_info(offers)").all() as { name: string }[];
+  if (!offerCols.some((c) => c.name === "inspection_days")) {
+    db.exec("ALTER TABLE offers ADD COLUMN inspection_days INTEGER NOT NULL DEFAULT 10");
+  }
+  if (!offerCols.some((c) => c.name === "earnest_money_deposit")) {
+    db.exec("ALTER TABLE offers ADD COLUMN earnest_money_deposit REAL NOT NULL DEFAULT 2500");
+  }
 }
 
 /**
@@ -2477,5 +2487,191 @@ export function addSuppression(
   }
 }
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Internal Messages & Omnichannel Communications Table
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+db.exec(`
+CREATE TABLE IF NOT EXISTS internal_messages (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id           INTEGER NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  channel          TEXT NOT NULL DEFAULT 'general',
+  sender_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  sender_name      TEXT NOT NULL DEFAULT 'Team Member',
+  sender_role      TEXT NOT NULL DEFAULT 'agent',
+  recipient_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  recipient_name   TEXT DEFAULT NULL,
+  message_type     TEXT NOT NULL DEFAULT 'chat',
+  subject          TEXT DEFAULT NULL,
+  body             TEXT NOT NULL,
+  client_id        INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+  client_name      TEXT DEFAULT NULL,
+  transaction_id   INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+  property_address TEXT DEFAULT NULL,
+  contact_phone    TEXT DEFAULT NULL,
+  contact_email    TEXT DEFAULT NULL,
+  direction        TEXT NOT NULL DEFAULT 'internal',
+  status           TEXT NOT NULL DEFAULT 'sent',
+  is_pinned        INTEGER NOT NULL DEFAULT 0,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
+CREATE INDEX IF NOT EXISTS idx_internal_messages_org ON internal_messages(org_id);
+CREATE INDEX IF NOT EXISTS idx_internal_messages_channel ON internal_messages(channel);
+CREATE INDEX IF NOT EXISTS idx_internal_messages_type ON internal_messages(message_type);
+CREATE INDEX IF NOT EXISTS idx_internal_messages_created ON internal_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_internal_messages_client ON internal_messages(client_id);
+CREATE INDEX IF NOT EXISTS idx_internal_messages_tx ON internal_messages(transaction_id);
+`);
 
+// Seed default internal messages for existing orgs if empty
+{
+  const totalCount = db.query("SELECT COUNT(*) AS c FROM internal_messages").get() as { c: number };
+  if (totalCount.c === 0) {
+    const orgs = db.query("SELECT id, name FROM orgs").all() as Array<{ id: number; name: string }>;
+    const sampleSeed = [
+      {
+        channel: "general",
+        sender_name: "Alex Miller",
+        sender_role: "Acquisitions Lead",
+        message_type: "chat",
+        subject: "Welcome to Message Hub",
+        body: "🎉 Welcome to the Revzenta Message Hub! This central hub unifies all internal team communications, direct messages, SMS threads with homeowners, title coordination notes, and deal alerts in one real-time stream.",
+        direction: "internal",
+        status: "read",
+        is_pinned: 1,
+        property_address: null,
+      },
+      {
+        channel: "general",
+        sender_name: "Sarah Jenkins",
+        sender_role: "Title & Escrow Coordinator",
+        message_type: "chat",
+        subject: "Title & Escrow Pipeline Update",
+        body: "Title commitment is ready for our closing next week. All EMD deposits for active contracts have been confirmed in escrow. Please check the #escrow channel for file updates.",
+        direction: "internal",
+        status: "read",
+        is_pinned: 0,
+        property_address: null,
+      },
+      {
+        channel: "acquisitions",
+        sender_name: "Dave Vance",
+        sender_role: "Lead Underwriter",
+        message_type: "chat",
+        subject: "New High-Equity Distressed Lead",
+        body: "New off-market probate lead inbound for 8247 Ellsworth St. Homeowner indicated high motivation for a fast cash closing. Estimated ARV is $340,000. Running comp underwriting now.",
+        direction: "internal",
+        status: "read",
+        is_pinned: 0,
+        property_address: "8247 Ellsworth St",
+      },
+      {
+        channel: "acquisitions",
+        sender_name: "Alex Miller",
+        sender_role: "Acquisitions Lead",
+        recipient_name: "SNW HOMES (Homeowner)",
+        message_type: "sms",
+        subject: "Outbound SMS Offer Follow-up",
+        body: "Hi Marcus, Alex from Revzenta here. Following up on our discussion regarding the property on 8247 Ellsworth St. We prepared our formal cash offer with a 14-day close and zero repair contingencies. Would you like to review the agreement?",
+        direction: "outbound",
+        status: "delivered",
+        is_pinned: 0,
+        contact_phone: "(480) 555-0192",
+        property_address: "8247 Ellsworth St",
+      },
+      {
+        channel: "acquisitions",
+        sender_name: "SNW HOMES (Homeowner)",
+        sender_role: "Homeowner / Seller",
+        recipient_name: "Alex Miller",
+        message_type: "sms",
+        subject: "Inbound SMS Response",
+        body: "Hey Alex, yes 14 days works great for us. Please email the agreement over for signature so our attorney can review.",
+        direction: "inbound",
+        status: "unread",
+        is_pinned: 0,
+        contact_phone: "(480) 555-0192",
+        property_address: "8247 Ellsworth St",
+      },
+      {
+        channel: "underwriting",
+        sender_name: "Dave Vance",
+        sender_role: "Lead Underwriter",
+        message_type: "chat",
+        subject: "Underwriting Margin & Assignment Fee",
+        body: "Underwriting complete for 8247 Ellsworth St. MAO at 70% minus $35k repairs is $203,000. Seller willing to take $185,000, creating an estimated $18,000 assignment fee for our wholesale disposition.",
+        direction: "internal",
+        status: "read",
+        is_pinned: 0,
+        property_address: "8247 Ellsworth St",
+      },
+      {
+        channel: "escrow",
+        sender_name: "Sarah Jenkins",
+        sender_role: "Title & Escrow Coordinator",
+        message_type: "escrow_note",
+        subject: "Escrow Opened & Title Search Initiated",
+        body: "🏛️ Escrow file #REV-2026-092 successfully opened with First American Title. Preliminary title report ordered. Wiring instructions sent to investor for $2,500 EMD deposit.",
+        direction: "internal",
+        status: "read",
+        is_pinned: 0,
+        property_address: "8247 Ellsworth St",
+      },
+      {
+        channel: "general",
+        sender_name: "Revzenta Deal Bot",
+        sender_role: "System Bot",
+        message_type: "deal_alert",
+        subject: "⚠️ Inspection Clock Notice",
+        body: "Inspection Contingency Reminder: 4 days remaining on physical inspection for active contract at 2841 NW 17th St. Schedule contractor walk-through before deadline.",
+        direction: "internal",
+        status: "unread",
+        is_pinned: 0,
+        property_address: "2841 NW 17th St",
+      },
+      {
+        channel: "general",
+        sender_name: "Alex Miller",
+        sender_role: "Acquisitions Lead",
+        recipient_name: "SNW HOMES",
+        message_type: "email",
+        subject: "Purchase & Sale Agreement Dispatched",
+        body: "Official Purchase & Sale Agreement dispatched via email to Marcus SNW HOMES with assignable clause and 10-day inspection contingency. Signer link sent.",
+        direction: "outbound",
+        status: "delivered",
+        is_pinned: 0,
+        contact_email: "marcus@snwhomes.com",
+        property_address: "8247 Ellsworth St",
+      },
+    ];
+
+    for (const org of orgs) {
+      for (const msg of sampleSeed) {
+        db.query(`
+          INSERT INTO internal_messages (
+            org_id, channel, sender_name, sender_role, recipient_name, message_type,
+            subject, body, direction, status, is_pinned, contact_phone, contact_email, property_address
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          org.id,
+          msg.channel,
+          msg.sender_name,
+          msg.sender_role,
+          msg.recipient_name || null,
+          msg.message_type,
+          msg.subject || null,
+          msg.body,
+          msg.direction,
+          msg.status,
+          msg.is_pinned,
+          msg.contact_phone || null,
+          msg.contact_email || null,
+          msg.property_address || null
+        );
+      }
+    }
+  }
+}

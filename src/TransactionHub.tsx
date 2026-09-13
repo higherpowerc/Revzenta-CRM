@@ -4,8 +4,8 @@ import type { Transaction, Client, Buyer, TransactionNote } from "./types";
 
 interface Props {
   crmBusinessName?: string;
-  initialTab?: "process" | "clocks" | "contracts" | "title";
-  onTabChange?: (tab: "process" | "clocks" | "contracts" | "title") => void;
+  initialTab?: "process" | "clocks" | "contracts" | "title" | "closed";
+  onTabChange?: (tab: "process" | "clocks" | "contracts" | "title" | "closed") => void;
 }
 
 const STATE_OPTIONS = [
@@ -266,6 +266,356 @@ export function WholesaleStageBadge({
   );
 }
 
+interface ClosedDealsMonthLedgerProps {
+  closedDealsByMonth: Array<{
+    monthKey: string;
+    monthLabel: string;
+    deals: Transaction[];
+    totalFees: number;
+    totalVolume: number;
+  }>;
+  totalClosedFees: number;
+  totalClosedDeals: number;
+  collapsedMonths: Record<string, boolean>;
+  toggleMonthCollapsed: (key: string) => void;
+  onViewPdf: (tx: Transaction) => void;
+  onOpenNotes: (tx: Transaction) => void;
+  onReopenDeal: (tx: Transaction) => void;
+  isSideWindow?: boolean;
+  onCloseSideWindow?: () => void;
+}
+
+function ClosedDealsMonthLedger({
+  closedDealsByMonth,
+  totalClosedFees,
+  totalClosedDeals,
+  collapsedMonths,
+  toggleMonthCollapsed,
+  onViewPdf,
+  onOpenNotes,
+  onReopenDeal,
+  isSideWindow = false,
+  onCloseSideWindow,
+}: ClosedDealsMonthLedgerProps) {
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--card-bg, var(--panel))",
+        border: "1.5px solid rgba(168, 85, 247, 0.4)",
+        borderRadius: "10px",
+        overflow: "hidden",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "16px 18px",
+          background: "linear-gradient(135deg, rgba(168, 85, 247, 0.16) 0%, rgba(16, 185, 129, 0.12) 100%)",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "10px",
+        }}
+      >
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "20px" }}>🏆</span>
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--fg)" }}>
+              Closed Deals &amp; Paid Fees
+            </h3>
+          </div>
+          <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
+            Organized month by month &bull; Disbursed assignment fees ledger
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span
+            style={{
+              padding: "4px 12px",
+              borderRadius: "12px",
+              fontSize: "12.5px",
+              fontWeight: 800,
+              background: "rgba(16, 185, 129, 0.18)",
+              border: "1px solid rgba(16, 185, 129, 0.4)",
+              color: "#10b981",
+              boxShadow: "0 1px 4px rgba(16, 185, 129, 0.2)",
+            }}
+          >
+            💰 ${totalClosedFees.toLocaleString()} Paid
+          </span>
+          {isSideWindow && onCloseSideWindow && (
+            <button
+              onClick={onCloseSideWindow}
+              style={{
+                background: "transparent",
+                border: "none",
+                fontSize: "16px",
+                color: "var(--muted)",
+                cursor: "pointer",
+                padding: "2px 6px",
+                lineHeight: 1,
+              }}
+              title="Close Side Window"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mini KPI Bar */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          padding: "10px 16px",
+          background: "var(--bg-soft, rgba(0,0,0,0.03))",
+          borderBottom: "1px solid var(--border)",
+          fontSize: "11px",
+          textAlign: "center",
+        }}
+      >
+        <div>
+          <span style={{ color: "var(--muted)", display: "block" }}>Closed Deals</span>
+          <strong style={{ fontSize: "15px", fontWeight: 800, color: "var(--fg)" }}>{totalClosedDeals}</strong>
+        </div>
+        <div>
+          <span style={{ color: "var(--muted)", display: "block" }}>Total Fees Paid</span>
+          <strong style={{ fontSize: "15px", fontWeight: 800, color: "#10b981" }}>${totalClosedFees.toLocaleString()}</strong>
+        </div>
+        <div>
+          <span style={{ color: "var(--muted)", display: "block" }}>Active Months</span>
+          <strong style={{ fontSize: "15px", fontWeight: 800, color: "#a855f7" }}>{closedDealsByMonth.length}</strong>
+        </div>
+      </div>
+
+      {/* Month-by-Month List */}
+      <div
+        style={{
+          padding: "14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "14px",
+          maxHeight: isSideWindow ? "calc(100vh - 260px)" : "none",
+          overflowY: "auto",
+        }}
+      >
+        {closedDealsByMonth.length === 0 ? (
+          <div style={{ padding: "34px 16px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+            <div style={{ fontSize: "32px", marginBottom: "8px" }}>📦</div>
+            <p style={{ margin: 0, fontWeight: 700, color: "var(--fg)" }}>No closed deals in this window yet.</p>
+            <p style={{ margin: "6px 0 0 0", fontSize: "12px", lineHeight: 1.5, color: "var(--muted)" }}>
+              When a deal closes and fees are disbursed (Step 5 or via <strong>"💰 Close &amp; Pay Fee"</strong>), it automatically moves into this window organized by month!
+            </p>
+          </div>
+        ) : (
+          closedDealsByMonth.map((group) => {
+            const isCollapsed = collapsedMonths[group.monthKey] || false;
+            return (
+              <div
+                key={group.monthKey}
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  backgroundColor: "var(--panel)",
+                }}
+              >
+                {/* Month Accordion Header */}
+                <div
+                  onClick={() => toggleMonthCollapsed(group.monthKey)}
+                  style={{
+                    padding: "11px 14px",
+                    background: "rgba(168, 85, 247, 0.08)",
+                    borderBottom: isCollapsed ? "none" : "1px solid var(--border)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--fg)" }}>
+                      📅 {group.monthLabel}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        padding: "1px 7px",
+                        borderRadius: "10px",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "var(--muted)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {group.deals.length} Deal{group.deals.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "12.5px", fontWeight: 800, color: "#10b981" }}>
+                      +${group.totalFees.toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>
+                      {isCollapsed ? "▼" : "▲"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Deals inside month */}
+                {!isCollapsed && (
+                  <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {group.deals.map((tx) => (
+                      <div
+                        key={tx.id}
+                        style={{
+                          backgroundColor: "var(--card-bg, var(--panel))",
+                          border: "1px solid var(--border)",
+                          borderRadius: "7px",
+                          padding: "12px",
+                          fontSize: "12px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "8px",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                        }}
+                      >
+                        {/* Row 1: Property Address & Contract Type */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: "13.5px", color: "var(--fg)", lineHeight: 1.3 }}>
+                              {tx.propertyAddress}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
+                              Closed: {tx.closingDate || "Completed"} &bull; {tx.stateJurisdiction || "Standard"}
+                            </div>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              background: tx.contractType === "assignment" ? "rgba(168, 85, 247, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                              color: tx.contractType === "assignment" ? "#c084fc" : "#60a5fa",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {tx.contractType}
+                          </span>
+                        </div>
+
+                        {/* Row 2: Assignment Fee Payout Box */}
+                        <div
+                          style={{
+                            background: "linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(168, 85, 247, 0.1) 100%)",
+                            border: "1px solid rgba(16, 185, 129, 0.35)",
+                            borderRadius: "6px",
+                            padding: "8px 10px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <span style={{ color: "#10b981", fontWeight: 700, fontSize: "12px" }}>
+                            💰 Assignment Fee Paid:
+                          </span>
+                          <span style={{ fontSize: "14.5px", fontWeight: 800, color: "#10b981" }}>
+                            ${(tx.assignmentFee || 0).toLocaleString()} ✓
+                          </span>
+                        </div>
+
+                        {/* Row 3: Parties & Escrow info */}
+                        <div style={{ fontSize: "11.5px", color: "var(--muted)", display: "flex", flexDirection: "column", gap: "3px" }}>
+                          <div>
+                            <strong>Buyer / Assignee:</strong> {tx.buyerName || "Cash Investor"}
+                          </div>
+                          <div>
+                            <strong>Seller / Homeowner:</strong> {tx.sellerName || "Property Owner"}
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                            <span><strong>Price:</strong> ${tx.purchasePrice.toLocaleString()}</span>
+                            <span><strong>Title Co:</strong> {tx.titleCompanyName || "Escrow"} ({tx.escrowFileNumber || `#${tx.id}`})</span>
+                          </div>
+                        </div>
+
+                        {/* Row 4: Action buttons */}
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "2px", alignItems: "center" }}>
+                          {(tx.contractPdfUrl || tx.contractPdfId) && (
+                            <button
+                              type="button"
+                              onClick={() => onViewPdf(tx)}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                background: "var(--panel)",
+                                border: "1px solid var(--border)",
+                                color: "var(--fg)",
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                              }}
+                            >
+                              📄 View PDF
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onOpenNotes(tx)}
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              background: "var(--panel)",
+                              border: "1px solid var(--border)",
+                              color: "var(--fg)",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            🏛️ Title Notes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onReopenDeal(tx)}
+                            style={{
+                              marginLeft: "auto",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              background: "transparent",
+                              border: "1px dashed var(--border)",
+                              color: "var(--muted)",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                            title="Reopen deal back into active contingency pipeline"
+                          >
+                            ↩ Reopen Deal
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TransactionHub({ crmBusinessName, initialTab = "process", onTabChange }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [properties, setProperties] = useState<Client[]>([]);
@@ -274,7 +624,32 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
   const [error, setError] = useState<string | null>(null);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title">(initialTab);
+  const [activeTab, setActiveTab] = useState<"process" | "clocks" | "contracts" | "title" | "closed">(initialTab);
+
+  // Closed Deals Side Window toggle
+  const [showClosedWindow, setShowClosedWindow] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("revzenta_show_closed_window");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleShowClosedWindow = () => {
+    setShowClosedWindow((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("revzenta_show_closed_window", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const [collapsedMonths, setCollapsedMonths] = useState<Record<string, boolean>>({});
+  const toggleMonthCollapsed = (monthKey: string) => {
+    setCollapsedMonths((prev) => ({ ...prev, [monthKey]: !prev[monthKey] }));
+  };
 
   useEffect(() => {
     if (initialTab) {
@@ -282,7 +657,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
     }
   }, [initialTab]);
 
-  const handleSelectTab = (tab: "process" | "clocks" | "contracts" | "title") => {
+  const handleSelectTab = (tab: "process" | "clocks" | "contracts" | "title" | "closed") => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
@@ -407,6 +782,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
   // KPIs
   const stats = useMemo(() => {
     const totalVolume = transactions.reduce((acc, t) => acc + (t.purchasePrice || 0), 0);
+    const totalAssignmentFees = transactions.reduce((acc, t) => acc + (t.assignmentFee || 0), 0);
     const activeInspections = transactions.filter(
       (t) => t.inspectionStatus === "active" && t.daysLeftInspection !== null && t.daysLeftInspection >= 0
     ).length;
@@ -416,12 +792,75 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
     const emdPending = transactions.filter((t) => t.emdStatus === "pending" || t.emdStatus === "deposited").length;
     const activeTitle = transactions.filter((t) => t.titleStatus !== "closed" && t.titleStatus !== "pending").length;
 
-    return { totalVolume, activeInspections, urgentInspections, emdPending, activeTitle };
+    return { totalVolume, totalAssignmentFees, activeInspections, urgentInspections, emdPending, activeTitle };
   }, [transactions]);
 
-  // Filtered transactions
+  // Closed deals & fee payout calculations
+  const isDealClosed = (t: Transaction) => t.status === "closed" || t.titleStatus === "closed";
+
+  const closedTransactions = useMemo(() => {
+    return transactions.filter(isDealClosed);
+  }, [transactions]);
+
+  const totalClosedFees = useMemo(() => {
+    return closedTransactions.reduce((acc, t) => acc + (t.assignmentFee || 0), 0);
+  }, [closedTransactions]);
+
+  const closedDealsByMonth = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        monthKey: string;
+        monthLabel: string;
+        deals: Transaction[];
+        totalFees: number;
+        totalVolume: number;
+        sortTime: number;
+      }
+    >();
+
+    for (const deal of closedTransactions) {
+      const dStr = deal.closingDate || (deal as any).updatedAt || (deal as any).createdAt || new Date().toISOString();
+      const dateObj = new Date(dStr);
+      const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+      const monthKey = `${validDate.getFullYear()}-${String(validDate.getMonth() + 1).padStart(2, "0")}`;
+      const monthLabel = validDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      const sortTime = new Date(validDate.getFullYear(), validDate.getMonth(), 1).getTime();
+
+      if (!map.has(monthKey)) {
+        map.set(monthKey, {
+          monthKey,
+          monthLabel,
+          deals: [],
+          totalFees: 0,
+          totalVolume: 0,
+          sortTime,
+        });
+      }
+      const entry = map.get(monthKey)!;
+      entry.deals.push(deal);
+      entry.totalFees += deal.assignmentFee || 0;
+      entry.totalVolume += deal.purchasePrice || 0;
+    }
+
+    const sorted = Array.from(map.values()).sort((a, b) => b.sortTime - a.sortTime);
+    for (const m of sorted) {
+      m.deals.sort((a, b) => {
+        const da = a.closingDate ? new Date(a.closingDate).getTime() : 0;
+        const db = b.closingDate ? new Date(b.closingDate).getTime() : 0;
+        return (db || b.id) - (da || a.id);
+      });
+    }
+    return sorted;
+  }, [closedTransactions]);
+
+  // Filtered transactions for active pipeline views
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
+      // By default, closed deals move into the Closed Deals Window
+      const isClosed = isDealClosed(t);
+      if (statusFilter !== "closed" && isClosed) return false;
+
       if (search.trim()) {
         const q = search.toLowerCase();
         const mAddr = t.propertyAddress?.toLowerCase().includes(q);
@@ -438,6 +877,43 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
       return true;
     });
   }, [transactions, search, urgencyFilter, typeFilter, statusFilter, stepFilter]);
+
+  // Quick Action: Close deal & pay assignment fee
+  const handleCloseAndPayFee = async (tx: Transaction) => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const res = await api.updateTransaction(tx.id, {
+        status: "closed",
+        titleStatus: "closed",
+        closingDate: tx.closingDate || today,
+      });
+      if (res.ok) {
+        setTransactions((prev) => prev.map((item) => (item.id === tx.id ? res.transaction : item)));
+        notify(
+          "success",
+          `🏆 Deal closed & assignment fee of $${(tx.assignmentFee || 0).toLocaleString()} recorded for ${tx.propertyAddress}! Moved to Closed Deals ledger.`
+        );
+      }
+    } catch (e: any) {
+      notify("error", e?.message || "Failed to mark deal as closed.");
+    }
+  };
+
+  // Quick Action: Reopen deal back to active pipeline
+  const handleReopenDeal = async (tx: Transaction) => {
+    try {
+      const res = await api.updateTransaction(tx.id, {
+        status: "under_contract",
+        titleStatus: "clear_to_close",
+      });
+      if (res.ok) {
+        setTransactions((prev) => prev.map((item) => (item.id === tx.id ? res.transaction : item)));
+        notify("success", `Deal for ${tx.propertyAddress} reopened and returned to active pipeline.`);
+      }
+    } catch (e: any) {
+      notify("error", e?.message || "Failed to reopen deal.");
+    }
+  };
 
   // Quick Action: Extend inspection by N days
   const handleExtendInspection = async (tx: Transaction, days = 3) => {
@@ -873,7 +1349,26 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
             ${stats.totalVolume.toLocaleString()}
           </div>
           <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-            {transactions.length} total active deals
+            {transactions.length} total active deal{transactions.length === 1 ? "" : "s"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: "var(--card-bg, var(--panel))",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            padding: "16px",
+          }}
+        >
+          <div style={{ fontSize: "12px", color: "#a855f7", fontWeight: 700, textTransform: "uppercase" }}>
+            Assignment Fees
+          </div>
+          <div style={{ fontSize: "24px", fontWeight: 800, color: "#a855f7", marginTop: "4px" }}>
+            ${stats.totalAssignmentFees.toLocaleString()}
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
+            Projected wholesale fee revenue
           </div>
         </div>
 
@@ -1011,9 +1506,76 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
           >
             🏛️ Title Company &amp; Escrow
           </button>
+          <button
+            onClick={() => handleSelectTab("closed")}
+            style={{
+              padding: "8px 14px",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              border: activeTab === "closed" ? "1px solid #10b981" : "1px solid rgba(16, 185, 129, 0.4)",
+              backgroundColor: activeTab === "closed" ? "#10b981" : "rgba(16, 185, 129, 0.08)",
+              color: activeTab === "closed" ? "#ffffff" : "#10b981",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <span>🏆 Closed Deals &amp; Paid Fees</span>
+            <span
+              style={{
+                fontSize: "11px",
+                padding: "1px 6px",
+                borderRadius: "10px",
+                backgroundColor: activeTab === "closed" ? "rgba(255,255,255,0.25)" : "rgba(16, 185, 129, 0.2)",
+                color: activeTab === "closed" ? "#ffffff" : "#10b981",
+                fontWeight: 700,
+              }}
+            >
+              {closedTransactions.length}
+            </span>
+          </button>
         </div>
 
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+          {activeTab !== "closed" && (
+            <button
+              type="button"
+              onClick={toggleShowClosedWindow}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: showClosedWindow ? "1px solid rgba(16, 185, 129, 0.5)" : "1px solid var(--border)",
+                backgroundColor: showClosedWindow ? "rgba(16, 185, 129, 0.12)" : "transparent",
+                color: showClosedWindow ? "#10b981" : "var(--muted)",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+              title="Toggle side-by-side Closed Deals & Paid Fees Window"
+            >
+              <span>◫</span>
+              <span>{showClosedWindow ? "Hide Closed Window" : "Show Closed Window"}</span>
+              {closedTransactions.length > 0 && (
+                <span
+                  style={{
+                    fontSize: "10px",
+                    padding: "1px 5px",
+                    borderRadius: "8px",
+                    backgroundColor: "#10b981",
+                    color: "#ffffff",
+                    fontWeight: 700,
+                  }}
+                >
+                  ${totalClosedFees >= 1000 ? `${Math.round(totalClosedFees / 1000)}k` : totalClosedFees}
+                </span>
+              )}
+            </button>
+          )}
           <input
             type="text"
             placeholder="Search address, buyer, seller..."
@@ -1156,9 +1718,40 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          TAB: 5-STEP WHOLESALE PROCESS KANBAN / MILESTONE BOARD
+          TAB: CLOSED DEALS & PAID FEES LEDGER (DEDICATED FULL VIEW)
          ───────────────────────────────────────────────────────────── */}
-      {!loading && activeTab === "process" && (
+      {!loading && activeTab === "closed" && (
+        <ClosedDealsMonthLedger
+          closedDealsByMonth={closedDealsByMonth}
+          totalClosedFees={totalClosedFees}
+          totalClosedDeals={closedTransactions.length}
+          collapsedMonths={collapsedMonths}
+          toggleMonthCollapsed={toggleMonthCollapsed}
+          onViewPdf={(tx) => setViewingPdfTx(tx)}
+          onOpenNotes={(tx) => openNotesModal(tx)}
+          onReopenDeal={handleReopenDeal}
+          isSideWindow={false}
+        />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          ACTIVE TABS CONTAINER (SIDE-BY-SIDE WITH CLOSED WINDOW IF ENABLED)
+         ───────────────────────────────────────────────────────────── */}
+      {!loading && activeTab !== "closed" && (
+        <div
+          style={{
+            display: "flex",
+            gap: "20px",
+            alignItems: "flex-start",
+            width: "100%",
+          }}
+        >
+          {/* Active Pipeline Views (Left Column) */}
+          <div style={{ flex: showClosedWindow ? "1 1 calc(100% - 410px)" : "1 1 100%", minWidth: 0 }}>
+            {/* ─────────────────────────────────────────────────────────────
+                TAB: 5-STEP WHOLESALE PROCESS KANBAN / MILESTONE BOARD
+               ───────────────────────────────────────────────────────────── */}
+            {activeTab === "process" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div
             style={{
@@ -2161,6 +2754,28 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                   </button>
 
                   <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+                    {tx.status !== "closed" && tx.titleStatus !== "closed" && (
+                      <button
+                        type="button"
+                        onClick={() => handleCloseAndPayFee(tx)}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          border: "1px solid #10b981",
+                          backgroundColor: "rgba(16, 185, 129, 0.15)",
+                          color: "#10b981",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                        title="Mark transaction closed and record assignment fee payout"
+                      >
+                        💰 Close &amp; Pay Fee
+                      </button>
+                    )}
                     <button
                       onClick={() => setEditingTx(tx)}
                       style={{
@@ -2443,6 +3058,25 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                                   ✅ Pass
                                 </button>
                               )}
+                              {tx.status !== "closed" && tx.titleStatus !== "closed" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCloseAndPayFee(tx)}
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #10b981",
+                                    backgroundColor: "rgba(16, 185, 129, 0.15)",
+                                    color: "#10b981",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                  }}
+                                  title="Close deal & mark assignment fee paid"
+                                >
+                                  💰 Close
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2655,6 +3289,25 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                         >
                           Email Signer
                         </button>
+                        {tx.status !== "closed" && tx.titleStatus !== "closed" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCloseAndPayFee(tx)}
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              backgroundColor: "rgba(16, 185, 129, 0.15)",
+                              border: "1px solid rgba(16, 185, 129, 0.4)",
+                              color: "#10b981",
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                            title="Mark transaction closed and record assignment fee payout"
+                          >
+                            💰 Close &amp; Pay Fee
+                          </button>
+                        )}
                         {tx.status === "cancelled" ? (
                           <button
                             onClick={() => handleReactivateTx(tx)}
@@ -3279,6 +3932,37 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+          </div>
+
+          {/* Sticky Side Window: Closed Deals & Paid Fees Ledger (Right Column) */}
+          {showClosedWindow && (
+            <div
+              style={{
+                flex: "0 0 390px",
+                width: "390px",
+                position: "sticky",
+                top: "20px",
+                maxHeight: "calc(100vh - 40px)",
+                overflowY: "auto",
+              }}
+            >
+              <ClosedDealsMonthLedger
+                closedDealsByMonth={closedDealsByMonth}
+                totalClosedFees={totalClosedFees}
+                totalClosedDeals={closedTransactions.length}
+                collapsedMonths={collapsedMonths}
+                toggleMonthCollapsed={toggleMonthCollapsed}
+                onViewPdf={(tx) => setViewingPdfTx(tx)}
+                onOpenNotes={(tx) => openNotesModal(tx)}
+                onReopenDeal={handleReopenDeal}
+                isSideWindow={true}
+                onCloseSideWindow={toggleShowClosedWindow}
+              />
+            </div>
+          )}
         </div>
       )}
 

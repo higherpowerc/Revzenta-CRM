@@ -29,6 +29,7 @@ export interface OfferPdfInput {
   creativeBalloonYears?: number;
   creativeTotalPaidToSeller?: number;
   closingDays?: number;
+  inspectionDays?: number;
   earnestMoney?: number;
   includeAssignability?: boolean;
   rawOfferText?: string;
@@ -357,8 +358,10 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
   if (selectedList.includes("cash")) {
     const cashAmt = input.cashOfferAmount ?? 0;
     const days = input.closingDays ?? 14;
+    const inspDays = input.inspectionDays ?? 10;
     const title = totalSelected > 1 ? `Option ${optNumber++}: ALL-CASH SETTLEMENT` : "PRIMARY ALL-CASH PURCHASE OFFER";
     drawRow(title, `$${cashAmt.toLocaleString()} Net Cash Walkaway`, true, [0.94, 0.99, 0.95]);
+    drawRow("Inspection Period", `${inspDays} calendar days (full due diligence & property inspection access)`);
     drawRow("Closing Timeline", `Fast ${days}-business-day closing or seller choice`);
     const emdVal = input.earnestMoney != null && !isNaN(input.earnestMoney) ? input.earnestMoney : 2500;
     drawRow("Earnest Money Deposit", `$${emdVal.toLocaleString()} deposited into neutral escrow upon agreement`);
@@ -375,9 +378,13 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
     const debt = input.subtoDebt ?? 0;
     const cash = input.subtoCashToSeller ?? 0;
     const mo = input.subtoMonthlyPayment ?? 0;
+    const days = input.closingDays ?? 14;
+    const inspDays = input.inspectionDays ?? 10;
     const title = totalSelected > 1 ? `Option ${optNumber++}: SUBJECT-TO MORTGAGE RELIEF` : "SUBJECT-TO MORTGAGE ASSUMPTION OFFER";
     drawRow(title, `Take Over $${debt.toLocaleString()} Debt + $${cash.toLocaleString()} Cash`, true, [0.94, 0.98, 1.0]);
     drawRow("Monthly Payments Handled", `$${Math.round(mo).toLocaleString()}/mo via third-party loan servicing`);
+    drawRow("Inspection Period", `${inspDays} calendar days (due diligence & loan verification)`);
+    drawRow("Closing Timeline", `Flexible ${days}-day closing through licensed title & escrow`);
     drawRow("Credit Protection", "Serviced promptly to safeguard and elevate seller credit score");
     drawRow("Seller Fees", "$0 Realtor commission and $0 seller closing costs");
     if (input.includeAssignability !== false) {
@@ -394,10 +401,14 @@ export async function generateOfferPdf(input: OfferPdfInput): Promise<Uint8Array
     const rate = input.creativeInterestRate ?? 2.0;
     const balloon = input.creativeBalloonYears ?? 5;
     const total = input.creativeTotalPaidToSeller ?? (price + mo * 12 * balloon);
+    const days = input.closingDays ?? 14;
+    const inspDays = input.inspectionDays ?? 10;
     const title = totalSelected > 1 ? `Option ${optNumber++}: SELLER FINANCING (MAX RETURN)` : "SELLER FINANCING PURCHASE OFFER";
     drawRow(title, `$${price.toLocaleString()} Total Purchase Price`, true, [0.99, 0.96, 1.0]);
     drawRow("Down Payment at Closing", `$${down.toLocaleString()} cash at settlement`);
     drawRow("Monthly P&I Income", `$${Math.round(mo).toLocaleString()}/month (${rate.toFixed(2)}% rate, ${balloon}-yr balloon)`);
+    drawRow("Inspection Period", `${inspDays} calendar days (note documentation & title review)`);
+    drawRow("Closing Timeline", `Flexible ${days}-day settlement or seller choice`);
     drawRow("Projected Seller Net Return", `$${Math.round(total).toLocaleString()} total received`);
     if (input.includeAssignability !== false) {
       drawRow("Contract Vesting", "Buyer and/or assigns (fully assignable without altering seller proceeds)");

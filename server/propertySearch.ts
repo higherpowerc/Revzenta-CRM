@@ -415,26 +415,137 @@ export async function convertPropertyToLead(
     throw new Error("Property record not found or access denied.");
   }
 
-  // 2. Duplicate Detection: Check if client already exists with matching address in this org
+  // 2. Build comprehensive property data dossier for CRM custom fields
+  const customFields: Array<{ name: string; value: string }> = [];
+
+  const estVal = Number(prop.estimated_value) || 0;
+  const estEq = Number(prop.estimated_equity) || 0;
+  const openMortgage = Number(prop.mortgage_balance) || Math.max(0, estVal - estEq);
+
+  if (estVal > 0) {
+    customFields.push({ name: "Estimated Value", value: `$${Math.round(estVal).toLocaleString()}` });
+  }
+  if (estEq > 0) {
+    customFields.push({ name: "Estimated Equity", value: `$${Math.round(estEq).toLocaleString()}` });
+  }
+  if (openMortgage > 0) {
+    customFields.push({ name: "Open Mortgage Balance", value: `$${Math.round(openMortgage).toLocaleString()}` });
+  }
+  if (prop.bedrooms != null && Number(prop.bedrooms) > 0) {
+    customFields.push({ name: "Bedrooms", value: String(prop.bedrooms) });
+  }
+  if (prop.bathrooms != null && Number(prop.bathrooms) > 0) {
+    customFields.push({ name: "Bathrooms", value: String(prop.bathrooms) });
+  }
+  if (prop.square_feet != null && Number(prop.square_feet) > 0) {
+    customFields.push({ name: "Square Footage", value: `${Math.round(prop.square_feet).toLocaleString()} sqft` });
+  }
+  if (prop.year_built != null && Number(prop.year_built) > 0) {
+    customFields.push({ name: "Year Built", value: String(prop.year_built) });
+  }
+  if (prop.property_type) {
+    customFields.push({ name: "Property Class", value: String(prop.property_type) });
+  }
+  if (prop.apn) {
+    customFields.push({ name: "APN", value: String(prop.apn) });
+  }
+  if (prop.county) {
+    customFields.push({ name: "County", value: String(prop.county) });
+  }
+  if (prop.lot_size_sqft != null && Number(prop.lot_size_sqft) > 0) {
+    customFields.push({ name: "Lot Size", value: `${Math.round(prop.lot_size_sqft).toLocaleString()} sqft` });
+  }
+  if (prop.stories != null && Number(prop.stories) > 0) {
+    customFields.push({ name: "Stories", value: String(prop.stories) });
+  }
+  if (prop.last_sale_price != null && Number(prop.last_sale_price) > 0) {
+    customFields.push({ name: "Last Sale Price", value: `$${Math.round(prop.last_sale_price).toLocaleString()}` });
+  }
+  if (prop.last_sale_date) {
+    customFields.push({ name: "Last Sale Date", value: String(prop.last_sale_date) });
+  }
+  if (prop.tax_assessed_value != null && Number(prop.tax_assessed_value) > 0) {
+    customFields.push({ name: "Tax Assessed Value", value: `$${Math.round(prop.tax_assessed_value).toLocaleString()}` });
+  }
+  if (prop.revzenta_opportunity_score != null) {
+    customFields.push({ name: "Opportunity Score", value: `${prop.revzenta_opportunity_score}/100` });
+  }
+  let reasonsList: string[] = [];
+  try {
+    if (typeof prop.opportunity_score_reasons === "string") {
+      reasonsList = JSON.parse(prop.opportunity_score_reasons);
+    } else if (Array.isArray(prop.opportunity_score_reasons)) {
+      reasonsList = prop.opportunity_score_reasons;
+    }
+  } catch {}
+  if (reasonsList.length > 0) {
+    customFields.push({ name: "Opportunity Reasons", value: reasonsList.join(", ") });
+  }
+  const distressBadges = [
+    prop.is_absentee_owner ? "Absentee Owner" : "",
+    prop.is_vacant ? "Vacant Property" : "",
+    prop.is_foreclosure ? "Foreclosure" : "",
+    prop.is_pre_foreclosure ? "Pre-Foreclosure" : "",
+    prop.tax_delinquent ? "Tax Delinquent" : "",
+    prop.has_liens ? "Open Liens" : "",
+    prop.has_code_violations ? "Code Violations" : "",
+    prop.is_bankruptcy ? "Bankruptcy" : "",
+    prop.is_probate ? "Probate" : "",
+  ].filter(Boolean);
+  if (distressBadges.length > 0) {
+    customFields.push({ name: "Distress Indicators", value: distressBadges.join(", ") });
+  }
+  if (prop.is_absentee_owner != null) {
+    customFields.push({ name: "Owner Occupied", value: prop.is_absentee_owner ? "No (Absentee)" : "Yes" });
+  }
+
+  // 3. Duplicate Detection: If lead already exists, update its custom fields & specs with full property data
   const cleanAddr = prop.address_line1.trim().toLowerCase();
   const existing = db
-    .query("SELECT id FROM clients WHERE org_id = ? AND LOWER(address) = ? AND archived = 0")
-    .get(orgId, cleanAddr) as { id: number } | null;
+    .query("SELECT id, custom_fields FROM clients WHERE org_id = ? AND LOWER(address) = ? AND archived = 0")
+    .get(orgId, cleanAddr) as { id: number; custom_fields?: string } | null;
 
   if (existing) {
+    let mergedFields = customFields;
+    try {
+      const prev: Array<{ name: string; value: string }> = JSON.parse(existing.custom_fields || "[]");
+      const map = new Map<string, string>();
+      prev.forEach((f) => map.set(f.name.toLowerCase(), f.value));
+      customFields.forEach((f) => map.set(f.name.toLowerCase(), f.value));
+      mergedFields = Array.from(map.entries()).map(([k, v]) => ({
+        name: customFields.find((f) => f.name.toLowerCase() === k)?.name || k,
+        value: v,
+      }));
+    } catch {}
+
+    db.query(`
+      UPDATE clients
+      SET deal_value = COALESCE(NULLIF(?, 0), deal_value),
+          custom_fields = ?,
+          contact_name = COALESCE(NULLIF(contact_name, 'Property Owner'), ?),
+          updated_at = datetime('now')
+      WHERE id = ? AND org_id = ?
+    `).run(
+      estVal,
+      JSON.stringify(mergedFields),
+      prop.owner_name || "Property Owner",
+      existing.id,
+      orgId
+    );
+
     return {
       success: false,
       duplicate: true,
       clientId: existing.id,
-      message: `Property is already in your CRM pipeline (Lead #${existing.id}).`,
+      message: `Property is already active in CRM Lead #${existing.id} (updated with latest intelligence data).`,
     };
   }
 
-  // 3. Create CRM Client/Lead record
+  // 4. Create CRM Client/Lead record with all property data
   const stage = opts?.stage || "Prospect";
   const notes = opts?.notes
     ? `${opts.notes}\n[Imported from Property Intelligence: ${prop.address_line1}]`
-    : `Imported from Revzenta Property Intelligence (Opportunity Score: ${prop.revzenta_opportunity_score || 0}/100)`;
+    : `Imported from Revzenta Property Intelligence (Opportunity Score: ${prop.revzenta_opportunity_score || 0}/100)\nBedrooms: ${prop.bedrooms || "—"}, Baths: ${prop.bathrooms || "—"}, Sqft: ${prop.square_feet || "—"}`;
 
   const clientType = prop.property_type?.toLowerCase().includes("multi")
     ? "multi_family"
@@ -443,10 +554,10 @@ export async function convertPropertyToLead(
   const res = db.query(`
     INSERT INTO clients (
       org_id, company_name, contact_name, address, city, state, zip,
-      deal_value, stage, client_type, lead_source, notes, created_at, updated_at
+      deal_value, stage, client_type, lead_source, notes, custom_fields, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, 'Property Intelligence', ?, datetime('now'), datetime('now')
+      ?, ?, ?, 'Property Intelligence', ?, ?, datetime('now'), datetime('now')
     )
   `).run(
     orgId,
@@ -456,10 +567,11 @@ export async function convertPropertyToLead(
     prop.city,
     prop.state,
     prop.zip,
-    prop.estimated_value || 0,
+    estVal,
     stage,
     clientType,
-    notes
+    notes,
+    JSON.stringify(customFields)
   );
 
   const clientId = Number(res.lastInsertRowid);

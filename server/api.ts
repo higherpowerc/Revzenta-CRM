@@ -6229,6 +6229,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         creativeBalloonYears: r.creative_balloon_years,
         creativeTotalPaid: r.creative_total_paid,
         closingDays: r.closing_days,
+        inspectionDays: r.inspection_days ?? 10,
+        earnestMoneyDeposit: r.earnest_money_deposit ?? 2500,
         emailStatus: r.email_status,
         status: r.status || "Sent",
         notes: r.notes || "",
@@ -6408,6 +6410,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         subtoPurchasePrice: updated.subto_purchase_price,
         creativePurchasePrice: updated.creative_purchase_price,
         closingDays: updated.closing_days,
+        inspectionDays: updated.inspection_days ?? 10,
+        earnestMoneyDeposit: updated.earnest_money_deposit ?? 2500,
         emailStatus: updated.email_status,
         status: updated.status,
         notes: updated.notes,
@@ -6445,6 +6449,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const status = typeof body.status === "string" ? body.status.trim() : "Sent";
     const notes = typeof body.notes === "string" ? body.notes : "";
     const closingDays = Number(body.closingDays) || 14;
+    const inspectionDays = Number(body.inspectionDays) || Number(body.inspectionPeriodDays) || 10;
     const earnestMoneyDeposit = Number(body.earnestMoneyDeposit) || Number(body.earnestMoney) || 2500;
 
     // If no clientId was provided, find existing property lead or auto-create one
@@ -6504,6 +6509,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         subtoMonthlyPayment,
         creativePurchasePrice,
         closingDays,
+        inspectionDays,
         earnestMoney: earnestMoneyDeposit,
       });
       storeOfferPdf(pdfBytes, pdfId);
@@ -6517,13 +6523,13 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         business_name, offer_type, selected_offers,
         cash_offer_amount, subto_purchase_price, subto_debt, subto_cash_to_seller, subto_monthly_payment,
         creative_purchase_price, creative_down_payment, creative_monthly_payment, creative_interest_rate,
-        creative_balloon_years, creative_total_paid, closing_days, email_status, status, notes, created_at, updated_at
+        creative_balloon_years, creative_total_paid, closing_days, inspection_days, earnest_money_deposit, email_status, status, notes, created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, '["cash"]',
         ?, ?, ?, ?, ?,
         ?, 0, 0, 0,
-        0, 0, ?, 'sent', ?, ?, datetime('now'), datetime('now')
+        0, 0, ?, ?, ?, 'sent', ?, ?, datetime('now'), datetime('now')
       )
     `).run(
       orgId,
@@ -6541,6 +6547,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       subtoMonthlyPayment,
       creativePurchasePrice,
       closingDays,
+      inspectionDays,
+      earnestMoneyDeposit,
       status,
       notes
     );
@@ -6616,6 +6624,8 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         subtoPurchasePrice: created.subto_purchase_price,
         creativePurchasePrice: created.creative_purchase_price,
         closingDays: created.closing_days,
+        inspectionDays: created.inspection_days ?? 10,
+        earnestMoneyDeposit: created.earnest_money_deposit ?? 2500,
         emailStatus: created.email_status,
         status: created.status || "Sent",
         notes: created.notes || "",
@@ -9520,6 +9530,313 @@ function toMarketingCampaign(r: any) {
       if (!existing) return err("Campaign not found.", 404);
 
       db.query("DELETE FROM marketing_campaigns WHERE id = ?").run(campaignId);
+      return json({ ok: true });
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────────
+   * MESSAGE HUB — Omnichannel & Internal CRM Communications
+   * ───────────────────────────────────────────────────────────────────────────── */
+  if (pathname === "/api/messages" && method === "GET") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+
+    const channel = url.searchParams.get("channel");
+    const type = url.searchParams.get("type");
+    const search = (url.searchParams.get("search") || "").trim().toLowerCase();
+    const direction = url.searchParams.get("direction");
+    const pinned = url.searchParams.get("pinned");
+    const clientId = url.searchParams.get("clientId");
+    const transactionId = url.searchParams.get("transactionId");
+    const dmUserId = url.searchParams.get("dmUserId");
+
+    // Strict multi-tenant isolation: always filter by auth.orgId
+    let query = "SELECT * FROM internal_messages WHERE org_id = ?";
+    const params: any[] = [auth.orgId];
+
+    if (dmUserId) {
+      const targetUserId = Number(dmUserId);
+      query += " AND ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))";
+      params.push(auth.userId, targetUserId, targetUserId, auth.userId);
+    } else if (channel && channel !== "all") {
+      query += " AND channel = ?";
+      params.push(channel);
+    }
+
+    if (type && type !== "all") {
+      query += " AND message_type = ?";
+      params.push(type);
+    }
+    if (direction && direction !== "all") {
+      query += " AND direction = ?";
+      params.push(direction);
+    }
+    if (pinned === "true") {
+      query += " AND is_pinned = 1";
+    }
+    if (clientId) {
+      query += " AND client_id = ?";
+      params.push(Number(clientId));
+    }
+    if (transactionId) {
+      query += " AND transaction_id = ?";
+      params.push(Number(transactionId));
+    }
+    if (search) {
+      query += " AND (LOWER(body) LIKE ? OR LOWER(COALESCE(subject, '')) LIKE ? OR LOWER(sender_name) LIKE ? OR LOWER(COALESCE(property_address, '')) LIKE ?)";
+      const s = `%${search}%`;
+      params.push(s, s, s, s);
+    }
+
+    query += " ORDER BY is_pinned DESC, created_at DESC, id DESC LIMIT 200";
+
+    const rows = db.query(query).all(...params) as any[];
+
+    // Organization info & team members belonging strictly to this subscriber's org
+    const org = db.query("SELECT id, name FROM orgs WHERE id = ?").get(auth.orgId) as { id: number; name: string } | null;
+    const orgUsers = db.query("SELECT id, email, role FROM users WHERE org_id = ? ORDER BY id ASC").all(auth.orgId) as Array<{ id: number; email: string; role: string }>;
+    const members = orgUsers.map((u) => {
+      const emailPrefix = u.email.split("@")[0] || "member";
+      const name = emailPrefix.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      return {
+        id: u.id,
+        email: u.email,
+        name,
+        role: u.role === "admin" ? "Admin / Principal" : "Team Member",
+      };
+    });
+
+    // Format rows
+    const messages = rows.map((r) => ({
+      id: r.id,
+      orgId: r.org_id,
+      channel: r.channel || "general",
+      senderId: r.sender_id || null,
+      senderName: r.sender_name || "Team Member",
+      senderRole: r.sender_role || "agent",
+      recipientId: r.recipient_id || null,
+      recipientName: r.recipient_name || null,
+      messageType: r.message_type || "chat",
+      subject: r.subject || null,
+      body: r.body || "",
+      clientId: r.client_id || null,
+      clientName: r.client_name || null,
+      transactionId: r.transaction_id || null,
+      propertyAddress: r.property_address || null,
+      contactPhone: r.contact_phone || null,
+      contactEmail: r.contact_email || null,
+      direction: r.direction || "internal",
+      status: r.status || "sent",
+      isPinned: Boolean(r.is_pinned),
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
+
+    return json({
+      ok: true,
+      messages,
+      members,
+      orgId: auth.orgId,
+      orgName: org?.name || "Internal CRM",
+      currentUserId: auth.userId,
+    });
+  }
+
+  if (pathname === "/api/messages" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+
+    const body = (await req.json().catch(() => ({}))) as any;
+    const content = typeof body.body === "string" ? body.body.trim() : "";
+    if (!content) return err("Message body is required.", 400);
+
+    const channel = typeof body.channel === "string" && body.channel.trim() ? body.channel.trim() : "general";
+    const messageType = typeof body.messageType === "string" && body.messageType.trim() ? body.messageType.trim() : "chat";
+    const subject = typeof body.subject === "string" ? body.subject.trim() : null;
+    const user = getUserById(auth.userId);
+    const defaultSenderName = user?.email
+      ? user.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "Team Member";
+    const senderName = typeof body.senderName === "string" && body.senderName.trim()
+      ? body.senderName.trim()
+      : defaultSenderName;
+    const senderRole = typeof body.senderRole === "string" && body.senderRole.trim()
+      ? body.senderRole.trim()
+      : auth.role === "admin" ? "Admin / Principal" : "Team Member";
+
+    let recipientId = Number(body.recipientId) || null;
+    let recipientName = typeof body.recipientName === "string" && body.recipientName.trim() ? body.recipientName.trim() : null;
+
+    // Strict multi-tenant isolation: verify recipient belongs to the same org
+    if (recipientId) {
+      const recipientInOrg = db.query("SELECT id, email FROM users WHERE id = ? AND org_id = ?").get(recipientId, auth.orgId) as { id: number; email: string } | null;
+      if (!recipientInOrg) {
+        return err("Recipient does not belong to your organization.", 403);
+      }
+      if (!recipientName) {
+        recipientName = recipientInOrg.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
+
+    const clientId = Number(body.clientId) || null;
+    const clientName = typeof body.clientName === "string" && body.clientName.trim() ? body.clientName.trim() : null;
+    const transactionId = Number(body.transactionId) || null;
+    const propertyAddress = typeof body.propertyAddress === "string" && body.propertyAddress.trim() ? body.propertyAddress.trim() : null;
+    const contactPhone = typeof body.contactPhone === "string" && body.contactPhone.trim() ? body.contactPhone.trim() : null;
+    const contactEmail = typeof body.contactEmail === "string" && body.contactEmail.trim() ? body.contactEmail.trim() : null;
+    const direction = typeof body.direction === "string" && ["internal", "outbound", "inbound"].includes(body.direction) ? body.direction : "internal";
+    const status = typeof body.status === "string" && ["sent", "delivered", "read", "unread"].includes(body.status) ? body.status : "sent";
+    const isPinned = body.isPinned ? 1 : 0;
+
+    const res = db.query(`
+      INSERT INTO internal_messages (
+        org_id, channel, sender_id, sender_name, sender_role, recipient_id, recipient_name,
+        message_type, subject, body, client_id, client_name, transaction_id, property_address,
+        contact_phone, contact_email, direction, status, is_pinned, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `).run(
+      auth.orgId,
+      channel,
+      auth.userId,
+      senderName,
+      senderRole,
+      recipientId,
+      recipientName,
+      messageType,
+      subject,
+      content,
+      clientId,
+      clientName,
+      transactionId,
+      propertyAddress,
+      contactPhone,
+      contactEmail,
+      direction,
+      status,
+      isPinned
+    );
+
+    // If linked to transaction and escrow note, also mirror to transaction_notes table for full two-way synchronization
+    if (transactionId && messageType === "escrow_note") {
+      try {
+        db.query(`
+          INSERT INTO transaction_notes (transaction_id, org_id, author_role, author_name, author_email, message, ip_address)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(transactionId, auth.orgId, "subscriber", senderName, user?.email || "", content, req.headers.get("x-forwarded-for") || "127.0.0.1");
+      } catch (e) {
+        console.warn("[api] Failed to mirror escrow note to transaction_notes:", e);
+      }
+    }
+
+    const inserted = db.query("SELECT * FROM internal_messages WHERE id = ?").get(res.lastInsertRowid) as any;
+    return json({
+      ok: true,
+      message: {
+        id: inserted.id,
+        orgId: inserted.org_id,
+        channel: inserted.channel || "general",
+        senderId: inserted.sender_id || null,
+        senderName: inserted.sender_name || "Team Member",
+        senderRole: inserted.sender_role || "agent",
+        recipientId: inserted.recipient_id || null,
+        recipientName: inserted.recipient_name || null,
+        messageType: inserted.message_type || "chat",
+        subject: inserted.subject || null,
+        body: inserted.body || "",
+        clientId: inserted.client_id || null,
+        clientName: inserted.client_name || null,
+        transactionId: inserted.transaction_id || null,
+        propertyAddress: inserted.property_address || null,
+        contactPhone: inserted.contact_phone || null,
+        contactEmail: inserted.contact_email || null,
+        direction: inserted.direction || "internal",
+        status: inserted.status || "sent",
+        isPinned: Boolean(inserted.is_pinned),
+        createdAt: inserted.created_at,
+        updatedAt: inserted.updated_at,
+      }
+    });
+  }
+
+  if (pathname === "/api/messages/mark-all-read" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+
+    db.query("UPDATE internal_messages SET status = 'read', updated_at = datetime('now') WHERE org_id = ? AND status = 'unread'").run(auth.orgId);
+    return json({ ok: true });
+  }
+
+  const msgMatch = pathname.match(/^\/api\/messages\/(\d+)$/);
+  if (msgMatch) {
+    const messageId = Number(msgMatch[1]);
+    if (method === "PATCH") {
+      const auth = requireAuth(req);
+      if (auth instanceof Response) return auth;
+
+      const body = (await req.json().catch(() => ({}))) as any;
+      const existing = db.query("SELECT * FROM internal_messages WHERE id = ? AND org_id = ?").get(messageId, auth.orgId) as any;
+      if (!existing) return err("Message not found.", 404);
+
+      const updates: string[] = [];
+      const values: any[] = [];
+
+      if (body.isPinned !== undefined) {
+        updates.push("is_pinned = ?");
+        values.push(body.isPinned ? 1 : 0);
+      }
+      if (body.status !== undefined) {
+        updates.push("status = ?");
+        values.push(String(body.status).trim());
+      }
+      if (body.body !== undefined) {
+        updates.push("body = ?");
+        values.push(String(body.body).trim());
+      }
+
+      if (updates.length > 0) {
+        updates.push("updated_at = datetime('now')");
+        values.push(messageId, auth.orgId);
+        db.query(`UPDATE internal_messages SET ${updates.join(", ")} WHERE id = ? AND org_id = ?`).run(...values);
+      }
+
+      const updated = db.query("SELECT * FROM internal_messages WHERE id = ?").get(messageId) as any;
+      return json({
+        ok: true,
+        message: {
+          id: updated.id,
+          orgId: updated.org_id,
+          channel: updated.channel || "general",
+          senderId: updated.sender_id || null,
+          senderName: updated.sender_name || "Team Member",
+          senderRole: updated.sender_role || "agent",
+          recipientId: updated.recipient_id || null,
+          recipientName: updated.recipient_name || null,
+          messageType: updated.message_type || "chat",
+          subject: updated.subject || null,
+          body: updated.body || "",
+          clientId: updated.client_id || null,
+          clientName: updated.client_name || null,
+          transactionId: updated.transaction_id || null,
+          propertyAddress: updated.property_address || null,
+          contactPhone: updated.contact_phone || null,
+          contactEmail: updated.contact_email || null,
+          direction: updated.direction || "internal",
+          status: updated.status || "sent",
+          isPinned: Boolean(updated.is_pinned),
+          createdAt: updated.created_at,
+          updatedAt: updated.updated_at,
+        }
+      });
+    }
+
+    if (method === "DELETE") {
+      const auth = requireAuth(req);
+      if (auth instanceof Response) return auth;
+
+      const existing = db.query("SELECT * FROM internal_messages WHERE id = ? AND org_id = ?").get(messageId, auth.orgId) as any;
+      if (!existing) return err("Message not found.", 404);
+
+      db.query("DELETE FROM internal_messages WHERE id = ? AND org_id = ?").run(messageId, auth.orgId);
       return json({ ok: true });
     }
   }

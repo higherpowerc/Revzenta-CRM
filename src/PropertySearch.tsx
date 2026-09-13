@@ -763,6 +763,65 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
         )}
       </div>
 
+      {/* Property Actions Quick Guide: Live Enrich, AI Deal, Convert */}
+      <div
+        style={{
+          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%)",
+          border: "1px solid rgba(56, 189, 248, 0.25)",
+          borderRadius: "10px",
+          padding: "14px 18px",
+          marginBottom: "20px",
+          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.2)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "16px" }}>💡</span>
+            <strong style={{ fontSize: "13px", color: "var(--ink, #f8fafc)", letterSpacing: "0.02em" }}>
+              PROPERTY ACTIONS GUIDE: WHAT EACH BUTTON DOES
+            </strong>
+          </div>
+          <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: 700, background: "rgba(56, 189, 248, 0.12)", padding: "2px 8px", borderRadius: "12px", border: "1px solid rgba(56, 189, 248, 0.25)" }}>
+            ⚡ 3-Step Deal Intelligence
+          </span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px" }}>
+          {/* 1. Live Enrich */}
+          <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.07)", borderRadius: "8px", padding: "12px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px" }}>
+              <span style={{ fontSize: "15px" }}>🔄</span>
+              <strong style={{ fontSize: "12.5px", color: "#38bdf8" }}>LIVE ENRICH</strong>
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.5 }}>
+              Pulls live multi-source property data via <strong>RentCast MLS &amp; ATTOM</strong>. Updates exact specs (beds/baths/sqft), recent sold comps, and Automated Valuation Model (AVM) estimate in real time.
+            </div>
+          </div>
+
+          {/* 2. AI Deal */}
+          <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.07)", borderRadius: "8px", padding: "12px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px" }}>
+              <span style={{ fontSize: "15px" }}>🧠</span>
+              <strong style={{ fontSize: "12.5px", color: "#c084fc" }}>AI DEAL</strong>
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.5 }}>
+              Runs <strong>Google Gemini AI deal underwriting</strong>. Automatically breaks down equity spreads, debt service coverage, and formulates the top 3 acquisition exit options (Cash, Subject-To, or Seller Financing).
+            </div>
+          </div>
+
+          {/* 3. Convert */}
+          <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.07)", borderRadius: "8px", padding: "12px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px" }}>
+              <span style={{ fontSize: "15px" }}>➕</span>
+              <strong style={{ fontSize: "12.5px", color: "var(--lime, #d6ff3f)" }}>CONVERT</strong>
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.5 }}>
+              Imports this property into your <strong>Creative Hub / Leads table</strong> with its complete dossier (equity, mortgage balance, beds, baths, sqft, APN, score) ready to underwrite and dispatch formal LOI purchase offers.
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Results Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
         <div>
