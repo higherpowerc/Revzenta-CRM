@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { api, ApiError } from "./api";
 import type { PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, User, RegisteredProviderInfo, DistressAlertItem } from "./types";
 import { money } from "./types";
+import PropertyImage from "./PropertyImage";
 
 interface Props {
   user: User;
@@ -889,6 +890,20 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
                 }}
               >
                 <div>
+                  {/* Property Street View Photo */}
+                  <div style={{ marginBottom: "12px", borderRadius: "8px", overflow: "hidden" }}>
+                    <PropertyImage
+                      address={prop.address_line1}
+                      city={prop.city}
+                      state={prop.state}
+                      zip={prop.zip}
+                      latitude={prop.latitude}
+                      longitude={prop.longitude}
+                      mode="street"
+                      streetHeight={180}
+                    />
+                  </div>
+
                   {/* Top bar: Score Badge & Property Type */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     {renderScoreBadge(prop.revzenta_opportunity_score || 0)}
@@ -1052,6 +1067,18 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
                 ✕
               </button>
             </div>
+
+            {/* Property Photos: Street View + Satellite */}
+            <PropertyImage
+              address={selectedPropertyForExplanation.address_line1}
+              city={selectedPropertyForExplanation.city}
+              state={selectedPropertyForExplanation.state}
+              zip={selectedPropertyForExplanation.zip}
+              latitude={selectedPropertyForExplanation.latitude}
+              longitude={selectedPropertyForExplanation.longitude}
+              mode="both"
+              satelliteHeight={220}
+            />
 
             {loadingExplanation ? (
               <div style={{ padding: "40px", textAlign: "center" }}>
