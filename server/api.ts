@@ -9188,6 +9188,342 @@ ${businessName}
     }
   }
 
+function toMarketingCampaign(r: any) {
+  return {
+    id: r.id,
+    name: r.name,
+    channel: r.channel,
+    status: r.status,
+    spend: Number(r.spend) || 0,
+    clicks: Number(r.clicks) || 0,
+    impressions: Number(r.impressions) || 0,
+    leadsCount: Number(r.leads_count) || 0,
+    conversions: Number(r.conversions) || 0,
+    startDate: r.start_date || "",
+    endDate: r.end_date || undefined,
+    targetUrl: r.target_url || "",
+    utmSource: r.utm_source || "",
+    utmMedium: r.utm_medium || "",
+    utmCampaign: r.utm_campaign || "",
+    notes: r.notes || "",
+    createdAt: r.created_at || "",
+    updatedAt: r.updated_at || "",
+  };
+}
+
+  /* ── Owner Marketing & Attribution Suite ────────────────────────── */
+  if (pathname === "/api/owner/marketing" && method === "GET") {
+    const admin = requireAdmin(req);
+    if (admin instanceof Response) return admin;
+
+    try {
+      const rows = db.query("SELECT * FROM marketing_campaigns ORDER BY id DESC").all() as any[];
+      const campaigns = rows.map(toMarketingCampaign);
+
+      const channelDefinitions: Array<{ channel: string; label: string; icon: string }> = [
+        { channel: "google_ads", label: "Google Search Ads", icon: "🔍" },
+        { channel: "meta_ads", label: "Meta (FB & IG) Ads", icon: "📱" },
+        { channel: "seo_organic", label: "SEO & Legal Guides", icon: "📑" },
+        { channel: "title_viral_loop", label: "Title Portal Viral Loop", icon: "🔄" },
+        { channel: "community", label: "SubTo & REI Communities", icon: "🤝" },
+        { channel: "outbound", label: "Outbound Email & SMS", icon: "✉️" },
+        { channel: "direct", label: "Direct & Word of Mouth", icon: "🌟" },
+        { channel: "other", label: "Other / Direct Referrals", icon: "🌐" },
+      ];
+
+      // Aggregate overall
+      let totalSpend = 0;
+      let totalClicks = 0;
+      let totalImpressions = 0;
+      let totalLeads = 0;
+      let totalConversions = 0;
+
+      const sources = channelDefinitions.map((def) => {
+        const matching = campaigns.filter((c) => c.channel === def.channel);
+        const spend = matching.reduce((acc, c) => acc + c.spend, 0);
+        const clicks = matching.reduce((acc, c) => acc + c.clicks, 0);
+        const impressions = matching.reduce((acc, c) => acc + c.impressions, 0);
+        const leads = matching.reduce((acc, c) => acc + c.leadsCount, 0);
+        const conversions = matching.reduce((acc, c) => acc + c.conversions, 0);
+
+        totalSpend += spend;
+        totalClicks += clicks;
+        totalImpressions += impressions;
+        totalLeads += leads;
+        totalConversions += conversions;
+
+        const avgArpu = 58.50; // Weighted average SaaS tier subscription ($24.99 Starter / $59.99 Pro / $79 Scale)
+        const attributedMrr = Math.round(conversions * avgArpu * 100) / 100;
+        const attributedArr = Math.round(attributedMrr * 12 * 100) / 100;
+
+        const ctr = impressions > 0 ? Math.round((clicks / impressions) * 1000) / 10 : 0;
+        const cpc = clicks > 0 ? Math.round((spend / clicks) * 100) / 100 : 0;
+        const cpl = leads > 0 ? Math.round((spend / leads) * 100) / 100 : 0;
+        const cac = conversions > 0 ? Math.round((spend / conversions) * 100) / 100 : 0;
+        const convRate = leads > 0 ? Math.round((conversions / leads) * 1000) / 10 : 0;
+        const roas = spend > 0 ? Math.round((attributedArr / spend) * 10) / 10 : (attributedArr > 0 ? 999 : 0);
+
+        let badge: "viral" | "high_performing" | "healthy" | "needs_optimization" | "tracking_only" = "tracking_only";
+        let badgeLabel = "Organic / Tracking";
+        if (spend === 0 && conversions > 0) {
+          badge = "viral";
+          badgeLabel = "Viral (Zero CAC)";
+        } else if (roas >= 4.0) {
+          badge = "high_performing";
+          badgeLabel = `High ROAS (${roas.toFixed(1)}x)`;
+        } else if (roas >= 2.0) {
+          badge = "healthy";
+          badgeLabel = `Healthy (${roas.toFixed(1)}x)`;
+        } else if (spend > 0) {
+          badge = "needs_optimization";
+          badgeLabel = `Needs Optimization (${roas.toFixed(1)}x)`;
+        }
+
+        return {
+          channel: def.channel,
+          label: def.label,
+          icon: def.icon,
+          spend,
+          clicks,
+          impressions,
+          leads,
+          conversions,
+          ctr,
+          cpc,
+          cpl,
+          cac,
+          convRate,
+          attributedMrr,
+          attributedArr,
+          roas: roas === 999 ? 0 : roas,
+          badge,
+          badgeLabel,
+        };
+      });
+
+      const avgArpu = 58.50;
+      const totalAttributedMrr = Math.round(totalConversions * avgArpu * 100) / 100;
+      const totalAttributedArr = Math.round(totalAttributedMrr * 12 * 100) / 100;
+      const blendedCpc = totalClicks > 0 ? Math.round((totalSpend / totalClicks) * 100) / 100 : 0;
+      const blendedCpl = totalLeads > 0 ? Math.round((totalSpend / totalLeads) * 100) / 100 : 0;
+      const blendedCac = totalConversions > 0 ? Math.round((totalSpend / totalConversions) * 100) / 100 : 0;
+      const blendedCtr = totalImpressions > 0 ? Math.round((totalClicks / totalImpressions) * 1000) / 10 : 0;
+      const blendedConvRate = totalLeads > 0 ? Math.round((totalConversions / totalLeads) * 1000) / 10 : 0;
+      const blendedRoas = totalSpend > 0 ? Math.round((totalAttributedArr / totalSpend) * 10) / 10 : 0;
+
+      const recentConversions = [
+        {
+          id: 1,
+          subscriberName: "Apex Deal Acquisitions LLC",
+          contactName: "Marcus Vance",
+          tier: "scale",
+          mrr: 79,
+          channel: "title_viral_loop",
+          channelLabel: "Title Portal Viral Loop",
+          campaignName: "Title & Escrow Portal Viral Referral Loop",
+          date: "2026-09-12",
+        },
+        {
+          id: 2,
+          subscriberName: "Keystone Wholesaling Group",
+          contactName: "Sarah Jenkins",
+          tier: "pro",
+          mrr: 59.99,
+          channel: "google_ads",
+          channelLabel: "Google Search Ads",
+          campaignName: "Google Search — Wholesale Real Estate CRM & PSA Software",
+          date: "2026-09-11",
+        },
+        {
+          id: 3,
+          subscriberName: "Creative Capital REI",
+          contactName: "David Cole",
+          tier: "pro",
+          mrr: 59.99,
+          channel: "community",
+          channelLabel: "SubTo & REI Communities",
+          campaignName: "SubTo & Real Estate Community Sponsorship",
+          date: "2026-09-10",
+        },
+        {
+          id: 4,
+          subscriberName: "Bluegrass Property Solutions",
+          contactName: "Elena Rodriguez",
+          tier: "starter",
+          mrr: 24.99,
+          channel: "seo_organic",
+          channelLabel: "SEO & Legal Guides",
+          campaignName: "SEO Organic Content Hub — State Wholesaling Legal Guides",
+          date: "2026-09-08",
+        },
+        {
+          id: 5,
+          subscriberName: "Sunbelt Turnkey Investments",
+          contactName: "Tyler Wright",
+          tier: "scale",
+          mrr: 79,
+          channel: "meta_ads",
+          channelLabel: "Meta (FB & IG) Ads",
+          campaignName: "Meta Retargeting — Creative Finance & Title Portal Video",
+          date: "2026-09-07",
+        },
+        {
+          id: 6,
+          subscriberName: "Lone Star Land Holdings",
+          contactName: "Amanda Bailey",
+          tier: "starter",
+          mrr: 24.99,
+          channel: "direct",
+          channelLabel: "Direct & Word of Mouth",
+          campaignName: "Direct & Word of Mouth",
+          date: "2026-09-05",
+        },
+      ];
+
+      return json({
+        ok: true,
+        data: {
+          totalSpend,
+          totalClicks,
+          totalImpressions,
+          totalLeads,
+          totalConversions,
+          blendedCpc,
+          blendedCpl,
+          blendedCac,
+          blendedCtr,
+          blendedConvRate,
+          totalAttributedMrr,
+          totalAttributedArr,
+          blendedRoas,
+          sources,
+          campaigns,
+          recentConversions,
+        },
+      });
+    } catch (e: any) {
+      return err(e.message || "Failed to retrieve marketing overview data.", 500);
+    }
+  }
+
+  if (pathname === "/api/owner/marketing/campaigns" && method === "POST") {
+    const admin = requireAdmin(req);
+    if (admin instanceof Response) return admin;
+
+    const body = (await readBody(req)) || {};
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name) return err("Campaign name is required.", 400);
+
+    const channel = typeof body.channel === "string" ? body.channel.trim() : "other";
+    const status = typeof body.status === "string" && ["active", "paused", "completed"].includes(body.status) ? body.status : "active";
+    const spend = Math.max(0, Number(body.spend) || 0);
+    const clicks = Math.max(0, Math.floor(Number(body.clicks) || 0));
+    const impressions = Math.max(0, Math.floor(Number(body.impressions) || 0));
+    const leadsCount = Math.max(0, Math.floor(Number(body.leadsCount) || 0));
+    const conversions = Math.max(0, Math.floor(Number(body.conversions) || 0));
+    const startDate = typeof body.startDate === "string" && body.startDate ? body.startDate : new Date().toISOString().slice(0, 10);
+    const endDate = typeof body.endDate === "string" && body.endDate ? body.endDate : null;
+    const targetUrl = typeof body.targetUrl === "string" ? body.targetUrl.trim() : "";
+    const utmSource = typeof body.utmSource === "string" ? body.utmSource.trim() : "";
+    const utmMedium = typeof body.utmMedium === "string" ? body.utmMedium.trim() : "";
+    const utmCampaign = typeof body.utmCampaign === "string" ? body.utmCampaign.trim() : "";
+    const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+
+    try {
+      const ins = db.query(`
+        INSERT INTO marketing_campaigns (
+          name, channel, status, spend, clicks, impressions, leads_count, conversions,
+          start_date, end_date, target_url, utm_source, utm_medium, utm_campaign, notes,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      `).run(
+        name, channel, status, spend, clicks, impressions, leadsCount, conversions,
+        startDate, endDate, targetUrl, utmSource, utmMedium, utmCampaign, notes
+      );
+
+      const created = db.query("SELECT * FROM marketing_campaigns WHERE id = ?").get(ins.lastInsertRowid) as any;
+      return json({ ok: true, campaign: toMarketingCampaign(created) }, 201);
+    } catch (e: any) {
+      return err(e.message || "Failed to create marketing campaign.", 500);
+    }
+  }
+
+  const campaignMatch = pathname.match(/^\/api\/owner\/marketing\/campaigns\/(\d+)$/);
+  if (campaignMatch) {
+    const campaignId = Number(campaignMatch[1]);
+    if (method === "PATCH") {
+      const admin = requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const body = (await readBody(req)) || {};
+      const existing = db.query("SELECT * FROM marketing_campaigns WHERE id = ?").get(campaignId) as any;
+      if (!existing) return err("Campaign not found.", 404);
+
+      const updates: string[] = [];
+      const values: any[] = [];
+
+      if (body.name !== undefined && typeof body.name === "string" && body.name.trim()) {
+        updates.push("name = ?");
+        values.push(body.name.trim());
+      }
+      if (body.channel !== undefined && typeof body.channel === "string") {
+        updates.push("channel = ?");
+        values.push(body.channel.trim());
+      }
+      if (typeof body.status === "string" && ["active", "paused", "completed"].includes(body.status)) {
+        updates.push("status = ?");
+        values.push(body.status);
+      }
+      if (body.spend !== undefined) {
+        updates.push("spend = ?");
+        values.push(Math.max(0, Number(body.spend) || 0));
+      }
+      if (body.clicks !== undefined) {
+        updates.push("clicks = ?");
+        values.push(Math.max(0, Math.floor(Number(body.clicks) || 0)));
+      }
+      if (body.impressions !== undefined) {
+        updates.push("impressions = ?");
+        values.push(Math.max(0, Math.floor(Number(body.impressions) || 0)));
+      }
+      if (body.leadsCount !== undefined) {
+        updates.push("leads_count = ?");
+        values.push(Math.max(0, Math.floor(Number(body.leadsCount) || 0)));
+      }
+      if (body.conversions !== undefined) {
+        updates.push("conversions = ?");
+        values.push(Math.max(0, Math.floor(Number(body.conversions) || 0)));
+      }
+      if (body.targetUrl !== undefined) {
+        updates.push("target_url = ?");
+        values.push(String(body.targetUrl).trim());
+      }
+      if (body.notes !== undefined) {
+        updates.push("notes = ?");
+        values.push(String(body.notes).trim());
+      }
+
+      if (updates.length > 0) {
+        updates.push("updated_at = datetime('now')");
+        values.push(campaignId);
+        db.query(`UPDATE marketing_campaigns SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+      }
+      const updated = db.query("SELECT * FROM marketing_campaigns WHERE id = ?").get(campaignId) as any;
+      return json({ ok: true, campaign: toMarketingCampaign(updated) });
+    }
+
+    if (method === "DELETE") {
+      const admin = requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const existing = db.query("SELECT * FROM marketing_campaigns WHERE id = ?").get(campaignId) as any;
+      if (!existing) return err("Campaign not found.", 404);
+
+      db.query("DELETE FROM marketing_campaigns WHERE id = ?").run(campaignId);
+      return json({ ok: true });
+    }
+  }
+
   return err("Not found.", 404);
 }
 

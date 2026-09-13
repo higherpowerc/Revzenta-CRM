@@ -25,6 +25,7 @@ import Opportunities from "./Opportunities";
 import Website from "./Website";
 import UpgradeGate from "./UpgradeGate";
 import PropertySearch from "./PropertySearch";
+import MarketingSuite from "./MarketingSuite";
 import { api } from "./api";
 import { DEFAULT_STAGES, TENANT_TABS, type Client, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
@@ -46,7 +47,7 @@ import ThemeToggle from "./ThemeToggle";
  * (prospects), Onboarding = the MIDDLE stages (intake leads), Clients = the
  * terminal stage (sold). Client accounts (role=member) are unchanged: their
  * Leads tab keeps showing every stage except their terminal one. */
-type View = "dashboard" | "opportunities" | "properties" | "leads" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "contracts" | "tickets" | "settings" | "buyers" | "connections" | "compliance" | "sold";
+type View = "dashboard" | "opportunities" | "properties" | "leads" | "marketing" | "offers" | "buybox" | "onboarding" | "clients" | "calendar" | "appointments" | "tasks" | "finance" | "admin" | "documents" | "contracts" | "tickets" | "settings" | "buyers" | "connections" | "compliance" | "sold";
 
 
 /** 3k — the emailed reset link is `<appUrl>/#/reset?token=...`; pull the
@@ -401,6 +402,8 @@ export default function App() {
         return isWholesale && canSeeTab("connections");
       case "compliance":
         return isWholesale ? (canSeeTab("settings") || canSeeTab("clients")) : isOwnerCockpit;
+      case "marketing":
+        return isOwnerCockpit;
     }
   };
   const effectiveView: View = viewAllowed(view) ? view : "dashboard";
@@ -425,6 +428,7 @@ export default function App() {
         case "finance": return "Revenue & Stripe";
         case "clients": return "Subscribers";
         case "leads": return "Sales Leads";
+        case "marketing": return "Marketing & Attribution Suite";
         case "tasks": return "Tasks";
         case "tickets": return "Support Tickets";
         case "documents": return "Signed Agreements";
@@ -910,6 +914,17 @@ export default function App() {
                 >
                   <span className="tab-icon">🎯</span>
                   <span>Sales Leads</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "marketing" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("marketing");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Multi-channel marketing attribution, CAC, ad spend, and viral loops"
+                >
+                  <span className="tab-icon">📈</span>
+                  <span>Marketing Suite</span>
                 </button>
                 <button
                   className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
@@ -1777,6 +1792,8 @@ export default function App() {
           <Buyers canEdit={isWholesale ? canEditTab("investors") : canEditTab("tasks")} />
         ) : effectiveViewFinal === "finance" ? (
           <Finance canEdit={canEditTab("finance")} ownerOrg={isOwnerCockpit} />
+        ) : effectiveViewFinal === "marketing" ? (
+          <MarketingSuite />
         ) : effectiveViewFinal === "admin" ? (
           /* Owner 2026-08-28 consolidation — Administration hosts the
              Agreements template editor (PIN-protected, moved back from

@@ -1157,6 +1157,76 @@ export interface DevSystemStatus {
   };
 }
 
+/* ── Owner Marketing Suite & Multi-Channel Attribution ──────────────── */
+export interface MarketingCampaign {
+  id: number;
+  name: string;
+  channel: string;
+  status: "active" | "paused" | "completed";
+  spend: number;
+  clicks: number;
+  impressions: number;
+  leadsCount: number;
+  conversions: number;
+  startDate: string;
+  endDate?: string;
+  targetUrl: string;
+  utmSource: string;
+  utmMedium: string;
+  utmCampaign: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
+export interface MarketingSourceMetric {
+  channel: string;
+  label: string;
+  icon: string;
+  spend: number;
+  clicks: number;
+  impressions: number;
+  leads: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+  cpl: number;
+  cac: number;
+  convRate: number;
+  attributedMrr: number;
+  attributedArr: number;
+  roas: number;
+  badge: "viral" | "high_performing" | "healthy" | "needs_optimization" | "tracking_only";
+  badgeLabel: string;
+}
 
+export interface MarketingRecentConversion {
+  id: number;
+  subscriberName: string;
+  contactName: string;
+  tier: string;
+  mrr: number;
+  channel: string;
+  channelLabel: string;
+  campaignName: string;
+  date: string;
+}
 
+export interface MarketingOverviewData {
+  totalSpend: number;
+  totalClicks: number;
+  totalImpressions: number;
+  totalLeads: number;
+  totalConversions: number;
+  blendedCpc: number;
+  blendedCpl: number;
+  blendedCac: number;
+  blendedCtr: number;
+  blendedConvRate: number;
+  totalAttributedMrr: number;
+  totalAttributedArr: number;
+  blendedRoas: number;
+  sources: MarketingSourceMetric[];
+  campaigns: MarketingCampaign[];
+  recentConversions: MarketingRecentConversion[];
+}

@@ -384,6 +384,31 @@ CREATE INDEX IF NOT EXISTS idx_tx_notes_tx ON transaction_notes(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_tx_notes_org ON transaction_notes(org_id);
 CREATE INDEX IF NOT EXISTS idx_tx_notes_created ON transaction_notes(created_at);
 
+-- 11c. MARKETING CAMPAIGNS & AD SPEND ATTRIBUTION
+CREATE TABLE IF NOT EXISTS marketing_campaigns (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    channel VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    spend NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    clicks INTEGER NOT NULL DEFAULT 0,
+    impressions INTEGER NOT NULL DEFAULT 0,
+    leads_count INTEGER NOT NULL DEFAULT 0,
+    conversions INTEGER NOT NULL DEFAULT 0,
+    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    end_date DATE,
+    target_url TEXT NOT NULL DEFAULT '',
+    utm_source VARCHAR(100) NOT NULL DEFAULT '',
+    utm_medium VARCHAR(100) NOT NULL DEFAULT '',
+    utm_campaign VARCHAR(100) NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_mkt_channel ON marketing_campaigns(channel);
+CREATE INDEX IF NOT EXISTS idx_mkt_status ON marketing_campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_mkt_created ON marketing_campaigns(created_at);
+
 -- 12. CASH BUYERS
 CREATE TABLE IF NOT EXISTS buyers (
     id SERIAL PRIMARY KEY,

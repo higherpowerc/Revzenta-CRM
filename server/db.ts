@@ -1989,6 +1989,147 @@ CREATE INDEX IF NOT EXISTS idx_tx_notes_created ON transaction_notes(created_at)
 `);
 
 /**
+ * Owner Marketing Campaigns & Ad Spend Attribution
+ */
+db.exec(`
+CREATE TABLE IF NOT EXISTS marketing_campaigns (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  name         TEXT NOT NULL,
+  channel      TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'active',
+  spend        REAL NOT NULL DEFAULT 0,
+  clicks       INTEGER NOT NULL DEFAULT 0,
+  impressions  INTEGER NOT NULL DEFAULT 0,
+  leads_count  INTEGER NOT NULL DEFAULT 0,
+  conversions  INTEGER NOT NULL DEFAULT 0,
+  start_date   TEXT NOT NULL DEFAULT (date('now')),
+  end_date     TEXT,
+  target_url   TEXT NOT NULL DEFAULT '',
+  utm_source   TEXT NOT NULL DEFAULT '',
+  utm_medium   TEXT NOT NULL DEFAULT '',
+  utm_campaign TEXT NOT NULL DEFAULT '',
+  notes        TEXT NOT NULL DEFAULT '',
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_mkt_channel ON marketing_campaigns(channel);
+CREATE INDEX IF NOT EXISTS idx_mkt_status ON marketing_campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_mkt_created ON marketing_campaigns(created_at);
+`);
+
+// Seed default marketing campaigns if empty
+{
+  const count = db.query("SELECT COUNT(*) AS c FROM marketing_campaigns").get() as { c: number };
+  if (count.c === 0) {
+    const seedCampaigns = [
+      {
+        name: "Google Search — Wholesale Real Estate CRM & PSA Software",
+        channel: "google_ads",
+        status: "active",
+        spend: 1250,
+        clicks: 840,
+        impressions: 14200,
+        leads_count: 52,
+        conversions: 16,
+        target_url: "https://revzenta.com",
+        utm_source: "google",
+        utm_medium: "cpc",
+        utm_campaign: "search_wholesale_crm",
+        notes: "Targeting high-intent search terms: wholesale real estate crm, assignment contract software, subject-to calculator.",
+      },
+      {
+        name: "Meta Retargeting — Creative Finance & Title Portal Video",
+        channel: "meta_ads",
+        status: "active",
+        spend: 850,
+        clicks: 1120,
+        impressions: 38500,
+        leads_count: 64,
+        conversions: 14,
+        target_url: "https://revzenta.com/demo",
+        utm_source: "facebook",
+        utm_medium: "paid_social",
+        utm_campaign: "retargeting_creative_demo",
+        notes: "Video creative demonstrating Title Portal and Subject-To underwriting.",
+      },
+      {
+        name: "SEO Organic Content Hub — State Wholesaling Legal Guides",
+        channel: "seo_organic",
+        status: "active",
+        spend: 400,
+        clicks: 2900,
+        impressions: 54000,
+        leads_count: 98,
+        conversions: 24,
+        target_url: "https://revzenta.com/guides",
+        utm_source: "google",
+        utm_medium: "organic",
+        utm_campaign: "seo_legal_guides",
+        notes: "High-ranking organic pages covering state equitable interest disclosures (Texas § 5.086, Arizona SB 1494).",
+      },
+      {
+        name: "Title & Escrow Portal Viral Referral Loop",
+        channel: "title_viral_loop",
+        status: "active",
+        spend: 0,
+        clicks: 450,
+        impressions: 2100,
+        leads_count: 36,
+        conversions: 18,
+        target_url: "https://revzenta.com/title-portal",
+        utm_source: "title_portal",
+        utm_medium: "referral",
+        utm_campaign: "escrow_officer_viral",
+        notes: "Organic viral conversion loop driven by escrow officers inviting their other wholesaler clients.",
+      },
+      {
+        name: "SubTo & Real Estate Community Sponsorship",
+        channel: "community",
+        status: "active",
+        spend: 600,
+        clicks: 720,
+        impressions: 16000,
+        leads_count: 48,
+        conversions: 19,
+        target_url: "https://revzenta.com/community",
+        utm_source: "subto_community",
+        utm_medium: "partner",
+        utm_campaign: "community_bundle_2026",
+        notes: "Partnership with creative finance community members sharing deal calculation templates.",
+      },
+      {
+        name: "Direct & Word of Mouth",
+        channel: "direct",
+        status: "active",
+        spend: 0,
+        clicks: 980,
+        impressions: 3400,
+        leads_count: 41,
+        conversions: 15,
+        target_url: "https://revzenta.com",
+        utm_source: "direct",
+        utm_medium: "direct",
+        utm_campaign: "word_of_mouth",
+        notes: "Direct brand URL traffic and investor peer-to-peer recommendations.",
+      },
+    ];
+
+    for (const c of seedCampaigns) {
+      db.query(`
+        INSERT INTO marketing_campaigns (
+          name, channel, status, spend, clicks, impressions, leads_count, conversions,
+          target_url, utm_source, utm_medium, utm_campaign, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        c.name, c.channel, c.status, c.spend, c.clicks, c.impressions, c.leads_count, c.conversions,
+        c.target_url, c.utm_source, c.utm_medium, c.utm_campaign, c.notes
+      );
+    }
+  }
+}
+
+/**
  * Inbound Webhooks & Property Data Ingestion Migration
  */
 db.exec(`

@@ -1,4 +1,4 @@
-import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, TransactionNote, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem } from "./types";
+import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, TransactionNote, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem, MarketingCampaign, MarketingOverviewData } from "./types";
 import type { UnifiedPropertyFinancialProfile } from "./underwritingEngine";
 
 
@@ -848,6 +848,24 @@ export const api = {
     request<{ ok: true; allowed: boolean; executionTimeMs?: number; rowCount?: number; rows?: any[]; error?: string }>("/api/ai/dev-command-center/query-analysis", {
       method: "POST",
       body: JSON.stringify({ sql, params }),
+    }),
+
+  /* Owner Marketing & Attribution Suite */
+  getMarketingOverview: () =>
+    request<{ ok: true; data: MarketingOverviewData }>("/api/owner/marketing"),
+  createMarketingCampaign: (campaign: Partial<MarketingCampaign>) =>
+    request<{ ok: true; campaign: MarketingCampaign }>("/api/owner/marketing/campaigns", {
+      method: "POST",
+      body: JSON.stringify(campaign),
+    }),
+  updateMarketingCampaign: (id: number, updates: Partial<MarketingCampaign>) =>
+    request<{ ok: true; campaign: MarketingCampaign }>(`/api/owner/marketing/campaigns/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    }),
+  deleteMarketingCampaign: (id: number) =>
+    request<{ ok: true }>(`/api/owner/marketing/campaigns/${id}`, {
+      method: "DELETE",
     }),
 };
 
