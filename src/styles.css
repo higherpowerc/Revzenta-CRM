@@ -1346,16 +1346,17 @@ legend.field-label {
 
 .tab {
   background: none;
-  border: none;
+  border: 1px solid transparent;
   color: var(--muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 8px 14px;
   border-radius: var(--radius-sm);
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
 
 .tab-icon {
@@ -1366,15 +1367,25 @@ legend.field-label {
   justify-content: center;
   flex: none;
   width: 20px;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .tab:hover {
   color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .tab.active {
-  color: var(--lime);
-  background: var(--lime-dim);
+  color: #ffffff !important;
+  background: linear-gradient(90deg, rgba(0, 168, 159, 0.28) 0%, rgba(0, 168, 159, 0.14) 100%) !important;
+  border: 1px solid rgba(0, 168, 159, 0.5) !important;
+  box-shadow: inset 4px 0 0 var(--accent), 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+  font-weight: 700 !important;
+}
+
+.tab.active .tab-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 6px var(--accent));
 }
 
 .nav-right {
@@ -1557,10 +1568,32 @@ legend.field-label {
 .nav .tab {
   width: 100%;
   text-align: left;
-  padding: 7.5px 12px;
+  padding: 8px 12px;
   justify-content: flex-start;
   white-space: nowrap;
   font-size: 13.5px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+
+.nav .tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+}
+
+.nav .tab.active {
+  color: #ffffff !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 26%, transparent) 0%, color-mix(in srgb, var(--accent) 14%, transparent) 100%) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent) !important;
+  box-shadow: inset 4px 0 0 var(--accent), 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+  font-weight: 700 !important;
+}
+
+.nav .tab.active .tab-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 6px var(--accent));
 }
 
 .nav .nav-right {
@@ -4571,8 +4604,26 @@ p.inv-notes.cockpit-foot {
   color: var(--accent);
 }
 .tab.active {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: #ffffff !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 28%, transparent) 0%, color-mix(in srgb, var(--accent) 14%, transparent) 100%) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent) !important;
+  box-shadow: inset 4px 0 0 var(--accent), 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .tab.active,
+[data-theme="light"] .nav .tab.active {
+  color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 14%, #ffffff) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent) !important;
+  box-shadow: inset 4px 0 0 var(--accent), 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .tab:hover,
+[data-theme="light"] .nav .tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ink);
 }
 /* Long tenant names must truncate instead of breaking the nav layout. */
 .brand-text {
