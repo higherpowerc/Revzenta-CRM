@@ -1264,8 +1264,8 @@ legend.field-label {
     padding: 0 14px;
   }
   .owner-workspace .tab {
-    padding: 7px 7px;
-    font-size: 13px;
+    padding: 8px 10px;
+    font-size: 14.5px;
   }
   .owner-workspace .nav-user {
     display: none;
@@ -1348,9 +1348,9 @@ legend.field-label {
   background: none;
   border: 1px solid transparent;
   color: var(--muted);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 550;
+  padding: 8.5px 14px;
   border-radius: var(--radius-sm);
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   display: inline-flex;
@@ -1360,13 +1360,13 @@ legend.field-label {
 }
 
 .tab-icon {
-  font-size: 16px;
+  font-size: 17.5px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 20px;
+  width: 22px;
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
@@ -1498,10 +1498,10 @@ legend.field-label {
   align-self: flex-start;
   height: 100vh;
   height: 100dvh;
-  width: 270px;
-  min-width: 270px;
-  max-width: 270px;
-  flex: 0 0 270px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  flex: 0 0 280px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -1568,10 +1568,11 @@ legend.field-label {
 .nav .tab {
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
+  padding: 9.5px 12px;
   justify-content: flex-start;
   white-space: nowrap;
-  font-size: 13.5px;
+  font-size: 15px;
+  font-weight: 550;
   border-radius: 8px;
   border: 1px solid transparent;
   color: var(--muted);
@@ -1615,15 +1616,15 @@ legend.field-label {
 
 /* ── Owner Sidebar Sectioning & Business Type CRM controls ──────── */
 .nav-section-title {
-  padding: 9px 8px 3px;
-  font-size: 10.5px;
-  font-weight: 700;
+  padding: 10px 8px 4px;
+  font-size: 11.5px;
+  font-weight: 750;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
   user-select: none;
   border-top: 1px solid var(--line);
-  margin-top: 5px;
+  margin-top: 6px;
   white-space: nowrap;
 }
 
@@ -1646,7 +1647,7 @@ legend.field-label {
 }
 
 .nav-build-btn {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   padding: 5px 9px;
   white-space: nowrap;
@@ -1659,8 +1660,8 @@ legend.field-label {
 }
 
 .tab .tab-icon {
-  margin-right: 7px;
-  font-size: 14px;
+  margin-right: 8px;
+  font-size: 17.5px;
   display: inline-block;
   vertical-align: middle;
 }
@@ -1933,18 +1934,19 @@ legend.field-label {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     text-align: left;
-    padding: 11px 14px;
-    font-size: 14.5px;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-weight: 550;
     border-radius: 8px;
     white-space: normal;
   }
 
   .nav-section-title {
     padding: 14px 10px 4px;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 750;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--muted);
