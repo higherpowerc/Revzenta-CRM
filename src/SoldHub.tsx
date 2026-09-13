@@ -21,6 +21,7 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
   // Modals
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [viewingPdfTx, setViewingPdfTx] = useState<Transaction | null>(null);
+  const [pdfFullscreen, setPdfFullscreen] = useState(false);
   const [showRecordSoldModal, setShowRecordSoldModal] = useState(false);
   const [closingTxId, setClosingTxId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -1342,27 +1343,31 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.75)",
+            backgroundColor: "rgba(0,0,0,0.85)",
             backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1200,
-            padding: "20px",
+            padding: pdfFullscreen ? "0" : "8px",
           }}
-          onClick={() => setViewingPdfTx(null)}
+          onClick={() => {
+            setViewingPdfTx(null);
+            setPdfFullscreen(false);
+          }}
         >
           <div
             style={{
               backgroundColor: "var(--panel)",
-              borderRadius: "12px",
-              width: "100%",
-              maxWidth: "960px",
-              maxHeight: "92vh",
+              borderRadius: pdfFullscreen ? "0" : "10px",
+              width: pdfFullscreen ? "100vw" : "98vw",
+              maxWidth: pdfFullscreen ? "100vw" : "1600px",
+              height: pdfFullscreen ? "100vh" : "96vh",
+              maxHeight: pdfFullscreen ? "100vh" : "98vh",
               display: "flex",
               flexDirection: "column",
-              border: "1px solid var(--border)",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              border: pdfFullscreen ? "none" : "1px solid var(--border)",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.45)",
               overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1370,20 +1375,20 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
             {/* Header */}
             <div
               style={{
-                padding: "16px 20px",
+                padding: "10px 18px",
                 borderBottom: "1px solid var(--border)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 flexWrap: "wrap",
-                gap: "12px",
+                gap: "10px",
                 backgroundColor: "var(--card-bg, var(--panel))",
               }}
             >
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "18px" }}>📄</span>
-                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--fg)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+                  <span style={{ fontSize: "16px" }}>📄</span>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--fg)" }}>
                     {viewingPdfTx.contractType === "assignment" ? "Assignment Agreement" : "Purchase & Sale Agreement (PSA)"}
                   </h3>
                   <span
@@ -1404,6 +1409,11 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
                   {viewingPdfTx.buyerName && viewingPdfTx.contractType === "assignment" && (
                     <span> &bull; Assignee/Buyer: <strong>{viewingPdfTx.buyerName}</strong></span>
                   )}
+                  {viewingPdfTx.signedAt && (
+                    <span style={{ marginLeft: "8px", color: "#10b981", fontWeight: 600 }}>
+                      &bull; Signed {new Date(viewingPdfTx.signedAt).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1413,7 +1423,7 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
                   href={getCleanContractPdfUrl(viewingPdfTx)}
                   download={`Contract-${viewingPdfTx.propertyAddress.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`}
                   style={{
-                    padding: "7px 14px",
+                    padding: "6px 12px",
                     borderRadius: "6px",
                     backgroundColor: "var(--panel)",
                     border: "1px solid var(--border)",
@@ -1429,14 +1439,15 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
                   📥 Download PDF
                 </a>
                 <a
-                  href={getCleanContractPdfUrl(viewingPdfTx)}
+                  href={`${getCleanContractPdfUrl(viewingPdfTx)}#toolbar=1&navpanes=0&view=FitH`}
                   target="_blank"
                   rel="noreferrer"
                   style={{
-                    padding: "7px 14px",
+                    padding: "6px 12px",
                     borderRadius: "6px",
-                    backgroundColor: "var(--accent, #3b82f6)",
-                    color: "#ffffff",
+                    backgroundColor: "var(--panel)",
+                    border: "1px solid var(--border)",
+                    color: "var(--fg)",
                     fontSize: "12px",
                     fontWeight: 600,
                     textDecoration: "none",
@@ -1448,9 +1459,32 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
                   🔗 Open New Tab
                 </a>
                 <button
-                  onClick={() => setViewingPdfTx(null)}
+                  type="button"
+                  onClick={() => setPdfFullscreen((prev) => !prev)}
                   style={{
-                    padding: "7px 12px",
+                    padding: "6px 12px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--accent, #3b82f6)",
+                    border: "none",
+                    color: "#ffffff",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  title={pdfFullscreen ? "Exit Fullscreen" : "Expand to Fullscreen"}
+                >
+                  {pdfFullscreen ? "🗗 Standard View" : "⛶ Fullscreen"}
+                </button>
+                <button
+                  onClick={() => {
+                    setViewingPdfTx(null);
+                    setPdfFullscreen(false);
+                  }}
+                  style={{
+                    padding: "6px 10px",
                     borderRadius: "6px",
                     border: "1px solid var(--border)",
                     backgroundColor: "transparent",
@@ -1459,32 +1493,59 @@ export default function SoldHub({ crmBusinessName }: SoldHubProps) {
                     cursor: "pointer",
                     lineHeight: 1,
                   }}
+                  title="Close document viewer"
                 >
                   ✕
                 </button>
               </div>
             </div>
 
-            {/* PDF Viewer Body */}
+            {/* PDF Viewer Body - takes 100% available space with fit-width */}
             <div
               style={{
                 flex: 1,
-                minHeight: "450px",
-                height: "68vh",
-                backgroundColor: "#525659",
+                minHeight: 0,
+                height: "100%",
+                backgroundColor: "#2c3036",
                 position: "relative",
+                display: "flex",
+                flexDirection: "column",
               }}
             >
               <iframe
-                src={getCleanContractPdfUrl(viewingPdfTx)}
+                src={`${getCleanContractPdfUrl(viewingPdfTx)}#toolbar=1&navpanes=0&view=FitH`}
                 title="Contract Document Viewer"
                 style={{
                   width: "100%",
                   height: "100%",
+                  flex: 1,
                   border: "none",
                   display: "block",
                 }}
               />
+            </div>
+
+            {/* Footer with Document Info & Quick Tips */}
+            <div
+              style={{
+                padding: "8px 18px",
+                borderTop: "1px solid var(--border)",
+                backgroundColor: "var(--card-bg, var(--panel))",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "8px",
+                fontSize: "11px",
+                color: "var(--muted)",
+              }}
+            >
+              <div>
+                Document ID: <code style={{ color: "var(--fg)" }}>{viewingPdfTx.contractPdfId || `#tx-${viewingPdfTx.id}`}</code> &bull; Status: <strong style={{ color: "#10b981" }}>Fully Executed</strong>
+              </div>
+              <div>
+                💡 Tip: Click <strong>⛶ Fullscreen</strong> or <strong>Open New Tab</strong> to view at maximum page size.
+              </div>
             </div>
           </div>
         </div>

@@ -322,6 +322,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
   const [signRequestModalTx, setSignRequestModalTx] = useState<Transaction | null>(null);
   const [signRequestEmail, setSignRequestEmail] = useState("");
   const [viewingPdfTx, setViewingPdfTx] = useState<Transaction | null>(null);
+  const [pdfFullscreen, setPdfFullscreen] = useState(false);
   const [cancellingTx, setCancellingTx] = useState<Transaction | null>(null);
   const [cancelTxReason, setCancelTxReason] = useState("Inspection / repair costs too high");
   const [cancelTxNotes, setCancelTxNotes] = useState("");
@@ -3507,34 +3508,38 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
          ───────────────────────────────────────────────────────────── */}
       {viewingPdfTx && (
         <div
-          id="modal-contract-pdf-preview"
+          id="modal-pdf-preview"
           style={{
             position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.75)",
+            backgroundColor: "rgba(0,0,0,0.85)",
             backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1100,
-            padding: "20px",
+            padding: pdfFullscreen ? "0" : "8px",
           }}
-          onClick={() => setViewingPdfTx(null)}
+          onClick={() => {
+            setViewingPdfTx(null);
+            setPdfFullscreen(false);
+          }}
         >
           <div
             style={{
               backgroundColor: "var(--panel)",
-              borderRadius: "12px",
-              width: "100%",
-              maxWidth: "960px",
-              maxHeight: "92vh",
+              borderRadius: pdfFullscreen ? "0" : "10px",
+              width: pdfFullscreen ? "100vw" : "98vw",
+              maxWidth: pdfFullscreen ? "100vw" : "1600px",
+              height: pdfFullscreen ? "100vh" : "96vh",
+              maxHeight: pdfFullscreen ? "100vh" : "98vh",
               display: "flex",
               flexDirection: "column",
-              border: "1px solid var(--border)",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              border: pdfFullscreen ? "none" : "1px solid var(--border)",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.45)",
               overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -3542,20 +3547,20 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
             {/* Header */}
             <div
               style={{
-                padding: "16px 20px",
+                padding: "10px 18px",
                 borderBottom: "1px solid var(--border)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 flexWrap: "wrap",
-                gap: "12px",
+                gap: "10px",
                 backgroundColor: "var(--card-bg, var(--panel))",
               }}
             >
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "18px" }}>📄</span>
-                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--fg)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+                  <span style={{ fontSize: "16px" }}>📄</span>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--fg)" }}>
                     {viewingPdfTx.contractType === "assignment" ? "Assignment Agreement" : "Purchase & Sale Agreement (PSA)"}
                   </h3>
                   <span
@@ -3594,7 +3599,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                   href={getCleanContractPdfUrl(viewingPdfTx)}
                   download={`Contract-${viewingPdfTx.propertyAddress.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`}
                   style={{
-                    padding: "7px 14px",
+                    padding: "6px 12px",
                     borderRadius: "6px",
                     backgroundColor: "var(--panel)",
                     border: "1px solid var(--border)",
@@ -3611,14 +3616,15 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                 </a>
                 <a
                   id="btn-open-new-tab"
-                  href={getCleanContractPdfUrl(viewingPdfTx)}
+                  href={`${getCleanContractPdfUrl(viewingPdfTx)}#toolbar=1&navpanes=0&view=FitH`}
                   target="_blank"
                   rel="noreferrer"
                   style={{
-                    padding: "7px 14px",
+                    padding: "6px 12px",
                     borderRadius: "6px",
-                    backgroundColor: "var(--accent, #3b82f6)",
-                    color: "#ffffff",
+                    backgroundColor: "var(--panel)",
+                    border: "1px solid var(--border)",
+                    color: "var(--fg)",
                     fontSize: "12px",
                     fontWeight: 600,
                     textDecoration: "none",
@@ -3630,10 +3636,33 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                   🔗 Open New Tab
                 </a>
                 <button
-                  id="btn-close-pdf-modal"
-                  onClick={() => setViewingPdfTx(null)}
+                  type="button"
+                  onClick={() => setPdfFullscreen((prev) => !prev)}
                   style={{
-                    padding: "7px 12px",
+                    padding: "6px 12px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--accent, #3b82f6)",
+                    border: "none",
+                    color: "#ffffff",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  title={pdfFullscreen ? "Exit Fullscreen" : "Expand to Fullscreen"}
+                >
+                  {pdfFullscreen ? "🗗 Standard View" : "⛶ Fullscreen"}
+                </button>
+                <button
+                  id="btn-close-pdf-modal"
+                  onClick={() => {
+                    setViewingPdfTx(null);
+                    setPdfFullscreen(false);
+                  }}
+                  style={{
+                    padding: "6px 10px",
                     borderRadius: "6px",
                     border: "1px solid var(--border)",
                     backgroundColor: "transparent",
@@ -3642,7 +3671,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                     cursor: "pointer",
                     lineHeight: 1,
                   }}
-                  title="Close"
+                  title="Close document viewer"
                 >
                   ✕
                 </button>
@@ -3653,19 +3682,22 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
             <div
               style={{
                 flex: 1,
-                minHeight: "450px",
-                height: "68vh",
-                backgroundColor: "#525659",
+                minHeight: 0,
+                height: "100%",
+                backgroundColor: "#2c3036",
                 position: "relative",
+                display: "flex",
+                flexDirection: "column",
               }}
             >
               <iframe
                 id="contract-pdf-iframe"
-                src={getCleanContractPdfUrl(viewingPdfTx)}
+                src={`${getCleanContractPdfUrl(viewingPdfTx)}#toolbar=1&navpanes=0&view=FitH`}
                 title="Contract Document Viewer"
                 style={{
                   width: "100%",
                   height: "100%",
+                  flex: 1,
                   border: "none",
                   display: "block",
                 }}
@@ -3675,12 +3707,14 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
             {/* Footer */}
             <div
               style={{
-                padding: "10px 20px",
+                padding: "8px 18px",
                 borderTop: "1px solid var(--border)",
                 backgroundColor: "var(--card-bg, var(--panel))",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                flexWrap: "wrap",
+                gap: "8px",
                 fontSize: "11px",
                 color: "var(--muted)",
               }}
@@ -3689,9 +3723,12 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
                 Document ID: <code style={{ color: "var(--fg)" }}>{viewingPdfTx.contractPdfId || "Pending"}</code>
               </div>
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                <span>If the viewer does not load in your browser, use <strong>Download PDF</strong> or <strong>Open New Tab</strong> above.</span>
+                <span>💡 Tip: Click <strong>⛶ Fullscreen</strong> or <strong>Open New Tab</strong> to view at maximum page size.</span>
                 <button
-                  onClick={() => setViewingPdfTx(null)}
+                  onClick={() => {
+                    setViewingPdfTx(null);
+                    setPdfFullscreen(false);
+                  }}
                   style={{
                     padding: "4px 10px",
                     borderRadius: "4px",
