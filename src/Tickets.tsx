@@ -88,6 +88,7 @@ export default function Tickets({ ownerOrg, canEdit = true }: Props) {
     try {
       await api.updateTicket(t.id, { status });
       await load();
+      window.dispatchEvent(new CustomEvent("crm:tickets-updated"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed.");
     } finally {
@@ -447,6 +448,7 @@ function TicketFormModal({ ownerOrg, onClose, onSubmitted }: ModalProps) {
     try {
       await api.createTicket({ subject: subject.trim(), message: message.trim(), priority });
       await onSubmitted();
+      window.dispatchEvent(new CustomEvent("crm:tickets-updated"));
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submit failed.");

@@ -74,7 +74,7 @@ import {
   hashPassword,
   toUser,
 } from "./auth";
-import { sendEmail, sendIntakeEmail, sendWelcomeEmail, sendSignupWelcomeEmail, sendPasswordResetEmail, sendAgreementEmail, sendPaymentLinkEmail, sendInvoiceEmail, sendDemoCallEmail, sendAppointmentReminderEmail, sendTicketOwnerAlertEmail, sendTicketReplyEmail, appUrlFrom, RESEND_KEY_MISSING_ERROR, type SendEmailResult } from "./email";
+import { sendEmail, sendIntakeEmail, sendWelcomeEmail, sendSignupWelcomeEmail, sendNewSignupOwnerAlertEmail, sendPasswordResetEmail, sendAgreementEmail, sendPaymentLinkEmail, sendInvoiceEmail, sendDemoCallEmail, sendAppointmentReminderEmail, sendTicketOwnerAlertEmail, sendTicketReplyEmail, appUrlFrom, DEFAULT_APP_URL, RESEND_KEY_MISSING_ERROR, type SendEmailResult } from "./email";
 import Stripe from "stripe";
 import { generateInvoicePdf } from "./invoices";
 import { generateOfferPdf, storeOfferPdf, newOfferPdfId, readOfferPdf } from "./offerPdf";
@@ -2274,6 +2274,21 @@ function insertOrgWithMember(input: {
   })();
 }
 
+function resolveOwnerAlertEmail(): string | null {
+  const envEmail = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  if (envEmail && EMAIL_RE.test(envEmail)) {
+    return envEmail;
+  }
+  try {
+    const ownerOrgId = getOwnerOrgId();
+    const row = db.query("SELECT email FROM users WHERE org_id = ? ORDER BY id ASC LIMIT 1").get(ownerOrgId) as { email: string } | null;
+    if (row?.email && EMAIL_RE.test(row.email.trim())) {
+      return row.email.trim().toLowerCase();
+    }
+  } catch {}
+  return null;
+}
+
 /* ── Post-payment signup provisioning (owner decision 2026-09-08: no free
    trial, no workspace before payment) ────────────────────────────────
    provisionPendingSignup consumes one pending_signups row (by email, else by
@@ -2364,6 +2379,21 @@ async function provisionPendingSignup(input: {
       appUrl: input.appUrl,
     });
   }
+
+  // Instant notification to Owner of new paid subscriber
+  const ownerAlertEmail = resolveOwnerAlertEmail();
+  if (ownerAlertEmail) {
+    void sendNewSignupOwnerAlertEmail({
+      to: ownerAlertEmail,
+      subscriberEmail: pending.email,
+      workspaceName: pending.workspace_name,
+      tier,
+      billing: pending.billing,
+      mrr: mrrDollars,
+      appUrl: input.appUrl || DEFAULT_APP_URL,
+    });
+  }
+
   console.log(`[signup] workspace provisioned post-payment for ${pending.email} (tier ${tier}, billing ${pending.billing})`);
   return provisioned;
 }
@@ -3270,6 +3300,19 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       tier,
       appUrl: returnUrl,
     });
+
+    // Fire instant alert to owner of new subscriber
+    const ownerAlertEmail = resolveOwnerAlertEmail();
+    if (ownerAlertEmail) {
+      void sendNewSignupOwnerAlertEmail({
+        to: ownerAlertEmail,
+        subscriberEmail: email,
+        workspaceName,
+        tier,
+        billing,
+        appUrl: returnUrl,
+      });
+    }
 
     const token = createSession(provisioned.userId);
     const user = getUserById(provisioned.userId);

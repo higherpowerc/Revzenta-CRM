@@ -753,3 +753,112 @@ export function sendSignupWelcomeEmail(opts: {
   });
 }
 
+/**
+ * Owner Notification:
+ * Dispatches an instant alert to the platform owner whenever a new customer
+ * signs up or pays for a subscription plan.
+ */
+export function sendNewSignupOwnerAlertEmail(opts: {
+  to: string;
+  subscriberEmail: string;
+  workspaceName: string;
+  tier: string;
+  billing: string;
+  appUrl: string;
+  businessName?: string;
+  mrr?: number;
+}): Promise<SendEmailResult> {
+  const biz = opts.businessName?.trim() || "Revzenta";
+  const tierName =
+    opts.tier === "scale"
+      ? "Scale Empire Plan ($79/mo)"
+      : opts.tier === "starter"
+      ? "Starter Wholesaler Plan ($24.99/mo)"
+      : "Wholesale Pro Plan ($59.99/mo)";
+  const billingLabel = opts.billing === "annual" ? "Annual (Paid Upfront)" : "Monthly";
+  const mrrFormatted = opts.mrr !== undefined ? `$${opts.mrr.toFixed(2)}/mo` : (
+    opts.tier === "scale" ? "$79.00/mo" : opts.tier === "starter" ? "$24.99/mo" : "$59.99/mo"
+  );
+  const dashboardUrl = `${opts.appUrl}/#/subscribers`;
+
+  const text = [
+    `🎉 New Revzenta Subscriber Alert!`,
+    "",
+    `A new wholesale client has just activated their workspace.`,
+    "",
+    `========================================`,
+    `SUBSCRIBER & WORKSPACE DETAILS`,
+    `========================================`,
+    `Workspace:     ${opts.workspaceName}`,
+    `Subscriber:    ${opts.subscriberEmail}`,
+    `Plan:          ${tierName}`,
+    `Billing Cycle: ${billingLabel}`,
+    `MRR Impact:    +${mrrFormatted}`,
+    `Timestamp:     ${new Date().toLocaleString("en-US", { timeZoneName: "short" })}`,
+    "",
+    `View subscriber in Owner Dashboard: ${dashboardUrl}`,
+    "",
+    `— ${biz} Automated Billing Engine`,
+  ].join("\n");
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Revzenta Signup</title>
+</head>
+<body style="margin:0;padding:0;background-color:#090d16;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f1f5f9;">
+  <div style="max-width:600px;margin:30px auto;background:#0f172a;border-radius:16px;border:1px solid #1e293b;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.6);">
+    <div style="background:linear-gradient(135deg,#10b981 0%,#059669 50%,#047857 100%);padding:28px;text-align:center;">
+      <h1 style="margin:0;font-size:26px;font-weight:800;color:#ffffff;text-shadow:0 2px 10px rgba(0,0,0,0.3);">
+        🚀 New Subscriber Signed Up!
+      </h1>
+      <p style="margin:8px 0 0;font-size:15px;color:rgba(255,255,255,0.9);font-weight:600;">
+        +${mrrFormatted} New MRR Added
+      </p>
+    </div>
+    <div style="padding:28px;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 0;font-size:13px;color:#94a3b8;font-weight:600;">Workspace</td>
+          <td style="padding:10px 0;font-size:14px;color:#ffffff;font-weight:700;text-align:right;">${opts.workspaceName}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 0;font-size:13px;color:#94a3b8;font-weight:600;">Subscriber Email</td>
+          <td style="padding:10px 0;font-size:14px;color:#38bdf8;font-weight:700;text-align:right;">${opts.subscriberEmail}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 0;font-size:13px;color:#94a3b8;font-weight:600;">Plan / Tier</td>
+          <td style="padding:10px 0;font-size:14px;color:#10b981;font-weight:700;text-align:right;">${tierName}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 0;font-size:13px;color:#94a3b8;font-weight:600;">Billing Cycle</td>
+          <td style="padding:10px 0;font-size:14px;color:#ffffff;font-weight:600;text-align:right;">${billingLabel}</td>
+        </tr>
+      </table>
+      <div style="text-align:center;margin-top:20px;">
+        <a href="${dashboardUrl}" style="background:#10b981;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">
+          Open Subscriber in Cockpit &rarr;
+        </a>
+      </div>
+    </div>
+    <div style="padding:16px;background:#0b132b;border-top:1px solid #1e293b;text-align:center;font-size:12px;color:#64748b;">
+      Revzenta Automated Notification Engine
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({
+    to: opts.to,
+    fromName: biz,
+    subject: `🚀 New Subscriber: ${opts.workspaceName} (${tierName})`,
+    text,
+    html,
+  });
+}
+
+

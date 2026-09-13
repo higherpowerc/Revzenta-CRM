@@ -160,6 +160,41 @@ export default function App() {
   }, [piiHidden]);
   const piiTitle = piiHidden ? "Show client details" : "Hide client details";
 
+  // Open Support Tickets Indicator (Live badge & icon indicator)
+  const [openTicketsCount, setOpenTicketsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user) {
+      setOpenTicketsCount(0);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchTicketCounts = () => {
+      api
+        .tickets()
+        .then((res) => {
+          if (!isMounted || !res.tickets) return;
+          const count = res.tickets.filter(
+            (t) => t.status === "OPEN" || t.status === "IN_PROGRESS"
+          ).length;
+          setOpenTicketsCount(count);
+        })
+        .catch(() => {});
+    };
+
+    fetchTicketCounts();
+    const interval = setInterval(fetchTicketCounts, 15000); // 15s live polling
+    const onTicketsUpdated = () => fetchTicketCounts();
+    window.addEventListener("crm:tickets-updated", onTicketsUpdated);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener("crm:tickets-updated", onTicketsUpdated);
+    };
+  }, [user]);
+
   useEffect(() => {
     /* Owner bug 2026-08-27 (§67): a 401 from any API call (including the boot
      * /api/auth/me when signed out) signs the shell back out, but it must NOT
@@ -883,8 +918,44 @@ export default function App() {
                   }}
                   title="Customer support tickets and inquiries submitted from subscriber CRMs"
                 >
-                  <span className="tab-icon">🎫</span>
-                  <span>Support Tickets</span>
+                  <span className="tab-icon" style={{ position: "relative" }}>
+                    🎫
+                    {openTicketsCount > 0 && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "-3px",
+                          right: "-5px",
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          backgroundColor: "#ef4444",
+                          boxShadow: "0 0 6px #ef4444",
+                        }}
+                      />
+                    )}
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                    <span>Support Tickets</span>
+                    {openTicketsCount > 0 && (
+                      <span
+                        style={{
+                          backgroundColor: "#ef4444",
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "1px 7px",
+                          borderRadius: "12px",
+                          minWidth: "18px",
+                          textAlign: "center",
+                          lineHeight: "16px",
+                          boxShadow: "0 1px 4px rgba(239, 68, 68, 0.4)",
+                        }}
+                      >
+                        {openTicketsCount}
+                      </span>
+                    )}
+                  </span>
                 </button>
 
                 {/* 4. Legal & Platform Administration */}
@@ -1182,8 +1253,44 @@ export default function App() {
                     }}
                     title="Submit tickets and get help from Revzenta platform support"
                   >
-                    <span className="tab-icon">🎫</span>
-                    <span>Support</span>
+                    <span className="tab-icon" style={{ position: "relative" }}>
+                      🎫
+                      {openTicketsCount > 0 && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "-3px",
+                            right: "-5px",
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            backgroundColor: "#ef4444",
+                            boxShadow: "0 0 6px #ef4444",
+                          }}
+                        />
+                      )}
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Support</span>
+                      {openTicketsCount > 0 && (
+                        <span
+                          style={{
+                            backgroundColor: "#ef4444",
+                            color: "#ffffff",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "1px 7px",
+                            borderRadius: "12px",
+                            minWidth: "18px",
+                            textAlign: "center",
+                            lineHeight: "16px",
+                            boxShadow: "0 1px 4px rgba(239, 68, 68, 0.4)",
+                          }}
+                        >
+                          {openTicketsCount}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 )}
 
@@ -1287,8 +1394,44 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    <span className="tab-icon">🎫</span>
-                    <span>Support</span>
+                    <span className="tab-icon" style={{ position: "relative" }}>
+                      🎫
+                      {openTicketsCount > 0 && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "-3px",
+                            right: "-5px",
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            backgroundColor: "#ef4444",
+                            boxShadow: "0 0 6px #ef4444",
+                          }}
+                        />
+                      )}
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Support</span>
+                      {openTicketsCount > 0 && (
+                        <span
+                          style={{
+                            backgroundColor: "#ef4444",
+                            color: "#ffffff",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "1px 7px",
+                            borderRadius: "12px",
+                            minWidth: "18px",
+                            textAlign: "center",
+                            lineHeight: "16px",
+                            boxShadow: "0 1px 4px rgba(239, 68, 68, 0.4)",
+                          }}
+                        >
+                          {openTicketsCount}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 )}
                 {canSeeTab("finance") && (
