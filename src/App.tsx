@@ -899,17 +899,6 @@ export default function App() {
                   <span>Dashboard &amp; ROI</span>
                 </button>
                 <button
-                  className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setView("messages");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Unified internal team communications, SMS, emails, and deal alerts"
-                >
-                  <span className="tab-icon">💬</span>
-                  <span>Message Hub</span>
-                </button>
-                <button
                   className={effectiveViewFinal === "finance" ? "tab active" : "tab"}
                   onClick={() => {
                     setView("finance");
@@ -935,6 +924,17 @@ export default function App() {
                 >
                   <span className="tab-icon">👥</span>
                   <span>Subscribers</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("messages");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Unified internal team communications, SMS, emails, and deal alerts"
+                >
+                  <span className="tab-icon">💬</span>
+                  <span>Message Hub</span>
                 </button>
 
                 {/* 3. Marketing & Operations */}
