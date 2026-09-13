@@ -412,7 +412,53 @@ export function renderContractSignPage(token: string, clientIp: string): Respons
 
 /** Render public Title & Escrow Company Portal */
 export function renderTitlePortalPage(token: string): Response {
-  const tx = getTransactionByToken(token);
+  let tx = getTransactionByToken(token);
+  if (!tx && (token === "demo" || token === "sample" || token === "b904aed3cbdccdd77764bdc2813f15a8" || token === "fefb9091d6e9b3900473fba91fbbea21")) {
+    tx = {
+      id: 0,
+      org_id: 1,
+      client_id: 1,
+      buyer_id: null,
+      contract_type: "psa",
+      property_address: "742 Evergreen Terrace, Springfield, IL 62704",
+      seller_name: "Homer & Marge Simpson",
+      seller_email: "homer@simpsons-estates.example",
+      seller_phone: "(555) 733-4798",
+      buyer_name: "Revzenta Capital Holdings LLC",
+      buyer_email: "acquisitions@revzenta.com",
+      buyer_phone: "(312) 555-0188",
+      purchase_price: 285000,
+      assignment_fee: 25000,
+      earnest_money: 5000,
+      emd_due_date: "2026-09-18",
+      emd_status: "deposited",
+      inspection_days: 10,
+      inspection_deadline: "2026-09-22",
+      inspection_status: "active",
+      closing_date: "2026-10-05",
+      title_company_name: "First American Title & Escrow",
+      escrow_officer_name: "Sarah Jenkins",
+      escrow_officer_email: "sjenkins@firstamtitle.com",
+      escrow_officer_phone: "(312) 555-0199",
+      escrow_file_number: "FAT-2026-8892",
+      title_status: "prelim_review",
+      payoff_lender: "Chase Home Lending",
+      payoff_demand_amount: 142350,
+      payoff_loan_number: "CH-8839210-9",
+      state_jurisdiction: "Illinois",
+      contract_pdf_id: "",
+      token_hash: token,
+      status: "sent",
+      signed_at: null,
+      signer_name: "",
+      signer_signature: "",
+      signer_ip: "",
+      notes: "Demo transaction for title and escrow coordination preview.",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  }
+
   if (!tx) {
     return new Response("Title file not found or expired.", { status: 404 });
   }
