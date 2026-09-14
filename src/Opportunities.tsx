@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import PropertyImage from "./PropertyImage";
+import PropertyDetailModal from "./PropertyDetailModal";
 import type { Client, PropertyDealExplanation } from "./types";
 
 function getLoiStatus(opp: Client): "Sent" | "Unsent" {
@@ -262,6 +263,12 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
   const [stageFilter, setStageFilter] = useState("all");
   const [distressFilter, setDistressFilter] = useState("all");
   const [loiFilter, setLoiFilter] = useState("all");
+
+  // Enlarged Property Detail Modal
+  const [inspectedOpportunity, setInspectedOpportunity] = useState<{
+    client: Client;
+    details: ParsedPropertyDetails;
+  } | null>(null);
 
   // AI Deal Explanation Modal
   const [selectedPropertyForExplanation, setSelectedPropertyForExplanation] = useState<{
@@ -611,6 +618,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
             return (
               <div
                 key={opportunity.id}
+                onClick={() => setInspectedOpportunity({ client: opportunity, details })}
                 style={{
                   background: "var(--card-bg, #1e293b)",
                   border: "1px solid var(--border-color, #334155)",
@@ -620,7 +628,16 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                   flexDirection: "column",
                   justifyContent: "space-between",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                  cursor: "pointer",
                   transition: "transform 0.15s ease, border-color 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#38bdf8";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border-color, #334155)";
+                  e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
                 <div>
@@ -750,19 +767,34 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                 </div>
 
                 {/* Card Action Buttons */}
-                <div style={{ display: "flex", gap: "8px", borderTop: "1px solid var(--border-color, #334155)", paddingTop: "12px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "6px", borderTop: "1px solid var(--border-color, #334155)", paddingTop: "12px", flexWrap: "wrap" }}>
+                  {/* View Details Modal Action */}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ flex: "1 1 75px", fontSize: "12px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInspectedOpportunity({ client: opportunity, details });
+                    }}
+                    title="View simplified details in enlarged window"
+                  >
+                    <span>🔍</span>
+                    <span>Details</span>
+                  </button>
+
                   {/* LOI Toggle Button */}
                   <button
                     type="button"
                     onClick={(e) => handleToggleLoi(opportunity, e)}
                     title={`LOI: ${loiStatus}. Click to toggle.`}
                     style={{
-                      flex: "1 1 90px",
+                      flex: "1 1 80px",
                       display: "inline-flex",
                       justifyContent: "center",
                       alignItems: "center",
                       gap: "5px",
-                      padding: "6px 10px",
+                      padding: "6px 8px",
                       borderRadius: "6px",
                       fontSize: "12px",
                       fontWeight: 700,
@@ -781,7 +813,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
-                    style={{ flex: "1 1 90px", fontSize: "12px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    style={{ flex: "1 1 75px", fontSize: "12px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
                     onClick={(e) => handleOpenAiDeal(opportunity, details, e)}
                   >
                     <span>🧠</span>
@@ -792,8 +824,11 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
-                    style={{ flex: "1 1 120px", fontSize: "12px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
-                    onClick={() => onOpenCreativeHub(opportunity)}
+                    style={{ flex: "1 1 100px", fontSize: "12px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenCreativeHub(opportunity);
+                    }}
                   >
                     <span>⚡</span>
                     <span>Creative Hub</span>
@@ -854,8 +889,9 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                     {/* Property & Address */}
                     <td style={{ padding: "13px 10px" }}>
                       <div
-                        style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", cursor: "pointer" }}
-                        onClick={() => setExpandedId(isExpanded ? null : opportunity.id)}
+                        style={{ fontWeight: 700, color: "var(--ink, #f8fafc)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px", textDecorationColor: "rgba(56, 189, 248, 0.4)" }}
+                        onClick={() => setInspectedOpportunity({ client: opportunity, details })}
+                        title="Click to view full details in enlarged window"
                       >
                         {details.address}
                       </div>
@@ -952,6 +988,15 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                       <div style={{ display: "inline-flex", gap: "6px" }}>
                         <button
                           type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: "4px 8px", fontSize: "11px" }}
+                          onClick={() => setInspectedOpportunity({ client: opportunity, details })}
+                          title="View simplified details in enlarged window"
+                        >
+                          🔍 Details
+                        </button>
+                        <button
+                          type="button"
                           className="btn btn-ghost btn-sm"
                           style={{ padding: "4px 8px", fontSize: "11px" }}
                           onClick={(e) => handleOpenAiDeal(opportunity, details, e)}
@@ -960,7 +1005,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                         </button>
                         <button
                           type="button"
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-primary btn-sm"
                           style={{ padding: "4px 8px", fontSize: "11px" }}
                           onClick={() => onOpenCreativeHub(opportunity)}
                         >
@@ -1279,6 +1324,61 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
             ) : null}
           </div>
         </div>
+      )}
+
+      {/* Enlarged Property Details Modal */}
+      {inspectedOpportunity && (
+        <PropertyDetailModal
+          property={{
+            id: inspectedOpportunity.client.id,
+            address: inspectedOpportunity.details.address,
+            city: inspectedOpportunity.details.city,
+            state: inspectedOpportunity.details.state,
+            zip: inspectedOpportunity.details.zip,
+            county: inspectedOpportunity.details.county,
+            latitude: inspectedOpportunity.details.latitude,
+            longitude: inspectedOpportunity.details.longitude,
+            propertyType: inspectedOpportunity.details.propertyClass,
+            bedrooms: inspectedOpportunity.details.bedrooms,
+            bathrooms: inspectedOpportunity.details.bathrooms,
+            squareFeet: inspectedOpportunity.details.sqft,
+            lotSize: inspectedOpportunity.details.lotSize,
+            yearBuilt: inspectedOpportunity.details.yearBuilt,
+            stories: inspectedOpportunity.details.stories,
+            garageSpaces: inspectedOpportunity.details.garageSpaces,
+            apn: inspectedOpportunity.details.apn,
+            estimatedValue: inspectedOpportunity.details.estimatedValue,
+            estimatedEquity: inspectedOpportunity.details.estimatedEquity,
+            equityPercent: inspectedOpportunity.details.equityPercent,
+            mortgageBalance: inspectedOpportunity.details.openMortgage,
+            estimatedRent: inspectedOpportunity.details.estimatedRent,
+            taxAssessedValue: inspectedOpportunity.details.taxAssessed,
+            lastSalePrice: inspectedOpportunity.details.lastSalePrice,
+            lastSaleDate: inspectedOpportunity.details.lastSaleDate,
+            distressIndicators: inspectedOpportunity.details.distressIndicators,
+            ownerName: inspectedOpportunity.client.contactName,
+            ownerOccupied: inspectedOpportunity.details.ownerOccupied,
+            opportunityScore: inspectedOpportunity.details.opportunityScore,
+            opportunityReasons: inspectedOpportunity.details.opportunityReasons,
+            sourceProvider: inspectedOpportunity.details.dataSource,
+            stage: inspectedOpportunity.client.stage,
+            loiStatus: getLoiStatus(inspectedOpportunity.client),
+          }}
+          onClose={() => setInspectedOpportunity(null)}
+          onExplainDeal={() => {
+            const dummyEvent = { stopPropagation: () => {} } as any;
+            handleOpenAiDeal(inspectedOpportunity.client, inspectedOpportunity.details, dummyEvent);
+          }}
+          onOpenCreativeHub={() => {
+            onOpenCreativeHub(inspectedOpportunity.client);
+          }}
+          onToggleLoi={() => {
+            const dummyEvent = { stopPropagation: () => {} } as any;
+            handleToggleLoi(inspectedOpportunity.client, dummyEvent);
+          }}
+          loiStatus={getLoiStatus(inspectedOpportunity.client)}
+          actionType="opportunity"
+        />
       )}
     </section>
   );

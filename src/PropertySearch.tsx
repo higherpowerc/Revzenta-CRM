@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { api, ApiError } from "./api";
 import type { PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, User, RegisteredProviderInfo, DistressAlertItem } from "./types";
-import { money } from "./types";
 import PropertyImage from "./PropertyImage";
+import PropertyDetailModal from "./PropertyDetailModal";
 
 interface Props {
   user: User;
@@ -45,6 +45,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Modals
+  const [inspectedProperty, setInspectedProperty] = useState<PropertyItem | null>(null);
   const [selectedPropertyForExplanation, setSelectedPropertyForExplanation] = useState<PropertyItem | null>(null);
   const [explanation, setExplanation] = useState<PropertyDealExplanation | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
@@ -878,6 +879,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
             return (
               <div
                 key={prop.id}
+                onClick={() => setInspectedProperty(prop)}
                 style={{
                   background: "var(--card-bg, #1e293b)",
                   border: "1px solid var(--border-color, #334155)",
@@ -887,6 +889,16 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
                   flexDirection: "column",
                   justifyContent: "space-between",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                  cursor: "pointer",
+                  transition: "border-color 0.15s ease, transform 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#38bdf8";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border-color, #334155)";
+                  e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
                 <div>
@@ -1000,20 +1012,40 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    style={{ flex: "1 1 90px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
-                    disabled={enrichingId === prop.id}
-                    onClick={() => handleLiveEnrich(prop)}
-                    title="Live multi-source refresh (RentCast + Attom Data Solutions)"
+                    style={{ flex: "1 1 70px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInspectedProperty(prop);
+                    }}
+                    title="View simplified details in enlarged window"
                   >
-                    <span>{enrichingId === prop.id ? "⏳" : "🔄"}</span>
-                    <span>{enrichingId === prop.id ? "Enriching..." : "Live Enrich"}</span>
+                    <span>🔍</span>
+                    <span>Details</span>
                   </button>
 
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    style={{ flex: "1 1 90px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
-                    onClick={() => handleExplainDeal(prop)}
+                    style={{ flex: "1 1 80px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    disabled={enrichingId === prop.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLiveEnrich(prop);
+                    }}
+                    title="Live multi-source refresh (RentCast + Attom Data Solutions)"
+                  >
+                    <span>{enrichingId === prop.id ? "⏳" : "🔄"}</span>
+                    <span>{enrichingId === prop.id ? "Enriching..." : "Enrich"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ flex: "1 1 75px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExplainDeal(prop);
+                    }}
                   >
                     <span>🧠</span>
                     <span>AI Deal</span>
@@ -1022,12 +1054,15 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
                   <button
                     type="button"
                     className="btn btn-primary"
-                    style={{ flex: "1 1 90px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    style={{ flex: "1 1 75px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
                     disabled={convertingId === prop.id}
-                    onClick={() => handleConvertToLead(prop)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleConvertToLead(prop);
+                    }}
                   >
                     <span>➕</span>
-                    <span>{convertingId === prop.id ? "Adding..." : "Convert"}</span>
+                    <span>{convertingId === prop.id ? "..." : "Convert"}</span>
                   </button>
                 </div>
               </div>
@@ -1197,6 +1232,66 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
             ) : null}
           </div>
         </div>
+      )}
+
+      {/* Enlarged Property Details Modal */}
+      {inspectedProperty && (
+        <PropertyDetailModal
+          property={{
+            id: inspectedProperty.id,
+            address: inspectedProperty.address_line1 + (inspectedProperty.address_line2 ? ` ${inspectedProperty.address_line2}` : ""),
+            city: inspectedProperty.city,
+            state: inspectedProperty.state,
+            zip: inspectedProperty.zip,
+            county: inspectedProperty.county,
+            latitude: inspectedProperty.latitude,
+            longitude: inspectedProperty.longitude,
+            propertyType: inspectedProperty.property_type,
+            bedrooms: inspectedProperty.bedrooms,
+            bathrooms: inspectedProperty.bathrooms,
+            squareFeet: inspectedProperty.square_feet,
+            lotSize: inspectedProperty.lot_size_sqft ? `${inspectedProperty.lot_size_sqft.toLocaleString()} sqft` : undefined,
+            yearBuilt: inspectedProperty.year_built,
+            stories: inspectedProperty.stories,
+            garageSpaces: inspectedProperty.garage_spaces,
+            apn: inspectedProperty.apn,
+            estimatedValue: inspectedProperty.estimated_value,
+            valueRangeLow: inspectedProperty.value_range_low,
+            valueRangeHigh: inspectedProperty.value_range_high,
+            estimatedEquity: inspectedProperty.estimated_equity,
+            equityPercent: inspectedProperty.equity_percent || (inspectedProperty.estimated_value > 0 ? Math.round((inspectedProperty.estimated_equity / inspectedProperty.estimated_value) * 100) : 0),
+            estimatedRent: inspectedProperty.estimated_rent,
+            mortgageBalance: inspectedProperty.mortgage_balance,
+            taxAssessedValue: inspectedProperty.tax_assessed_value,
+            lastSalePrice: inspectedProperty.last_sale_price,
+            lastSaleDate: inspectedProperty.last_sale_date,
+            isAbsenteeOwner: inspectedProperty.is_absentee_owner,
+            isVacant: inspectedProperty.is_vacant,
+            taxDelinquent: inspectedProperty.tax_delinquent,
+            isPreForeclosure: inspectedProperty.is_pre_foreclosure,
+            isForeclosure: inspectedProperty.is_foreclosure,
+            isProbate: inspectedProperty.is_probate,
+            isBankruptcy: inspectedProperty.is_bankruptcy,
+            hasLiens: inspectedProperty.has_liens,
+            hasCodeViolations: inspectedProperty.has_code_violations,
+            ownerName: inspectedProperty.owner_name,
+            opportunityScore: inspectedProperty.revzenta_opportunity_score,
+            opportunityReasons: inspectedProperty.opportunity_score_reasons,
+            sourceProvider: inspectedProperty.source_provider,
+            updatedAt: inspectedProperty.updated_at,
+          }}
+          onClose={() => setInspectedProperty(null)}
+          onExplainDeal={() => {
+            const p = inspectedProperty;
+            handleExplainDeal(p);
+          }}
+          onConvertToLead={() => {
+            const p = inspectedProperty;
+            handleConvertToLead(p);
+          }}
+          isConverting={convertingId === inspectedProperty.id}
+          actionType="search"
+        />
       )}
 
       {/* Saved Searches Drawer Modal */}
