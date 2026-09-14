@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface PropertyImageProps {
   address: string;
@@ -12,16 +12,33 @@ interface PropertyImageProps {
   satelliteHeight?: number;
 }
 
-const API_KEY = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+let globalApiKey = ((import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined) || "";
+let fetchPromise: Promise<string> | null = null;
 
-function buildStreetViewUrl(address: string, city: string, state: string, zip?: string): string {
-  const loc = encodeURIComponent(address + ', ' + city + ', ' + state + (zip ? ' ' + zip : ''));
-  return 'https://maps.googleapis.com/maps/api/streetview?size=640x360&location=' + loc + '&fov=90&pitch=0&source=outdoor&key=' + API_KEY;
+function getOrFetchApiKey(): Promise<string> {
+  if (globalApiKey) return Promise.resolve(globalApiKey);
+  if (!fetchPromise) {
+    fetchPromise = fetch('/api/public/config')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.googleMapsApiKey) {
+          globalApiKey = data.googleMapsApiKey;
+        }
+        return globalApiKey;
+      })
+      .catch(() => "");
+  }
+  return fetchPromise;
 }
 
-function buildSatelliteUrl(address: string, city: string, state: string, zip?: string, lat?: number | null, lng?: number | null): string {
+function buildStreetViewUrl(address: string, city: string, state: string, zip?: string, key?: string): string {
+  const loc = encodeURIComponent(address + ', ' + city + ', ' + state + (zip ? ' ' + zip : ''));
+  return 'https://maps.googleapis.com/maps/api/streetview?size=640x360&location=' + loc + '&fov=90&pitch=0&source=outdoor&key=' + (key || globalApiKey);
+}
+
+function buildSatelliteUrl(address: string, city: string, state: string, zip?: string, lat?: number | null, lng?: number | null, key?: string): string {
   const center = (lat != null && lng != null) ? (lat + ',' + lng) : encodeURIComponent(address + ', ' + city + ', ' + state + (zip ? ' ' + zip : ''));
-  return 'https://maps.googleapis.com/maps/api/staticmap?center=' + center + '&zoom=19&size=640x360&maptype=satellite&key=' + API_KEY;
+  return 'https://maps.googleapis.com/maps/api/staticmap?center=' + center + '&zoom=19&size=640x360&maptype=satellite&key=' + (key || globalApiKey);
 }
 
 function NoKeyPlaceholder({ height }: { height: number }) {
@@ -32,9 +49,7 @@ function NoKeyPlaceholder({ height }: { height: number }) {
       <span style={{ opacity: 0.7 }}>
         Add{' '}
         <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '4px' }}>VITE_GOOGLE_MAPS_API_KEY</code>
-        {' '}to{' '}
-        <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '4px' }}>.env</code>
-        {' '}to activate property photos
+        {' '}to environment variables to activate property photos
       </span>
     </div>
   );
@@ -70,9 +85,27 @@ function PropertyImagePanel({ src, alt, height, fallbackSrc }: { src: string; al
 }
 
 export default function PropertyImage({ address, city, state, zip, latitude, longitude, mode = 'street', streetHeight = 180, satelliteHeight = 180 }: PropertyImageProps) {
-  if (!API_KEY) return <NoKeyPlaceholder height={streetHeight} />;
-  const streetUrl = buildStreetViewUrl(address, city, state, zip);
-  const satelliteUrl = buildSatelliteUrl(address, city, state, zip, latitude, longitude);
+  const [apiKey, setApiKey] = useState(globalApiKey);
+  const [checking, setChecking] = useState(!globalApiKey);
+
+  useEffect(() => {
+    if (!globalApiKey) {
+      getOrFetchApiKey().then((k) => {
+        if (k) setApiKey(k);
+        setChecking(false);
+      });
+    } else {
+      setChecking(false);
+    }
+  }, []);
+
+  if (checking) {
+    return <ImageSkeleton height={streetHeight} />;
+  }
+
+  if (!apiKey) return <NoKeyPlaceholder height={streetHeight} />;
+  const streetUrl = buildStreetViewUrl(address, city, state, zip, apiKey);
+  const satelliteUrl = buildSatelliteUrl(address, city, state, zip, latitude, longitude, apiKey);
   if (mode === 'street') {
     return <PropertyImagePanel src={streetUrl} alt={'Street view of ' + address + ', ' + city + ', ' + state} height={streetHeight} fallbackSrc={satelliteUrl} />;
   }

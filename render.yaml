@@ -31,3 +31,5 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      - key: VITE_GOOGLE_MAPS_API_KEY
+        sync: false

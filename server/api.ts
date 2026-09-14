@@ -2895,6 +2895,11 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     }, 200);
   }
 
+  if (pathname === "/api/public/config" && method === "GET") {
+    const key = process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "";
+    return json({ ok: true, googleMapsApiKey: key });
+  }
+
   /* Wholesale Document & Transaction Hub: Public e-signature submission */
   const signContractMatch = pathname.match(/^\/api\/public\/sign-contract\/([a-zA-Z0-9_-]+)$/);
   if (signContractMatch && method === "POST") {
