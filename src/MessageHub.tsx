@@ -59,6 +59,18 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [selectedMessage, setSelectedMessage] = useState<InternalMessage | null>(null);
 
+  // Mobile layout state
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 900 : false));
+  const [mobileTab, setMobileTab] = useState<"chat" | "channels">("chat");
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(typeof window !== "undefined" ? window.innerWidth < 900 : false);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Composer State
   const [composerBody, setComposerBody] = useState("");
   const [composerChannel, setComposerChannel] = useState<string>("general");
@@ -301,6 +313,10 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
     }
 
     setComposerBody(`@${msg.senderName} `);
+    if (isMobile) {
+      setMobileTab("chat");
+      setSelectedMessage(null);
+    }
   };
 
   // Helper for role pill color
@@ -351,18 +367,31 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
   const currentChannelMeta = CHANNELS.find((c) => c.id === selectedChannel) || CHANNELS[0];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%", height: "100%", minHeight: "calc(100vh - 120px)" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: isMobile ? "12px" : "20px",
+        width: "100%",
+        maxWidth: "100%",
+        height: "100%",
+        minHeight: isMobile ? "auto" : "calc(100vh - 120px)",
+        boxSizing: "border-box",
+        overflowX: "hidden",
+      }}
+    >
       {/* Toast Notification */}
       {notification && (
         <div
           style={{
             position: "fixed",
             bottom: "24px",
-            right: "24px",
+            right: isMobile ? "14px" : "24px",
+            left: isMobile ? "14px" : undefined,
             zIndex: 9999,
             backgroundColor: notification.type === "error" ? "#ef4444" : "#10b981",
             color: "#ffffff",
-            padding: "12px 20px",
+            padding: "12px 18px",
             borderRadius: "8px",
             boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
             fontSize: "13px",
@@ -370,6 +399,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
             display: "flex",
             alignItems: "center",
             gap: "8px",
+            boxSizing: "border-box",
           }}
         >
           <span>{notification.type === "error" ? "⚠️" : "✓"}</span>
@@ -378,16 +408,16 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
       )}
 
       {/* Header Title & CRM Branding */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "28px" }}>💬</span>
-            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 800, letterSpacing: "-0.5px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px", width: "100%" }}>
+        <div style={{ minWidth: 0, flex: "1 1 240px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: isMobile ? "22px" : "28px" }}>💬</span>
+            <h1 style={{ margin: 0, fontSize: isMobile ? "20px" : "24px", fontWeight: 800, letterSpacing: "-0.5px" }}>
               Message Hub
             </h1>
             <span
               style={{
-                fontSize: "11px",
+                fontSize: "10.5px",
                 fontWeight: 700,
                 textTransform: "uppercase",
                 padding: "2px 8px",
@@ -404,18 +434,18 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
               <span>Internal CRM · {orgName}</span>
             </span>
           </div>
-          <p style={{ margin: "4px 0 0 0", color: "var(--muted)", fontSize: "13px" }}>
+          <p style={{ margin: "4px 0 0 0", color: "var(--muted)", fontSize: isMobile ? "12px" : "13px", lineHeight: "1.4" }}>
             Internal communications hub for <strong>{orgName}</strong> — private to your CRM members. All team messages, SMS threads, and notes are strictly isolated and never shared with other organizations.
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
           {stats.unreadCount > 0 && (
             <button
               type="button"
               onClick={handleMarkAllRead}
               style={{
-                padding: "8px 14px",
+                padding: isMobile ? "7px 10px" : "8px 14px",
                 borderRadius: "6px",
                 border: "1px solid var(--border)",
                 backgroundColor: "var(--panel)",
@@ -425,12 +455,14 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "6px",
+                flex: isMobile ? 1 : undefined,
               }}
               title="Mark all unread communications as read"
             >
               <span>✓✓</span>
-              <span>Mark All as Read ({stats.unreadCount})</span>
+              <span>Mark All Read ({stats.unreadCount})</span>
             </button>
           )}
 
@@ -438,7 +470,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
             type="button"
             onClick={loadData}
             style={{
-              padding: "8px 14px",
+              padding: isMobile ? "7px 10px" : "8px 14px",
               borderRadius: "6px",
               border: "1px solid var(--border)",
               backgroundColor: "var(--panel)",
@@ -448,7 +480,9 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: "6px",
+              flex: isMobile ? 1 : undefined,
             }}
             title="Refresh message feed"
           >
@@ -458,52 +492,133 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
         </div>
       </div>
 
+      {/* Mobile Top Navigation Segmented Pill (Switch between Chat Feed and Channels Sidebar) */}
+      {isMobile && (
+        <div
+          style={{
+            display: "flex",
+            backgroundColor: "var(--panel)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            padding: "4px",
+            gap: "4px",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMobileTab("chat")}
+            style={{
+              flex: 1,
+              padding: "9px 12px",
+              borderRadius: "6px",
+              border: "none",
+              backgroundColor: mobileTab === "chat" ? "var(--accent, #3b82f6)" : "transparent",
+              color: mobileTab === "chat" ? "#ffffff" : "var(--fg)",
+              fontSize: "12.5px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <span>💬</span>
+            <span>Live Chat ({filteredMessages.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("channels")}
+            style={{
+              flex: 1,
+              padding: "9px 12px",
+              borderRadius: "6px",
+              border: "none",
+              backgroundColor: mobileTab === "channels" ? "var(--accent, #3b82f6)" : "transparent",
+              color: mobileTab === "channels" ? "#ffffff" : "var(--fg)",
+              fontSize: "12.5px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <span>📁</span>
+            <span>Channels &amp; DMs</span>
+            {stats.unreadCount > 0 && (
+              <span
+                style={{
+                  fontSize: "10px",
+                  padding: "1px 5px",
+                  borderRadius: "10px",
+                  backgroundColor: mobileTab === "channels" ? "rgba(255,255,255,0.3)" : "#ef4444",
+                  color: "#ffffff",
+                }}
+              >
+                {stats.unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* KPI Stats Ribbon */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-          gap: "12px",
+          display: isMobile ? "flex" : "grid",
+          gridTemplateColumns: isMobile ? undefined : "repeat(auto-fit, minmax(170px, 1fr))",
+          overflowX: isMobile ? "auto" : undefined,
+          WebkitOverflowScrolling: "touch",
+          gap: isMobile ? "8px" : "12px",
+          paddingBottom: isMobile ? "4px" : undefined,
+          width: "100%",
+          boxSizing: "border-box",
         }}
       >
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: "14px 16px" }}>
-          <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Total Communications</div>
-          <div style={{ fontSize: "22px", fontWeight: 800, marginTop: "4px" }}>{stats.total}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>All channels combined</div>
+        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
+          <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Total Comms</div>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, marginTop: "2px" }}>{stats.total}</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>All channels combined</div>
         </div>
 
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: "14px 16px" }}>
-          <div style={{ fontSize: "11px", color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>Internal Team Chat</div>
-          <div style={{ fontSize: "22px", fontWeight: 800, color: "#3b82f6", marginTop: "4px" }}>{stats.teamChat}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Across 4 team channels</div>
+        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
+          <div style={{ fontSize: "11px", color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>Team Chat</div>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#3b82f6", marginTop: "2px" }}>{stats.teamChat}</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Across 4 team channels</div>
         </div>
 
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: "14px 16px" }}>
-          <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700, textTransform: "uppercase" }}>Client &amp; Seller SMS</div>
-          <div style={{ fontSize: "22px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>{stats.smsCount}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Inbound &amp; outbound texts</div>
+        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
+          <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700, textTransform: "uppercase" }}>Client SMS</div>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#10b981", marginTop: "2px" }}>{stats.smsCount}</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>In &amp; outbound texts</div>
         </div>
 
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: "14px 16px" }}>
+        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
           <div style={{ fontSize: "11px", color: "#8b5cf6", fontWeight: 700, textTransform: "uppercase" }}>Emails &amp; Offers</div>
-          <div style={{ fontSize: "22px", fontWeight: 800, color: "#8b5cf6", marginTop: "4px" }}>{stats.emailCount}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>PSA &amp; LOI dispatches</div>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#8b5cf6", marginTop: "2px" }}>{stats.emailCount}</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>PSA &amp; LOI dispatches</div>
         </div>
 
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: "14px 16px" }}>
-          <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700, textTransform: "uppercase" }}>Escrow &amp; Title Notes</div>
-          <div style={{ fontSize: "22px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>{stats.escrowNotes}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Two-way title coordination</div>
+        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
+          <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700, textTransform: "uppercase" }}>Escrow &amp; Title</div>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#10b981", marginTop: "2px" }}>{stats.escrowNotes}</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Two-way coordination</div>
         </div>
 
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: "14px 16px" }}>
+        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
           <div style={{ fontSize: "11px", color: stats.unreadCount > 0 ? "#f59e0b" : "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>
-            Unread / Attention
+            Attention
           </div>
-          <div style={{ fontSize: "22px", fontWeight: 800, color: stats.unreadCount > 0 ? "#f59e0b" : "var(--fg)", marginTop: "4px" }}>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: stats.unreadCount > 0 ? "#f59e0b" : "var(--fg)", marginTop: "2px" }}>
             {stats.unreadCount}
           </div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>
             {stats.unreadCount > 0 ? "Requires review" : "All caught up"}
           </div>
         </div>
@@ -512,11 +627,14 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
       {/* Main Workspace Layout (Sidebar Channels + Center Feed + Right Context Drawer) */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: selectedMessage ? "260px 1fr 340px" : "260px 1fr",
-          gap: "16px",
+          display: isMobile ? "flex" : "grid",
+          flexDirection: isMobile ? "column" : undefined,
+          gridTemplateColumns: isMobile ? undefined : selectedMessage ? "260px 1fr 340px" : "260px 1fr",
+          gap: isMobile ? "12px" : "16px",
           alignItems: "stretch",
-          minHeight: "680px",
+          minHeight: isMobile ? "auto" : "680px",
+          width: "100%",
+          boxSizing: "border-box",
         }}
       >
         {/* Left Sidebar: Channels & Streams Navigation */}
@@ -526,12 +644,49 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
             border: "1px solid var(--border)",
             borderRadius: "8px",
             padding: "16px 12px",
-            display: "flex",
+            display: isMobile && mobileTab !== "channels" ? "none" : "flex",
             flexDirection: "column",
-            gap: "20px",
-            height: "100%",
+            gap: "18px",
+            height: isMobile ? "auto" : "100%",
+            width: isMobile ? "100%" : undefined,
+            boxSizing: "border-box",
           }}
         >
+          {/* Mobile Back / View Chat Header */}
+          {isMobile && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingBottom: "10px",
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
+              <span style={{ fontSize: "13px", fontWeight: 700 }}>Select Stream or Member</span>
+              <button
+                type="button"
+                onClick={() => setMobileTab("chat")}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  backgroundColor: "var(--accent, #3b82f6)",
+                  color: "#ffffff",
+                  border: "none",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <span>Live Feed</span>
+                <span>&rarr;</span>
+              </button>
+            </div>
+          )}
+
           {/* Section: Feeds */}
           <div>
             <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", padding: "0 8px 6px" }}>
@@ -548,6 +703,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                     onClick={() => {
                       setSelectedDmUser(null);
                       setSelectedChannel(ch.id);
+                      if (isMobile) setMobileTab("chat");
                     }}
                     style={{
                       display: "flex",
@@ -608,6 +764,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                       setSelectedChannel(ch.id);
                       setComposerChannel(ch.id);
                       setComposerType("chat");
+                      if (isMobile) setMobileTab("chat");
                     }}
                     style={{
                       display: "flex",
@@ -681,6 +838,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                         setSelectedChannel("all");
                         setComposerType("chat");
                         setComposerRecipient(member.name);
+                        if (isMobile) setMobileTab("chat");
                       }}
                       style={{
                         display: "flex",
@@ -761,6 +919,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                     onClick={() => {
                       setSelectedDmUser(null);
                       setSelectedChannel(ch.id);
+                      if (isMobile) setMobileTab("chat");
                     }}
                     style={{
                       display: "flex",
@@ -839,29 +998,63 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
             backgroundColor: "var(--panel)",
             border: "1px solid var(--border)",
             borderRadius: "8px",
-            display: "flex",
+            display: isMobile && mobileTab !== "chat" ? "none" : "flex",
             flexDirection: "column",
             overflow: "hidden",
             height: "100%",
+            width: isMobile ? "100%" : undefined,
+            boxSizing: "border-box",
+            minWidth: 0,
           }}
         >
           {/* Top Channel Bar & Filters */}
           <div
             style={{
-              padding: "14px 18px",
+              padding: isMobile ? "10px 12px" : "14px 18px",
               borderBottom: "1px solid var(--border)",
               backgroundColor: "var(--bg-soft, rgba(0,0,0,0.02))",
               display: "flex",
               flexDirection: "column",
-              gap: "12px",
+              gap: isMobile ? "8px" : "12px",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
+            {/* Mobile Back Button to Channels */}
+            {isMobile && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => setMobileTab("channels")}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "5px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border)",
+                    backgroundColor: "var(--panel)",
+                    color: "var(--fg)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  <span>&larr;</span>
+                  <span>Channels &amp; Streams</span>
+                </button>
+                <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                  {filteredMessages.length} comms
+                </span>
+              </div>
+            )}
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ fontSize: "20px" }}>{selectedDmUser ? "👤" : currentChannelMeta.icon}</span>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: "1 1 auto" }}>
+                <span style={{ fontSize: isMobile ? "18px" : "20px" }}>{selectedDmUser ? "👤" : currentChannelMeta.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <h3 style={{ margin: 0, fontSize: isMobile ? "15px" : "16px", fontWeight: 700 }}>
                       {selectedDmUser ? `Direct Message: ${selectedDmUser.name}` : currentChannelMeta.name}
                     </h3>
                     {selectedDmUser && (
@@ -879,7 +1072,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                  <div style={{ fontSize: "11.5px", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "nowrap" : "normal" }}>
                     {selectedDmUser
                       ? `1-on-1 private internal conversation with ${selectedDmUser.name} (${selectedDmUser.role}) · End-to-end isolated to ${orgName}`
                       : currentChannelMeta.description}
@@ -906,33 +1099,21 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                     ✕ Return to Channels
                   </button>
                 )}
-                <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                  Showing <strong>{filteredMessages.length}</strong> communication{filteredMessages.length === 1 ? "" : "s"}
-                </span>
+                {!isMobile && (
+                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                    Showing <strong>{filteredMessages.length}</strong> communication{filteredMessages.length === 1 ? "" : "s"}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Filter Pills & Search */}
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", width: "100%", boxSizing: "border-box" }}>
               <input
                 type="text"
-                placeholder="Search messages, property address, sender..."
+                placeholder="Search messages, address, sender..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--input-bg, var(--panel))",
-                  color: "var(--fg)",
-                  fontSize: "12px",
-                  flex: "1 1 200px",
-                }}
-              />
-
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
                 style={{
                   padding: "6px 10px",
                   borderRadius: "6px",
@@ -940,6 +1121,25 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                   backgroundColor: "var(--input-bg, var(--panel))",
                   color: "var(--fg)",
                   fontSize: "12px",
+                  flex: isMobile ? "1 1 100%" : "1 1 200px",
+                  minWidth: 0,
+                  boxSizing: "border-box",
+                }}
+              />
+
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                style={{
+                  padding: "6px 8px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--input-bg, var(--panel))",
+                  color: "var(--fg)",
+                  fontSize: "12px",
+                  flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+                  minWidth: 0,
+                  boxSizing: "border-box",
                 }}
               >
                 <option value="all">All Message Types</option>
@@ -954,12 +1154,15 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                 value={directionFilter}
                 onChange={(e) => setDirectionFilter(e.target.value)}
                 style={{
-                  padding: "6px 10px",
+                  padding: "6px 8px",
                   borderRadius: "6px",
                   border: "1px solid var(--border)",
                   backgroundColor: "var(--input-bg, var(--panel))",
                   color: "var(--fg)",
                   fontSize: "12px",
+                  flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+                  minWidth: 0,
+                  boxSizing: "border-box",
                 }}
               >
                 <option value="all">All Directions</option>
@@ -984,6 +1187,8 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                     color: "var(--muted)",
                     fontSize: "11px",
                     cursor: "pointer",
+                    flex: isMobile ? "1 1 100%" : undefined,
+                    textAlign: "center",
                   }}
                 >
                   Reset Filters
@@ -997,11 +1202,13 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
             style={{
               flex: "1 1 auto",
               overflowY: "auto",
-              padding: "16px 20px",
+              padding: isMobile ? "12px 10px" : "16px 20px",
               display: "flex",
               flexDirection: "column",
-              gap: "14px",
-              maxHeight: "calc(100vh - 460px)",
+              gap: "12px",
+              maxHeight: isMobile ? "calc(100vh - 350px)" : "calc(100vh - 460px)",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             {loading ? (
@@ -1223,8 +1430,9 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                       style={{
                         display: "flex",
                         gap: "6px",
-                        justifyContent: "flex-end",
-                        marginTop: "2px",
+                        flexWrap: "wrap",
+                        justifyContent: isMobile ? "flex-start" : "flex-end",
+                        marginTop: "4px",
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -1327,18 +1535,30 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
           {/* Integrated Bottom Composer */}
           <div
             style={{
-              padding: "14px 18px",
+              padding: isMobile ? "10px 12px" : "14px 18px",
               borderTop: "1px solid var(--border)",
               backgroundColor: "var(--bg-soft, rgba(0,0,0,0.02))",
               display: "flex",
               flexDirection: "column",
               gap: "10px",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             {/* Quick Template Selector & Emojis */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, alignSelf: "center" }}>Templates:</span>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  flexWrap: isMobile ? "nowrap" : "wrap",
+                  overflowX: isMobile ? "auto" : undefined,
+                  WebkitOverflowScrolling: "touch",
+                  width: isMobile ? "100%" : "auto",
+                  paddingBottom: isMobile ? "4px" : undefined,
+                }}
+              >
+                <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, alignSelf: "center", whiteSpace: "nowrap" }}>Templates:</span>
                 {TEMPLATES.map((tmpl) => (
                   <button
                     key={tmpl.label}
@@ -1352,6 +1572,8 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                       color: "var(--fg)",
                       fontSize: "11px",
                       cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
                     }}
                   >
                     {tmpl.label}
@@ -1360,8 +1582,16 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
               </div>
 
               {/* Emoji quick bar */}
-              <div style={{ display: "flex", gap: "4px" }}>
-                {EMOJIS.slice(0, 7).map((emoji) => (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "4px",
+                  overflowX: isMobile ? "auto" : undefined,
+                  WebkitOverflowScrolling: "touch",
+                  width: isMobile ? "100%" : "auto",
+                }}
+              >
+                {EMOJIS.slice(0, isMobile ? 8 : 7).map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
@@ -1373,6 +1603,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                       backgroundColor: "transparent",
                       fontSize: "13px",
                       cursor: "pointer",
+                      flexShrink: 0,
                     }}
                     title={`Add ${emoji}`}
                   >
@@ -1394,12 +1625,15 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                   backgroundColor: "rgba(59, 130, 246, 0.08)",
                   border: "1px solid rgba(59, 130, 246, 0.25)",
                   fontSize: "12px",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  boxSizing: "border-box",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: "1 1 auto" }}>
                   <span>🔒</span>
-                  <span>
-                    Sending 1-on-1 direct message to <strong>{selectedDmUser.name}</strong> ({selectedDmUser.email}) — <em>Strictly confidential to {orgName}</em>
+                  <span style={{ fontSize: "11.5px" }}>
+                    Sending to <strong>{selectedDmUser.name}</strong> ({selectedDmUser.role}) — <em>Private to {orgName}</em>
                   </span>
                 </div>
                 <button
@@ -1414,49 +1648,56 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                     fontSize: "11px",
                     fontWeight: 600,
                     cursor: "pointer",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   ✕ Switch to Channel
                 </button>
               </div>
             ) : (
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", width: "100%", boxSizing: "border-box" }}>
                 <select
                   value={composerChannel}
                   onChange={(e) => setComposerChannel(e.target.value)}
                   style={{
-                    padding: "5px 8px",
+                    padding: "6px 8px",
                     borderRadius: "4px",
                     border: "1px solid var(--border)",
                     backgroundColor: "var(--panel)",
                     color: "var(--fg)",
                     fontSize: "12px",
                     fontWeight: 600,
+                    flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+                    minWidth: 0,
+                    boxSizing: "border-box",
                   }}
                 >
-                  <option value="general"># general (Company)</option>
-                  <option value="acquisitions"># acquisitions (Leads)</option>
-                  <option value="underwriting"># underwriting (Comps)</option>
-                  <option value="escrow"># escrow (Title &amp; Closings)</option>
+                  <option value="general"># general</option>
+                  <option value="acquisitions"># acquisitions</option>
+                  <option value="underwriting"># underwriting</option>
+                  <option value="escrow"># escrow</option>
                 </select>
 
                 <select
                   value={composerType}
                   onChange={(e) => setComposerType(e.target.value as any)}
                   style={{
-                    padding: "5px 8px",
+                    padding: "6px 8px",
                     borderRadius: "4px",
                     border: "1px solid var(--border)",
                     backgroundColor: "var(--panel)",
                     color: "var(--fg)",
                     fontSize: "12px",
+                    flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+                    minWidth: 0,
+                    boxSizing: "border-box",
                   }}
                 >
-                  <option value="chat">💬 Internal Team Chat</option>
-                  <option value="sms">📱 Outbound SMS Text</option>
-                  <option value="email">✉️ Formal Email Dispatch</option>
+                  <option value="chat">💬 Internal Chat</option>
+                  <option value="sms">📱 Outbound SMS</option>
+                  <option value="email">✉️ Formal Email</option>
                   <option value="escrow_note">🏛️ Legal Escrow Note</option>
-                  <option value="deal_alert">⚠️ Deal Contingency Alert</option>
+                  <option value="deal_alert">⚠️ Deal Alert</option>
                 </select>
 
                 {/* Direct to Internal Team Member */}
@@ -1464,16 +1705,19 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                   value={composerRecipient}
                   onChange={(e) => setComposerRecipient(e.target.value)}
                   style={{
-                    padding: "5px 8px",
+                    padding: "6px 8px",
                     borderRadius: "4px",
                     border: "1px solid var(--border)",
                     backgroundColor: "var(--panel)",
                     color: "var(--fg)",
                     fontSize: "12px",
-                    maxWidth: "180px",
+                    maxWidth: isMobile ? "none" : "180px",
+                    flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+                    minWidth: 0,
+                    boxSizing: "border-box",
                   }}
                 >
-                  <option value="">Direct / Mention Teammate...</option>
+                  <option value="">Direct / Mention...</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.name}>
                       👤 {m.name} {m.id === currentUserId ? "(You)" : ""}
@@ -1486,13 +1730,16 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                   value={composerAddress}
                   onChange={(e) => setComposerAddress(e.target.value)}
                   style={{
-                    padding: "5px 8px",
+                    padding: "6px 8px",
                     borderRadius: "4px",
                     border: "1px solid var(--border)",
                     backgroundColor: "var(--panel)",
                     color: "var(--fg)",
                     fontSize: "12px",
-                    maxWidth: "200px",
+                    maxWidth: isMobile ? "none" : "200px",
+                    flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+                    minWidth: 0,
+                    boxSizing: "border-box",
                   }}
                 >
                   <option value="">Attach Property / Deal...</option>
@@ -1511,16 +1758,25 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
             )}
 
             {/* Input Box & Send Button */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                alignItems: isMobile ? "stretch" : "flex-end",
+                flexDirection: isMobile ? "column" : "row",
+                width: "100%",
+                boxSizing: "border-box",
+              }}
+            >
               <textarea
                 placeholder={
                   selectedDmUser
-                    ? `Message ${selectedDmUser.name} privately... (Cmd/Ctrl + Enter to send)`
+                    ? `Message ${selectedDmUser.name} privately...`
                     : composerType === "sms"
-                    ? "Type SMS text message to send to homeowner/investor..."
+                    ? "Type SMS text message to send..."
                     : composerType === "escrow_note"
-                    ? "Type two-way note to title company & escrow officer..."
-                    : `Message #${composerChannel}... (Cmd/Ctrl + Enter to send)`
+                    ? "Type two-way note to title company..."
+                    : `Message #${composerChannel}...`
                 }
                 value={composerBody}
                 onChange={(e) => setComposerBody(e.target.value)}
@@ -1530,10 +1786,10 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                     handleSendMessage();
                   }
                 }}
-                rows={2}
+                rows={isMobile ? 2 : 2}
                 style={{
                   flex: 1,
-                  padding: "10px 14px",
+                  padding: "10px 12px",
                   borderRadius: "6px",
                   border: "1px solid var(--border)",
                   backgroundColor: "var(--input-bg, var(--panel))",
@@ -1542,6 +1798,8 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                   resize: "none",
                   outline: "none",
                   fontFamily: "inherit",
+                  width: "100%",
+                  boxSizing: "border-box",
                 }}
               />
 
@@ -1562,8 +1820,11 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                   whiteSpace: "nowrap",
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "6px",
                   height: "44px",
+                  width: isMobile ? "100%" : "auto",
+                  boxSizing: "border-box",
                 }}
               >
                 <span>{sending ? "Sending..." : "Transmit"}</span>
@@ -1575,162 +1836,369 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
 
         {/* Right Drawer: Selected Deal & Contact Context Panel */}
         {selectedMessage && (
-          <div
-            style={{
-              backgroundColor: "var(--panel)",
-              border: "1px solid var(--border)",
-              borderRadius: "8px",
-              padding: "18px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "16px",
-              height: "100%",
-              overflowY: "auto",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "10px" }}>
-              <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--fg)" }}>
-                Communication Context
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedMessage(null)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--muted)",
-                  fontSize: "16px",
-                  cursor: "pointer",
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Message Details */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
-              <div>
-                <span style={{ color: "var(--muted)" }}>Sender:</span>{" "}
-                <strong>{selectedMessage.senderName}</strong> ({selectedMessage.senderRole})
-              </div>
-              {selectedMessage.recipientName && (
-                <div>
-                  <span style={{ color: "var(--muted)" }}>Recipient:</span>{" "}
-                  <strong>{selectedMessage.recipientName}</strong>
-                </div>
-              )}
-              <div>
-                <span style={{ color: "var(--muted)" }}>Channel:</span>{" "}
-                <strong>#{selectedMessage.channel}</strong>
-              </div>
-              <div>
-                <span style={{ color: "var(--muted)" }}>Type:</span>{" "}
-                <strong>{selectedMessage.messageType}</strong> ({selectedMessage.direction})
-              </div>
-              <div>
-                <span style={{ color: "var(--muted)" }}>Sent:</span>{" "}
-                <strong>{new Date(selectedMessage.createdAt).toLocaleString()}</strong>
-              </div>
-            </div>
-
-            {/* Linked Property Card */}
-            {selectedMessage.propertyAddress && (
+          isMobile ? (
+            /* Mobile Modal Drawer Overlay */
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.65)",
+                backdropFilter: "blur(3px)",
+                zIndex: 9999,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+                padding: "12px",
+                boxSizing: "border-box",
+              }}
+              onClick={() => setSelectedMessage(null)}
+            >
               <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  padding: "14px",
-                  borderRadius: "8px",
-                  backgroundColor: "var(--bg-soft, rgba(0,0,0,0.03))",
+                  backgroundColor: "var(--panel)",
                   border: "1px solid var(--border)",
+                  borderRadius: "14px",
+                  padding: "18px 16px",
                   display: "flex",
                   flexDirection: "column",
-                  gap: "8px",
+                  gap: "14px",
+                  width: "100%",
+                  maxWidth: "480px",
+                  maxHeight: "85vh",
+                  overflowY: "auto",
+                  boxShadow: "0 -8px 32px rgba(0,0,0,0.35)",
+                  boxSizing: "border-box",
                 }}
               >
-                <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--accent, #3b82f6)" }}>
-                  Linked Property Deal
-                </div>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--fg)" }}>
-                  {selectedMessage.propertyAddress}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "10px" }}>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--fg)" }}>
+                    Communication Context
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMessage(null)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--muted)",
+                      fontSize: "18px",
+                      cursor: "pointer",
+                      padding: "4px 8px",
+                    }}
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                {(() => {
-                  const tx = transactions.find((t) => t.propertyAddress === selectedMessage.propertyAddress);
-                  if (tx) {
+                {/* Message Details */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+                  <div>
+                    <span style={{ color: "var(--muted)" }}>Sender:</span>{" "}
+                    <strong>{selectedMessage.senderName}</strong> ({selectedMessage.senderRole})
+                  </div>
+                  {selectedMessage.recipientName && (
+                    <div>
+                      <span style={{ color: "var(--muted)" }}>Recipient:</span>{" "}
+                      <strong>{selectedMessage.recipientName}</strong>
+                    </div>
+                  )}
+                  <div>
+                    <span style={{ color: "var(--muted)" }}>Channel:</span>{" "}
+                    <strong>#{selectedMessage.channel}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "var(--muted)" }}>Type:</span>{" "}
+                    <strong>{selectedMessage.messageType}</strong> ({selectedMessage.direction})
+                  </div>
+                  <div>
+                    <span style={{ color: "var(--muted)" }}>Sent:</span>{" "}
+                    <strong>{new Date(selectedMessage.createdAt).toLocaleString()}</strong>
+                  </div>
+                </div>
+
+                {/* Linked Property Card */}
+                {selectedMessage.propertyAddress && (
+                  <div
+                    style={{
+                      padding: "12px",
+                      borderRadius: "8px",
+                      backgroundColor: "var(--bg-soft, rgba(0,0,0,0.03))",
+                      border: "1px solid var(--border)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--accent, #3b82f6)" }}>
+                      Linked Property Deal
+                    </div>
+                    <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--fg)" }}>
+                      {selectedMessage.propertyAddress}
+                    </div>
+
+                    {(() => {
+                      const tx = transactions.find((t) => t.propertyAddress === selectedMessage.propertyAddress);
+                      if (tx) {
+                        return (
+                          <div style={{ fontSize: "11.5px", color: "var(--muted)", display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <div>Purchase Price: <strong style={{ color: "var(--fg)" }}>${tx.purchasePrice.toLocaleString()}</strong></div>
+                            {tx.assignmentFee > 0 && (
+                              <div>Assignment Fee: <strong style={{ color: "#a855f7" }}>${tx.assignmentFee.toLocaleString()}</strong></div>
+                            )}
+                            <div>Status: <strong style={{ textTransform: "uppercase" }}>{tx.status}</strong></div>
+                            <div>Title Company: <strong>{tx.titleCompanyName || "Escrow"}</strong></div>
+                            {onNavigateToTransaction && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedMessage(null);
+                                  onNavigateToTransaction(tx.id);
+                                }}
+                                style={{
+                                  marginTop: "6px",
+                                  padding: "7px 10px",
+                                  borderRadius: "4px",
+                                  backgroundColor: "var(--accent, #3b82f6)",
+                                  color: "#ffffff",
+                                  border: "none",
+                                  fontSize: "11.5px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  width: "100%",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Open in Title Hub &rarr;
+                              </button>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>
+                          Property lead active in CRM pipeline.
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Quick Actions in Context */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "auto" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickReply(selectedMessage)}
+                    style={{
+                      padding: "9px 12px",
+                      borderRadius: "6px",
+                      backgroundColor: "var(--accent, #3b82f6)",
+                      border: "none",
+                      color: "#ffffff",
+                      fontSize: "12.5px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    💬 Pre-fill Reply in Composer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePin(selectedMessage)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      backgroundColor: "var(--panel)",
+                      border: "1px solid var(--border)",
+                      color: selectedMessage.isPinned ? "#f59e0b" : "var(--fg)",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    {selectedMessage.isPinned ? "★ Unpin Message" : "☆ Pin Message"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMessage(null)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      backgroundColor: "transparent",
+                      border: "1px solid var(--border)",
+                      color: "var(--muted)",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Desktop 3rd Column */
+            <div
+              style={{
+                backgroundColor: "var(--panel)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                padding: "18px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                height: "100%",
+                overflowY: "auto",
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "10px" }}>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--fg)" }}>
+                  Communication Context
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMessage(null)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--muted)",
+                    fontSize: "16px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Message Details */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+                <div>
+                  <span style={{ color: "var(--muted)" }}>Sender:</span>{" "}
+                  <strong>{selectedMessage.senderName}</strong> ({selectedMessage.senderRole})
+                </div>
+                {selectedMessage.recipientName && (
+                  <div>
+                    <span style={{ color: "var(--muted)" }}>Recipient:</span>{" "}
+                    <strong>{selectedMessage.recipientName}</strong>
+                  </div>
+                )}
+                <div>
+                  <span style={{ color: "var(--muted)" }}>Channel:</span>{" "}
+                  <strong>#{selectedMessage.channel}</strong>
+                </div>
+                <div>
+                  <span style={{ color: "var(--muted)" }}>Type:</span>{" "}
+                  <strong>{selectedMessage.messageType}</strong> ({selectedMessage.direction})
+                </div>
+                <div>
+                  <span style={{ color: "var(--muted)" }}>Sent:</span>{" "}
+                  <strong>{new Date(selectedMessage.createdAt).toLocaleString()}</strong>
+                </div>
+              </div>
+
+              {/* Linked Property Card */}
+              {selectedMessage.propertyAddress && (
+                <div
+                  style={{
+                    padding: "14px",
+                    borderRadius: "8px",
+                    backgroundColor: "var(--bg-soft, rgba(0,0,0,0.03))",
+                    border: "1px solid var(--border)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--accent, #3b82f6)" }}>
+                    Linked Property Deal
+                  </div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--fg)" }}>
+                    {selectedMessage.propertyAddress}
+                  </div>
+
+                  {(() => {
+                    const tx = transactions.find((t) => t.propertyAddress === selectedMessage.propertyAddress);
+                    if (tx) {
+                      return (
+                        <div style={{ fontSize: "11.5px", color: "var(--muted)", display: "flex", flexDirection: "column", gap: "4px" }}>
+                          <div>Purchase Price: <strong style={{ color: "var(--fg)" }}>${tx.purchasePrice.toLocaleString()}</strong></div>
+                          {tx.assignmentFee > 0 && (
+                            <div>Assignment Fee: <strong style={{ color: "#a855f7" }}>${tx.assignmentFee.toLocaleString()}</strong></div>
+                          )}
+                          <div>Status: <strong style={{ textTransform: "uppercase" }}>{tx.status}</strong></div>
+                          <div>Title Company: <strong>{tx.titleCompanyName || "Escrow"}</strong></div>
+                          {onNavigateToTransaction && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateToTransaction(tx.id)}
+                              style={{
+                                marginTop: "6px",
+                                padding: "6px 10px",
+                                borderRadius: "4px",
+                                backgroundColor: "var(--accent, #3b82f6)",
+                                color: "#ffffff",
+                                border: "none",
+                                fontSize: "11.5px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Open in Title Hub &rarr;
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
                     return (
-                      <div style={{ fontSize: "11.5px", color: "var(--muted)", display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <div>Purchase Price: <strong style={{ color: "var(--fg)" }}>${tx.purchasePrice.toLocaleString()}</strong></div>
-                        {tx.assignmentFee > 0 && (
-                          <div>Assignment Fee: <strong style={{ color: "#a855f7" }}>${tx.assignmentFee.toLocaleString()}</strong></div>
-                        )}
-                        <div>Status: <strong style={{ textTransform: "uppercase" }}>{tx.status}</strong></div>
-                        <div>Title Company: <strong>{tx.titleCompanyName || "Escrow"}</strong></div>
-                        {onNavigateToTransaction && (
-                          <button
-                            type="button"
-                            onClick={() => onNavigateToTransaction(tx.id)}
-                            style={{
-                              marginTop: "6px",
-                              padding: "6px 10px",
-                              borderRadius: "4px",
-                              backgroundColor: "var(--accent, #3b82f6)",
-                              color: "#ffffff",
-                              border: "none",
-                              fontSize: "11.5px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Open in Title Hub &rarr;
-                          </button>
-                        )}
+                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>
+                        Property lead active in CRM pipeline.
                       </div>
                     );
-                  }
-                  return (
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>
-                      Property lead active in CRM pipeline.
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
+                  })()}
+                </div>
+              )}
 
-            {/* Quick Actions in Context */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "auto" }}>
-              <button
-                type="button"
-                onClick={() => handleQuickReply(selectedMessage)}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  backgroundColor: "var(--panel)",
-                  border: "1px solid var(--border)",
-                  color: "var(--fg)",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                💬 Pre-fill Reply in Composer
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTogglePin(selectedMessage)}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  backgroundColor: "var(--panel)",
-                  border: "1px solid var(--border)",
-                  color: selectedMessage.isPinned ? "#f59e0b" : "var(--fg)",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                {selectedMessage.isPinned ? "★ Unpin Message" : "☆ Pin Message"}
-              </button>
+              {/* Quick Actions in Context */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "auto" }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickReply(selectedMessage)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--panel)",
+                    border: "1px solid var(--border)",
+                    color: "var(--fg)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  💬 Pre-fill Reply in Composer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTogglePin(selectedMessage)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--panel)",
+                    border: "1px solid var(--border)",
+                    color: selectedMessage.isPinned ? "#f59e0b" : "var(--fg)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {selectedMessage.isPinned ? "★ Unpin Message" : "☆ Pin Message"}
+                </button>
+              </div>
             </div>
-          </div>
+          )
         )}
       </div>
     </div>
