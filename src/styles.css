@@ -1317,18 +1317,63 @@ legend.field-label {
 }
 
 .brand-vertical {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  align-items: stretch;
+  width: 100%;
+  gap: 6px;
   text-align: left;
+  background: none;
+  border: none;
+  padding: 0 0 4px 0;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.brand-logo-wrap {
+  width: 100%;
+  box-sizing: border-box;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-theme="dark"] .brand-logo-wrap {
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.brand-vertical:hover .brand-logo-wrap {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: auto;
+  max-height: 54px;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
 }
 
 .brand-workspace-block {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   margin-top: 2px;
+  padding: 0 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .brand-workspace-name {
@@ -1337,6 +1382,9 @@ legend.field-label {
   color: var(--fg, var(--ink));
   letter-spacing: -0.01em;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tabs {
@@ -1540,7 +1588,8 @@ legend.field-label {
 }
 
 .nav .brand {
-  padding: 4px 6px 2px;
+  padding: 0 0 4px 0;
+  width: 100%;
 }
 
 .nav .brand-text {
@@ -1852,6 +1901,22 @@ legend.field-label {
     justify-content: space-between;
     width: 100%;
     gap: 8px;
+  }
+
+  .nav .brand-vertical {
+    width: auto;
+    max-width: 175px;
+    flex: 0 1 175px;
+    padding: 0;
+  }
+
+  .nav .brand-logo-wrap {
+    padding: 4px 10px;
+    border-radius: 14px;
+  }
+
+  .nav .brand-logo-img {
+    max-height: 32px;
   }
 
   .mobile-nav-tools {

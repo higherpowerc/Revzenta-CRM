@@ -803,61 +803,20 @@ export default function App() {
                 setMobileMenuOpen(false);
               }}
               aria-label="Go to dashboard"
-              style={{
-                display: "inline-flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                background: "none",
-                border: "none",
-                padding: "2px 6px",
-                cursor: "pointer",
-                textAlign: "left",
-                gap: "3px",
-              }}
             >
-              <img
-                src={revzentaLogo}
-                alt="Revzenta"
-                className="brand-logo-img"
-                style={{
-                  height: "36px",
-                  width: "auto",
-                  objectFit: "contain",
-                  display: "block",
-                }}
-              />
+              <div className="brand-logo-wrap">
+                <img
+                  src={revzentaLogo}
+                  alt="Revzenta"
+                  className="brand-logo-img"
+                />
+              </div>
               {(orgName || isOwner) && (
-                <div
-                  className="brand-workspace-block"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    marginTop: "2px",
-                  }}
-                >
-                  <span
-                    className="brand-workspace-name"
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      color: "var(--fg, var(--ink))",
-                      letterSpacing: "-0.01em",
-                      lineHeight: 1.2,
-                    }}
-                  >
+                <div className="brand-workspace-block">
+                  <span className="brand-workspace-name">
                     {orgName || (isOwner ? "Revzenta HQ" : "Workspace")}
                   </span>
-                  <span
-                    className="brand-sub"
-                    style={{
-                      fontSize: "9px",
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      padding: "1px 6px",
-                      borderRadius: "999px",
-                    }}
-                  >
+                  <span className="brand-sub">
                     CRM
                   </span>
                 </div>
