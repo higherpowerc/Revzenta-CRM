@@ -421,6 +421,7 @@ export async function convertPropertyToLead(
   const estVal = Number(prop.estimated_value) || 0;
   const estEq = Number(prop.estimated_equity) || 0;
   const openMortgage = Number(prop.mortgage_balance) || Math.max(0, estVal - estEq);
+  const equityPct = estVal > 0 ? Math.round((estEq / estVal) * 100) : (Number(prop.equity_percent) || 0);
 
   if (estVal > 0) {
     customFields.push({ name: "Estimated Value", value: `$${Math.round(estVal).toLocaleString()}` });
@@ -428,8 +429,17 @@ export async function convertPropertyToLead(
   if (estEq > 0) {
     customFields.push({ name: "Estimated Equity", value: `$${Math.round(estEq).toLocaleString()}` });
   }
+  if (equityPct > 0) {
+    customFields.push({ name: "Equity Percent", value: `${equityPct}%` });
+  }
   if (openMortgage > 0) {
     customFields.push({ name: "Open Mortgage Balance", value: `$${Math.round(openMortgage).toLocaleString()}` });
+  }
+  if (prop.estimated_rent != null && Number(prop.estimated_rent) > 0) {
+    customFields.push({ name: "Estimated Rent", value: `$${Math.round(Number(prop.estimated_rent)).toLocaleString()}/mo` });
+  }
+  if (prop.value_range_low != null && prop.value_range_high != null && Number(prop.value_range_low) > 0 && Number(prop.value_range_high) > 0) {
+    customFields.push({ name: "Valuation Range", value: `$${Math.round(Number(prop.value_range_low)).toLocaleString()} - $${Math.round(Number(prop.value_range_high)).toLocaleString()}` });
   }
   if (prop.bedrooms != null && Number(prop.bedrooms) > 0) {
     customFields.push({ name: "Bedrooms", value: String(prop.bedrooms) });
@@ -457,6 +467,9 @@ export async function convertPropertyToLead(
   }
   if (prop.stories != null && Number(prop.stories) > 0) {
     customFields.push({ name: "Stories", value: String(prop.stories) });
+  }
+  if (prop.garage_spaces != null && Number(prop.garage_spaces) > 0) {
+    customFields.push({ name: "Garage Spaces", value: String(prop.garage_spaces) });
   }
   if (prop.last_sale_price != null && Number(prop.last_sale_price) > 0) {
     customFields.push({ name: "Last Sale Price", value: `$${Math.round(prop.last_sale_price).toLocaleString()}` });
@@ -498,6 +511,24 @@ export async function convertPropertyToLead(
   if (prop.is_absentee_owner != null) {
     customFields.push({ name: "Owner Occupied", value: prop.is_absentee_owner ? "No (Absentee)" : "Yes" });
   }
+  if (prop.source_provider) {
+    customFields.push({ name: "Data Source", value: String(prop.source_provider) });
+  }
+  if (prop.latitude != null) {
+    customFields.push({ name: "Latitude", value: String(prop.latitude) });
+  }
+  if (prop.longitude != null) {
+    customFields.push({ name: "Longitude", value: String(prop.longitude) });
+  }
+  if (prop.is_absentee_owner) customFields.push({ name: "Is Absentee", value: "true" });
+  if (prop.is_vacant) customFields.push({ name: "Is Vacant", value: "true" });
+  if (prop.tax_delinquent) customFields.push({ name: "Is Tax Delinquent", value: "true" });
+  if (prop.is_pre_foreclosure) customFields.push({ name: "Is Pre-Foreclosure", value: "true" });
+  if (prop.is_foreclosure) customFields.push({ name: "Is Foreclosure", value: "true" });
+  if (prop.is_probate) customFields.push({ name: "Is Probate", value: "true" });
+  if (prop.is_bankruptcy) customFields.push({ name: "Is Bankruptcy", value: "true" });
+  if (prop.has_liens) customFields.push({ name: "Has Liens", value: "true" });
+  if (prop.has_code_violations) customFields.push({ name: "Has Code Violations", value: "true" });
 
   // 3. Duplicate Detection: If lead already exists, update its custom fields & specs with full property data
   const cleanAddr = prop.address_line1.trim().toLowerCase();

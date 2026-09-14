@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, beforeAll } from "bun:test";
+import { describe, expect, it, beforeAll } from "bun:test";
 import { db } from "../server/db";
 import { searchProperties, convertPropertyToLead, type PropertyRow } from "../server/propertySearch";
 import {
@@ -116,11 +116,26 @@ describe("Property Search & Saved Searches Engine", () => {
       expect(res1.duplicate).toBe(false);
       expect(res1.clientId).toBeGreaterThan(0);
 
-      // Verify client was added to clients table
+      // Verify client was added to clients table with all property custom fields
       const client = db.query("SELECT * FROM clients WHERE id = ?").get(res1.clientId) as any;
       expect(client.address).toBe("101 Desert View Rd");
       expect(client.stage).toBe("Prospect");
       expect(client.deal_value).toBe(450000);
+
+      const customFields = JSON.parse(client.custom_fields || "[]");
+      const fieldNames = customFields.map((f: any) => f.name);
+      expect(fieldNames).toContain("Estimated Value");
+      expect(fieldNames).toContain("Estimated Equity");
+      expect(fieldNames).toContain("Equity Percent");
+      expect(fieldNames).toContain("Open Mortgage Balance");
+      expect(fieldNames).toContain("Bedrooms");
+      expect(fieldNames).toContain("Bathrooms");
+      expect(fieldNames).toContain("Square Footage");
+      expect(fieldNames).toContain("Year Built");
+      expect(fieldNames).toContain("Property Class");
+      expect(fieldNames).toContain("APN");
+      expect(fieldNames).toContain("Opportunity Score");
+      expect(fieldNames).toContain("Distress Indicators");
 
       // Second conversion of the same property: duplicate detected
       const res2 = await convertPropertyToLead(testOrgId, prop.id);
