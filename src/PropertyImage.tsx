@@ -12,7 +12,8 @@ interface PropertyImageProps {
   satelliteHeight?: number;
 }
 
-let globalApiKey = ((import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined) || "";
+const DEFAULT_MAPS_KEY = "AIzaSyCHFAvRTepznvgaeL_2O2JqPk4DhtzNugE";
+let globalApiKey = ((import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined) || DEFAULT_MAPS_KEY;
 let fetchPromise: Promise<string> | null = null;
 
 function getOrFetchApiKey(): Promise<string> {

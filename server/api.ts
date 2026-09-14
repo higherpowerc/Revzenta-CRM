@@ -2896,7 +2896,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
   }
 
   if (pathname === "/api/public/config" && method === "GET") {
-    const key = process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "";
+    const key = process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "AIzaSyCHFAvRTepznvgaeL_2O2JqPk4DhtzNugE";
     return json({ ok: true, googleMapsApiKey: key });
   }
 
