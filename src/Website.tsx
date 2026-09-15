@@ -723,69 +723,61 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
           </div>
 
           <div className="rw-pricing-grid">
-            {/* Tier 1: Starter */}
+            {/* Plan 1: Solo */}
             <div className="rw-price-card">
-              <h3 className="rw-price-title">Starter Wholesaler</h3>
-              <p className="rw-price-desc">Ideal for solo dealmakers launching their wholesale business.</p>
+              <h3 className="rw-price-title">Solo</h3>
+              <p className="rw-price-desc">Operate without a team. Full power — single seat.</p>
               <div className="rw-price-amount">
-                ${billingCycle === "annual" ? "19.99" : "24.99"}
+                ${billingCycle === "annual" ? "48" : "60"}
                 <span>/ month</span>
               </div>
+              {billingCycle === "annual" && (
+                <p style={{ fontSize: "12px", color: "var(--rw-primary)", fontWeight: 600, marginTop: "-16px", marginBottom: "16px" }}>
+                  Billed annually — save $144/yr
+                </p>
+              )}
               <ul className="rw-price-features">
-                <li><span>✓</span> Unlimited pipeline leads & contacts</li>
-                <li><span>✓</span> Inbound Webhook lead ingestion</li>
-                <li><span>✓</span> PropStream CSV &amp; BatchLeads ingestion</li>
-                <li><span>✓</span> Cash buyers directory & criteria tagging</li>
-                <li><span>✓</span> Daily task management & reminders</li>
-                <li><span>✓</span> Dark / Light mode adaptive UI</li>
+                <li><span>✓</span> Single seat</li>
+                <li><span>✓</span> Full pipeline leads & contacts</li>
+                <li><span>✓</span> Intelligent Search & Revzenta Opportunity Scores</li>
+                <li><span>✓</span> Hunters Hub Underwriting & Deal Calculator</li>
+                <li><span>✓</span> Hot List & saved deals</li>
+                <li><span>✓</span> PSA HUB & Contract Dispatch</li>
+                <li><span>✓</span> Assignments Hub with digital e-signatures</li>
+                <li><span>✓</span> Title Hub & Escrow tracking</li>
+                <li><span>✓</span> Investors Hub & Cash Buyer matching</li>
               </ul>
-              <button type="button" className="btn btn-outline" style={{ width: "100%" }} onClick={() => onLaunchApp("starter")}>
+              <button type="button" className="btn btn-outline" style={{ width: "100%" }} onClick={() => onLaunchApp("solo")}>
                 Get Started
               </button>
             </div>
 
-            {/* Tier 2: Pro (Popular) */}
+            {/* Plan 2: Team (Popular) */}
             <div className="rw-price-card rw-price-popular">
               <div className="rw-popular-badge">Most Popular</div>
-              <h3 className="rw-price-title">Pro Dealmaker</h3>
-              <p className="rw-price-desc">For active wholesalers closing multiple contracts every month.</p>
+              <h3 className="rw-price-title">Team</h3>
+              <p className="rw-price-desc">Operate with a team. Multi-seat collaboration built for scale.</p>
               <div className="rw-price-amount">
-                ${billingCycle === "annual" ? "47.99" : "59.99"}
+                ${billingCycle === "annual" ? "79.20" : "99"}
                 <span>/ month</span>
               </div>
+              {billingCycle === "annual" && (
+                <p style={{ fontSize: "12px", color: "var(--rw-primary)", fontWeight: 600, marginTop: "-16px", marginBottom: "16px" }}>
+                  Billed annually — save $237.60/yr
+                </p>
+              )}
               <ul className="rw-price-features">
-                <li><span>✓</span> <strong>Everything in Starter</strong></li>
-                <li><span>✓</span> 1-Click RentCast property specs & AVM</li>
-                <li><span>✓</span> Automated Buy Box Matcher scoring</li>
-                <li><span>✓</span> Document & Transaction Hub</li>
-                <li><span>✓</span> Digital e-signatures for PSA & Assignment</li>
-                <li><span>✓</span> Inspection & EMD countdown clocks</li>
-                <li><span>✓</span> Shared Title Company Escrow Portal</li>
-              </ul>
-              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => onLaunchApp("pro")}>
-                Start Pro Plan
-              </button>
-            </div>
-
-            {/* Tier 3: Scale */}
-            <div className="rw-price-card">
-              <h3 className="rw-price-title">Scale & Brokerage</h3>
-              <p className="rw-price-desc">For acquisitions teams, dispo reps, and high-volume brokerages.</p>
-              <div className="rw-price-amount">
-                ${billingCycle === "annual" ? "63.20" : "79"}
-                <span>/ month</span>
-              </div>
-              <ul className="rw-price-features">
-                <li><span>✓</span> <strong>Everything in Pro</strong></li>
-                <li><span>✓</span> Multi-seat team accounts & permissions</li>
-                <li><span>✓</span> Role-based tab controls (Acquisitions vs Dispo)</li>
-                <li><span>✓</span> Custom state contract templates & riders</li>
-                <li><span>✓</span> Priority API rate limits</li>
-                <li><span>✓</span> Dedicated onboarding specialist</li>
+                <li><span>✓</span> <strong>Everything in Solo</strong></li>
+                <li><span>✓</span> Multi-seat team collaboration</li>
+                <li><span>✓</span> Granular role-based tab controls</li>
+                <li><span>✓</span> Acquisitions vs. Dispositions team routing</li>
+                <li><span>✓</span> Team deal assignment & audit logs</li>
+                <li><span>✓</span> Shared company contracts & wholesale templates</li>
+                <li><span>✓</span> Dedicated team onboarding</li>
                 <li><span>✓</span> 24/7 Priority support</li>
               </ul>
-              <button type="button" className="btn btn-outline" style={{ width: "100%" }} onClick={() => onLaunchApp("scale")}>
-                Contact Sales
+              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => onLaunchApp("team")}>
+                Start Team Plan
               </button>
             </div>
           </div>
