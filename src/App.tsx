@@ -479,7 +479,7 @@ export default function App() {
         case "contracts": return "Deals & Contracts";
         case "sold": return "Sold Hub";
         case "messages": return "Message Hub";
-        case "buybox": return "Buy Box";
+        case "buybox": return "Investors Hub";
         case "clients": return "Investors";
         case "connections": return "Connections";
         case "tasks": return "Tasks";
@@ -533,7 +533,7 @@ export default function App() {
         case "contracts": return "📄";
         case "sold": return "🏆";
         case "messages": return "💬";
-        case "buybox": return "🎯";
+        case "buybox": return "💼";
         case "clients": return "💼";
         case "connections": return "🔌";
         case "tasks": return "📋";
@@ -1113,10 +1113,12 @@ export default function App() {
                 </button>
               </>
             ) : isWholesale ? (
-              /* Wholesale Vertical CRM Menu in exact user requested order:
-                 (Dashboard, Properties, Offers Repository, Transaction Hub, Buy Box, Investors, Connections, Tasks, Support, Settings) */
+              /* Wholesale Vertical CRM Menu organized in clean functional sections (like the Owner Cockpit) */
               <>
-                {/* 1. Dashboard */}
+                {/* 1. Overview & Communications */}
+                <div className="nav-section-title">
+                  <span>Overview &amp; Comms</span>
+                </div>
                 {canSeeTab("dashboard") && (
                   <button
                     className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
@@ -1131,7 +1133,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* Message Hub */}
                 <button
                   className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
                   onClick={() => {
@@ -1144,7 +1145,10 @@ export default function App() {
                   <span>Message Hub</span>
                 </button>
 
-                {/* 2. Property Search */}
+                {/* 2. Acquisitions & Pipeline */}
+                <div className="nav-section-title">
+                  <span>Acquisitions &amp; Pipeline</span>
+                </div>
                 <button
                   className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
                   onClick={() => {
@@ -1157,7 +1161,6 @@ export default function App() {
                   <span>Property Search</span>
                 </button>
 
-                {/* 3. Opportunities */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "opportunities" ? "tab active" : "tab"}
@@ -1175,7 +1178,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 4. Creative Hub */}
                 {canSeeTab("clients") && (
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
@@ -1193,7 +1195,10 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 4. Offers Repository (Moved above Title Hub) */}
+                {/* 3. Transactions & Closing */}
+                <div className="nav-section-title">
+                  <span>Transactions &amp; Closing</span>
+                </div>
                 {canSeeTab("offers") && (
                   <button
                     className={effectiveViewFinal === "offers" ? "tab active" : "tab"}
@@ -1213,7 +1218,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 5. Title Hub */}
                 {canSeeTab("documents") && (
                   <button
                     className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
@@ -1233,7 +1237,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 6. Sold Hub */}
                 {canSeeTab("documents") && (
                   <button
                     className={effectiveViewFinal === "sold" ? "tab active" : "tab"}
@@ -1253,7 +1256,10 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 5. Investors & Buy Box (merged) */}
+                {/* 4. Investor Network */}
+                <div className="nav-section-title">
+                  <span>Investor Network</span>
+                </div>
                 {(canSeeTab("buybox") || canSeeTab("investors")) && (
                   <button
                     className={(effectiveViewFinal === "buybox" || effectiveViewFinal === "clients" || effectiveViewFinal === "buyers") ? "tab active" : "tab"}
@@ -1261,11 +1267,11 @@ export default function App() {
                       setView("buybox");
                       setMobileMenuOpen(false);
                     }}
-                    title={hasTierAccess(effectiveTier, "buybox") ? "Investor network, buy box criteria matching, and quick buyer list" : "Investors & Buy Box (Pro & Scale feature)"}
+                    title={hasTierAccess(effectiveTier, "buybox") ? "Investor network, buy box criteria matching, and quick buyer list" : "Investors Hub (Pro & Scale feature)"}
                   >
                     <span className="tab-icon">💼</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
-                      <span>Investors & Buy Box</span>
+                      <span>Investors Hub</span>
                       {!hasTierAccess(effectiveTier, "buybox") && (
                         <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
                       )}
@@ -1273,7 +1279,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 7. Connections */}
                 {canSeeTab("connections") && (
                   <button
                     className={effectiveViewFinal === "connections" ? "tab active" : "tab"}
@@ -1288,7 +1293,10 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 8. Tasks */}
+                {/* 5. Operations & Compliance */}
+                <div className="nav-section-title">
+                  <span>Operations &amp; Compliance</span>
+                </div>
                 {canSeeTab("tasks") && (
                   <button
                     className={effectiveViewFinal === "tasks" ? "tab active" : "tab"}
@@ -1303,7 +1311,20 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 9. Support */}
+                {(canSeeTab("settings") || canSeeTab("clients")) && (
+                  <button
+                    className={effectiveViewFinal === "compliance" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setView("compliance");
+                      setMobileMenuOpen(false);
+                    }}
+                    title="TCPA DNC compliance, non-agency disclosures, and legal safeguards"
+                  >
+                    <span className="tab-icon">🛡️</span>
+                    <span>Compliance &amp; DNC</span>
+                  </button>
+                )}
+
                 {canSeeTab("support") && (
                   <button
                     className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}
@@ -1354,7 +1375,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 10. Settings */}
                 {canSeeTab("settings") && (
                   <button
                     className={effectiveViewFinal === "settings" ? "tab active" : "tab"}
@@ -1368,25 +1388,14 @@ export default function App() {
                     <span>Settings</span>
                   </button>
                 )}
-
-                {/* 11. Compliance & DNC (Under Settings) */}
-                {(canSeeTab("settings") || canSeeTab("clients")) && (
-                  <button
-                    className={effectiveViewFinal === "compliance" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setView("compliance");
-                      setMobileMenuOpen(false);
-                    }}
-                    title="TCPA DNC compliance, non-agency disclosures, and legal safeguards"
-                  >
-                    <span className="tab-icon">🛡️</span>
-                    <span>Compliance &amp; DNC</span>
-                  </button>
-                )}
               </>
             ) : (
               /* Tenant or Preview Business Type CRM */
               <>
+                {/* 1. Overview & Communications */}
+                <div className="nav-section-title">
+                  <span>Overview &amp; Comms</span>
+                </div>
                 <button
                   className={effectiveViewFinal === "dashboard" ? "tab active" : "tab"}
                   onClick={() => {
@@ -1408,6 +1417,11 @@ export default function App() {
                   <span className="tab-icon">💬</span>
                   <span>Message Hub</span>
                 </button>
+
+                {/* 2. Pipeline & Clients */}
+                <div className="nav-section-title">
+                  <span>Pipeline &amp; Clients</span>
+                </div>
                 <button
                   className={effectiveViewFinal === "properties" ? "tab active" : "tab"}
                   onClick={() => {
@@ -1456,6 +1470,11 @@ export default function App() {
                   <span className="tab-icon">📅</span>
                   <span>Appointments</span>
                 </button>
+
+                {/* 3. Agreements & Tasks */}
+                <div className="nav-section-title">
+                  <span>Agreements &amp; Tasks</span>
+                </div>
                 {canSeeTab("documents") && (
                   <button
                     className={effectiveViewFinal === "documents" ? "tab active" : "tab"}
@@ -1481,6 +1500,11 @@ export default function App() {
                     <span>Tasks</span>
                   </button>
                 )}
+
+                {/* 4. Operations & Billing */}
+                <div className="nav-section-title">
+                  <span>Operations &amp; System</span>
+                </div>
                 {canSeeTab("support") && (
                   <button
                     className={effectiveViewFinal === "tickets" ? "tab active" : "tab"}

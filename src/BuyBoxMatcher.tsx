@@ -114,7 +114,7 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
     <div className="page page-stack">
       <div className="page-head">
         <div>
-          <h1>💼 Investors & Buy Box</h1>
+          <h1>💼 Investors Hub</h1>
           <p className="page-sub">
             Manage your investor network, track buy box criteria, and auto-match deals to buyers
           </p>
