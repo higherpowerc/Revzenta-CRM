@@ -634,32 +634,38 @@ export function sendSignupWelcomeEmail(opts: {
       : "Wholesale Pro Plan ($59.99/mo)";
 
   const text = [
-    `Welcome to ${biz}!`,
+    `Welcome to ${biz} — The Ultimate Wholesale Platform!`,
     "",
-    `Your wholesale real estate workspace has been provisioned and is ready for action.`,
+    `Dear ${opts.workspaceName || "Wholesaler"},`,
     "",
-    `========================================`,
-    `YOUR LOGIN CREDENTIALS & WORKSPACE ACCESS`,
-    `========================================`,
-    `Sign In URL: ${loginUrl}`,
-    `Workspace:   ${opts.workspaceName}`,
-    `Email:       ${opts.email}`,
-    ...(opts.password ? [`Password:    ${opts.password}`] : []),
-    `Active Plan: ${tierName}`,
+    `First and foremost, thank you. We are truly grateful and honored that you have chosen to trust ${biz} as your dedicated partner in your wholesale real estate journey.`,
+    "",
+    `We know how much dedication, grit, and precision it takes to find motivated sellers, negotiate contracts, and close assignments. Our entire platform was built from the ground up to give you an unfair advantage — from lightning-fast deal underwriting and state-compliant contracts to instant investor flyers and seamless title coordination.`,
     "",
     `========================================`,
-    `WHOLESALE REAL ESTATE QUICK START GUIDE`,
+    `YOUR WORKSPACE ACCESS DETAILS`,
     `========================================`,
-    `1. Launch your CRM: Log in at ${loginUrl} using your credentials above.`,
-    `2. Pipeline & Leads: Import or add distressed property sellers directly to your pipeline.`,
-    `3. Fast MAO Calculation: Use the built-in Wholesale Calculator (MAO = ARV * 70% - Repairs - Wholesale Fee) to formulate unbeatable offers.`,
-    `4. Instant Contracts: Generate legally binding Purchase and Assignment Agreements with 1-click PDF stamping and digital signatures.`,
-    `5. Transaction Hub & Title Coordination: Track Earnest Money Deposits (EMD) and coordinate closing seamlessly with your title company.`,
+    `Sign In URL:  ${loginUrl}`,
+    `Workspace:    ${opts.workspaceName}`,
+    `Login Email:  ${opts.email}`,
+    ...(opts.password
+      ? [`Password:     ${opts.password}`]
+      : [`Password:     (The password you chose during registration — or reset anytime via 'Forgot Password')`]),
+    `Active Plan:  ${tierName}`,
     "",
-    `Need assistance or have questions? Simply reply to this email or submit a ticket in your CRM.`,
+    `========================================`,
+    `QUICK START TO YOUR NEXT WHOLESALE DEAL`,
+    `========================================`,
+    `1. Launch CRM: Log into your workspace at ${loginUrl}`,
+    `2. Underwrite Deals: Run instant 70% rule MAO calculations & analyze property comps.`,
+    `3. Lock & Assign: Generate state-compliant purchase and assignment contracts with 1-click digital e-signatures.`,
+    `4. Market Fast: Create instant 1-click investor deal flyers to match cash buyers and close assignments.`,
     "",
-    `To your closing success,`,
+    `We are committed to your growth and deal-closing success every step of this journey. If you ever have a question or need assistance, simply reply directly to this email — our team is here for you.`,
+    "",
+    `With sincere gratitude and to your closing success,`,
     `The ${biz} Team`,
+    `${biz} — The Ultimate Wholesale Platform`,
   ].join("\n");
 
   const html = `
@@ -672,71 +678,91 @@ export function sendSignupWelcomeEmail(opts: {
 </head>
 <body style="margin:0;padding:0;background-color:#090d16;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f1f5f9;">
   <div style="max-width:600px;margin:30px auto;background:#0f172a;border-radius:16px;border:1px solid #1e293b;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.6);">
-    <div style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#06b6d4 100%);padding:32px 28px;text-align:center;">
-      <h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;text-shadow:0 2px 10px rgba(0,0,0,0.3);">
+    
+    <!-- Hero Header -->
+    <div style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#06b6d4 100%);padding:36px 28px;text-align:center;">
+      <div style="display:inline-block;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.2);padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#e0e7ff;margin-bottom:12px;">
+        The Ultimate Wholesale Platform
+      </div>
+      <h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;text-shadow:0 2px 10px rgba(0,0,0,0.3);">
         ⚡ Welcome to ${biz}
       </h1>
-      <p style="margin:8px 0 0;font-size:15px;color:rgba(255,255,255,0.9);font-weight:500;">
-        Your Wholesale Real Estate Command Center is Live
+      <p style="margin:8px 0 0;font-size:15px;color:rgba(255,255,255,0.92);font-weight:500;">
+        We're honored and grateful to partner with you on your wholesale journey
       </p>
     </div>
 
     <div style="padding:32px 28px;">
-      <p style="margin:0 0 20px;font-size:16px;line-height:1.6;color:#cbd5e1;">
-        Congratulations! Your account has been activated with the <strong style="color:#38bdf8;">${tierName}</strong>. You now have full access to our high-performance wholesaling CRM, automated contracts, and transaction coordination tools.
-      </p>
+      <!-- Gratitude Message -->
+      <div style="background:linear-gradient(135deg,rgba(99,102,241,0.1) 0%,rgba(6,182,212,0.1) 100%);border-left:4px solid #6366f1;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0;font-size:15px;line-height:1.6;color:#e2e8f0;font-weight:500;">
+          <strong style="color:#ffffff;">Thank you for placing your trust in us.</strong> Building a thriving real estate wholesaling business takes ambition, courage, and relentless execution. We are truly grateful to have you with us, and we are committed to providing you with the ultimate tools to find, lock up, and close more deals.
+        </p>
+      </div>
 
+      <!-- Account Credentials Card -->
       <div style="background:#131d33;border:1px solid #312e81;border-radius:12px;padding:22px;margin:24px 0;">
-        <h2 style="margin:0 0 16px;font-size:16px;text-transform:uppercase;letter-spacing:1px;color:#a5b4fc;">
-          🔑 Your Account Credentials
+        <h2 style="margin:0 0 16px;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#a5b4fc;font-weight:700;">
+          🔑 Your Wholesale Command Center Access
         </h2>
         <table style="width:100%;border-collapse:collapse;font-size:14px;color:#e2e8f0;">
           <tr>
-            <td style="padding:6px 0;color:#94a3b8;width:120px;">Workspace:</td>
-            <td style="padding:6px 0;font-weight:600;color:#ffffff;">${opts.workspaceName}</td>
+            <td style="padding:8px 0;color:#94a3b8;width:120px;">Workspace:</td>
+            <td style="padding:8px 0;font-weight:600;color:#ffffff;">${opts.workspaceName}</td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:#94a3b8;">Login Email:</td>
-            <td style="padding:6px 0;font-weight:600;color:#38bdf8;">${opts.email}</td>
+            <td style="padding:8px 0;color:#94a3b8;">Login Email:</td>
+            <td style="padding:8px 0;font-weight:600;color:#38bdf8;">${opts.email}</td>
           </tr>
-          ${
-            opts.password
-              ? `<tr>
-            <td style="padding:6px 0;color:#94a3b8;">Password:</td>
-            <td style="padding:6px 0;font-family:monospace;font-weight:700;color:#f43f5e;">${opts.password}</td>
-          </tr>`
-              : ""
-          }
           <tr>
-            <td style="padding:6px 0;color:#94a3b8;">Package Tier:</td>
-            <td style="padding:6px 0;font-weight:600;color:#4ade80;">${tierName}</td>
+            <td style="padding:8px 0;color:#94a3b8;">Password:</td>
+            <td style="padding:8px 0;font-weight:600;color:${opts.password ? "#f43f5e" : "#cbd5e1"};">
+              ${opts.password ? `<span style="font-family:monospace;font-weight:700;">${opts.password}</span>` : "The password you chose during signup"}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#94a3b8;">Package Tier:</td>
+            <td style="padding:8px 0;font-weight:600;color:#4ade80;">${tierName}</td>
           </tr>
         </table>
       </div>
 
-      <div style="text-align:center;margin:32px 0;">
+      <!-- Call to Action -->
+      <div style="text-align:center;margin:30px 0;">
         <a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 34px;border-radius:10px;box-shadow:0 4px 20px rgba(99,102,241,0.4);">
           Launch Your CRM Workspace &rarr;
         </a>
       </div>
 
+      <!-- Quick Start Guide -->
       <div style="border-top:1px solid #1e293b;padding-top:24px;margin-top:28px;">
         <h3 style="margin:0 0 14px;font-size:15px;color:#f8fafc;font-weight:700;">
-          🚀 Wholesale Quick Start:
+          🚀 Fast Start to Closing Deals:
         </h3>
-        <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.7;color:#94a3b8;">
-          <li><strong style="color:#e2e8f0;">Sign In:</strong> Log into your new workspace using the button above.</li>
-          <li><strong style="color:#e2e8f0;">Track Seller Leads:</strong> Add motivated sellers, track distress criteria, and follow pipeline stages.</li>
-          <li><strong style="color:#e2e8f0;">Run Deal Numbers:</strong> Calculate 70% rule MAO and maximum cash offers in seconds.</li>
-          <li><strong style="color:#e2e8f0;">Generate Agreements:</strong> Create purchase and assignment agreements with digital e-signatures.</li>
-          <li><strong style="color:#e2e8f0;">Coordinate Title:</strong> Keep title companies, earnest money deposits, and closing dates synchronized.</li>
+        <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.8;color:#94a3b8;">
+          <li><strong style="color:#e2e8f0;">Sign In:</strong> Log into your dedicated workspace at <a href="${loginUrl}" style="color:#38bdf8;text-decoration:none;">${loginUrl}</a>.</li>
+          <li><strong style="color:#e2e8f0;">Find & Underwrite:</strong> Pull distress criteria and calculate 70% rule MAO offers in seconds.</li>
+          <li><strong style="color:#e2e8f0;">Lock Up Contracts:</strong> Generate state-compliant purchase & assignment agreements with 1-click digital e-signatures.</li>
+          <li><strong style="color:#e2e8f0;">Package Deals:</strong> Create instant investor flyers, match cash buyers, and coordinate title smoothly.</li>
         </ol>
+      </div>
+
+      <!-- Warm Closing -->
+      <div style="margin-top:28px;padding-top:20px;border-top:1px solid #1e293b;color:#cbd5e1;font-size:14px;line-height:1.6;">
+        <p style="margin:0 0 12px;">
+          We are committed to being your most trusted wholesaling partner. If you ever have questions, need workflow tips, or want guidance, just reply directly to this email.
+        </p>
+        <p style="margin:0;font-weight:600;color:#ffffff;">
+          To your closing success,<br>
+          <span style="color:#a5b4fc;font-weight:700;">The ${biz} Team</span>
+        </p>
       </div>
     </div>
 
+    <!-- Footer -->
     <div style="background:#090d16;padding:20px 28px;text-align:center;font-size:12px;color:#64748b;border-top:1px solid #1e293b;">
       <p style="margin:0;">&copy; ${new Date().getFullYear()} ${biz}. All rights reserved.</p>
-      <p style="margin:6px 0 0;">Questions? Reply directly to this email for priority support.</p>
+      <p style="margin:6px 0 0;">${biz} &bull; The Ultimate Wholesale Platform &bull; Need help? Reply to this email.</p>
     </div>
   </div>
 </body>
@@ -747,7 +773,7 @@ export function sendSignupWelcomeEmail(opts: {
     to: opts.to,
     fromName: biz,
     replyTo: opts.replyTo,
-    subject: `Welcome to ${biz} — Your Login Credentials & Wholesale Workspace Access`,
+    subject: `Welcome to ${biz} — We're Grateful to Be on This Wholesale Journey With You!`,
     text,
     html,
   });

@@ -2385,19 +2385,16 @@ async function provisionPendingSignup(input: {
     return null;
   }
   db.query("DELETE FROM pending_signups WHERE email = ?").run(pending.email);
-  // Welcome email with credentials: only when the plaintext password is known
-  // (signup-complete path passes it through when available). Never from the
-  // webhook — the hash is not reversible.
-  if (input.appUrl && input.password) {
-    void sendSignupWelcomeEmail({
-      to: pending.email,
-      workspaceName: pending.workspace_name,
-      email: pending.email,
-      password: input.password,
-      tier,
-      appUrl: input.appUrl,
-    });
-  }
+  // Dispatch welcome email with gratitude & workspace access on every signup
+  const welcomeAppUrl = input.appUrl || DEFAULT_APP_URL;
+  void sendSignupWelcomeEmail({
+    to: pending.email,
+    workspaceName: pending.workspace_name,
+    email: pending.email,
+    password: input.password,
+    tier,
+    appUrl: welcomeAppUrl,
+  });
 
   // Instant notification to Owner of new paid subscriber
   const ownerAlertEmail = resolveOwnerAlertEmail();
@@ -3830,7 +3827,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
               .toLowerCase();
       const sessionId = typeof obj.id === "string" ? obj.id : "";
       if (metaEmail) {
-        await provisionPendingSignup({ lookupEmail: metaEmail, sessionId });
+        await provisionPendingSignup({ lookupEmail: metaEmail, sessionId, appUrl: DEFAULT_APP_URL });
       }
       // Revenue/Stripe Ledger (owner decision 2026-09-09): self-serve checkout
       // purchases write a paid `invoices` row into the OWNER org so they show
