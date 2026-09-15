@@ -289,15 +289,15 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
         <div className="rw-container">
           <div className="rw-badge">
             <span className="rw-badge-dot"></span>
-            <span>Revzenta CRM 2.0 • The Real Estate Wholesaling Operating System</span>
+            <span>Revzenta • The Ultimate Wholesale Platform</span>
           </div>
 
           <h1 className="rw-hero-title">
-            Close More Real Estate Deals in <span>Half the Time</span>.
+            Revzenta: The Ultimate <span>Wholesale Platform</span>.
           </h1>
 
           <p className="rw-hero-sub">
-            The modern all-in-one CRM built specifically for real estate wholesalers and acquisitions teams. Ingest leads with webhook automation, enrich property specs & comps instantly, match cash buyers with precision buy boxes, and execute state contracts with built-in e-signatures.
+            The modern all-in-one CRM built specifically for real estate wholesalers and acquisitions teams. Ingest leads with webhook automation, enrich property specs &amp; comps instantly, match cash buyers with precision buy boxes, generate 1-click investor deal flyers, and execute state contracts with built-in e-signatures.
           </p>
 
           <div className="rw-hero-ctas">
@@ -311,16 +311,16 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
 
           <div className="rw-trust-bar">
             <div className="rw-trust-item">
-              <span>🛡️</span> 100% MLS & Public Records Compliant
+              <span>🛡️</span> 100% MLS &amp; Public Records Compliant
             </div>
             <div className="rw-trust-item">
               <span>⚡</span> PropStream CSV &amp; Direct Webhook Ingestion
             </div>
             <div className="rw-trust-item">
-              <span>✍️</span> State PSA & Assignment Contracts
+              <span>✍️</span> State PSA &amp; Assignment Contracts
             </div>
             <div className="rw-trust-item">
-              <span>⏱️</span> Inspection & Title Escrow Clocks
+              <span>⏱️</span> Inspection &amp; Title Escrow Clocks
             </div>
           </div>
 
@@ -330,7 +330,7 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
               <span className="rw-mockup-dot"></span>
               <span className="rw-mockup-dot"></span>
               <span className="rw-mockup-dot"></span>
-              <span className="rw-mockup-tab-title">Revzenta CRM — Real Estate Wholesaling Cockpit</span>
+              <span className="rw-mockup-tab-title">Revzenta — The Ultimate Wholesale Platform</span>
               <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
                 <button
                   type="button"
@@ -848,13 +848,13 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
       <section className="rw-section" style={{ textAlign: "center", position: "relative" }}>
         <div className="rw-container">
           <div className="rw-cta-card">
-            <h2>Ready to Accelerate Your Wholesale Acquisitions?</h2>
+            <h2>Experience The Ultimate Wholesale Platform</h2>
             <p>
-              Join forward-thinking real estate wholesalers closing deals with speed, precision, and modern software.
+              Join forward-thinking real estate wholesalers closing deals with unmatched speed, instant comps, automated investor flyers, and precision buyer matching.
             </p>
             <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
               <button type="button" className="rw-btn-lg rw-btn-primary" onClick={onLaunchApp}>
-                ⚡ Launch Revzenta CRM Now
+                ⚡ Launch Revzenta Now
               </button>
               <button type="button" className="rw-btn-lg rw-btn-outline" onClick={onSignIn}>
                 Sign In to Workspace
@@ -869,12 +869,15 @@ export default function Website({ onSignIn, onLaunchApp }: WebsiteProps) {
         <div className="rw-container">
           <div className="rw-footer-grid">
             <div className="rw-footer-col">
-              <div className="rw-brand" style={{ marginBottom: "14px" }}>
-                <div className="rw-brand-icon">R</div>
-                <span>Revzenta</span>
+              <div className="rw-brand" style={{ marginBottom: "14px", display: "flex", alignItems: "center", gap: "10px" }}>
+                <img
+                  src={revzentaLogo}
+                  alt="Revzenta"
+                  style={{ height: "36px", width: "auto", borderRadius: "6px", display: "block" }}
+                />
               </div>
-              <p style={{ fontSize: "13px", color: "var(--text-dim)", maxWidth: "300px" }}>
-                The modern CRM and operating system for real estate wholesalers, acquisitions teams, and growing businesses.
+              <p style={{ fontSize: "13px", color: "var(--text-dim)", maxWidth: "320px", lineHeight: "1.5" }}>
+                <strong style={{ color: "var(--text-main, #ffffff)" }}>Revzenta — The Ultimate Wholesale Platform.</strong> Accelerate acquisitions, automate comps &amp; investor flyers, match cash buyers, and streamline closing contracts.
               </p>
             </div>
 

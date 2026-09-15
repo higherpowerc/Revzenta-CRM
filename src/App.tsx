@@ -813,16 +813,55 @@ export default function App() {
                   className="brand-logo-img"
                 />
               </div>
-              {(orgName || isOwner) && (
-                <div className="brand-workspace-block">
+              <div
+                className="brand-workspace-block"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: "1px",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%",
+                  }}
+                >
                   <span className="brand-workspace-name">
                     {orgName || (isOwner ? "Revzenta HQ" : "Workspace")}
                   </span>
-                  <span className="brand-sub">
-                    CRM
+                  <span
+                    style={{
+                      fontSize: "9.5px",
+                      fontWeight: 800,
+                      color: "var(--lime, #00a89f)",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    PRO
                   </span>
                 </div>
-              )}
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: "var(--muted)",
+                    letterSpacing: "0.01em",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: "100%",
+                  }}
+                  title="The Ultimate Wholesale Platform"
+                >
+                  The Ultimate Wholesale Platform
+                </span>
+              </div>
             </button>
 
             {/* Mobile-only header controls (visible <= 960px) */}

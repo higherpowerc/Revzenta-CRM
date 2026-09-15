@@ -187,10 +187,10 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
             margin: "0 0 10px", fontSize: "clamp(26px, 4vw, 40px)", fontWeight: 800,
             letterSpacing: "-0.5px", lineHeight: 1.2,
           }}>
-            Start Your Wholesale CRM Today
+            Revzenta: The Ultimate Wholesale Platform
           </h1>
           <p style={{ margin: 0, color: "#94a3b8", fontSize: "16px" }}>
-            Choose your plan, create your workspace, and close more deals.
+            Choose your plan, launch your workspace, and close more off-market deals.
           </p>
         </div>
 

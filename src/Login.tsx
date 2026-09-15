@@ -115,8 +115,8 @@ export default function Login({
             </div>
           </div>
         </div>
-        <p className="login-tag">
-          Prospect → Intake → Kickoff → Build → Launch → Retainer
+        <p className="login-tag" style={{ fontWeight: 600, letterSpacing: "0.02em" }}>
+          The Ultimate Wholesale Platform
         </p>
         {setupMsg && (
           <div className="alert alert-setup" role="alert">
