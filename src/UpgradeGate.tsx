@@ -1,47 +1,72 @@
-﻿import React from "react";
+import React from "react";
 import { PackageTier, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 
 interface UpgradeGateProps {
   featureName: string;
   featureDescription?: string;
-  requiredTier: "pro" | "scale";
+  requiredTier: "solo" | "team" | "pro" | "scale";
   currentTier?: PackageTier;
   benefits?: string[];
   onUpgradeClick?: () => void;
 }
 
-const TIER_DESCRIPTIONS: Record<"pro" | "scale", { title: string; price: string; subtitle: string; highlights: string[] }> = {
-  pro: {
-    title: "Pro Dealmaker",
-    price: "$59.99/mo",
-    subtitle: "Full Transaction Hub, Offers Repository, and Automated Buy Box matching.",
+const TIER_DESCRIPTIONS: Record<string, { title: string; price: string; subtitle: string; highlights: string[] }> = {
+  solo: {
+    title: "Solo",
+    price: "$60/mo",
+    subtitle: "Operate without a team. Full pipeline, deal calculator, comps, PSA Hub & Assignments Hub.",
     highlights: [
-      "Complete Transaction Hub & Closing Milestone Pipeline",
-      "Offers Repository with PDF generation & E-Sign dispatch",
-      "AI Buy Box Matcher & instantaneous buyer ranking",
-      "Full RentCast Comps integration & unlimited lookups",
-      "Title & Closing Attorney collaboration tracking"
-    ]
+      "Operate without a team (Single Seat)",
+      "Intelligent Search & Revzenta Opportunity Scores",
+      "Hunters Hub underwriting & Deal Calculator",
+      "Cash MAO, Seller Financing & SubTo structures",
+      "PSA HUB & Assignments Hub with Digital E-Signatures",
+      "Title Hub & Escrow Tracking",
+      "Investors Hub & Buyer Matcher",
+    ],
+  },
+  team: {
+    title: "Team",
+    price: "$99/mo",
+    subtitle: "Operate with a team. Multi-seat collaboration, team assignments, and granular roles.",
+    highlights: [
+      "Operate with a team (Multi-Seat Collaboration)",
+      "Multi-seat team accounts & granular permissions",
+      "Role-based tab controls (Acquisitions vs Dispositions)",
+      "Team deal assignment & commission tracking",
+      "Shared company templates & custom legal clauses",
+      "Dedicated team onboarding & support",
+    ],
+  },
+  pro: {
+    title: "Solo",
+    price: "$60/mo",
+    subtitle: "Operate without a team. Full pipeline, deal calculator, comps, PSA Hub & Assignments Hub.",
+    highlights: [
+      "Operate without a team (Single Seat)",
+      "Intelligent Search & Revzenta Opportunity Scores",
+      "Hunters Hub underwriting & Deal Calculator",
+      "PSA HUB & Assignments Hub with Digital E-Signatures",
+    ],
   },
   scale: {
-    title: "Scale & Brokerage",
-    price: "$79/mo",
-    subtitle: "Multi-seat brokerage engine with granular permission control and dedicated workflows.",
+    title: "Team",
+    price: "$99/mo",
+    subtitle: "Operate with a team. Multi-seat collaboration, team assignments, and granular roles.",
     highlights: [
-      "Multi-seat team accounts with granular tab permissions",
-      "Acquisition vs. Disposition agent role specialization",
-      "Brokerage-wide transaction reporting & leaderboards",
-      "Multi-market expansion & priority API bandwidth",
-      "Dedicated white-glove onboarding & account manager"
-    ]
-  }
+      "Operate with a team (Multi-Seat Collaboration)",
+      "Multi-seat team accounts & granular permissions",
+      "Role-based tab controls (Acquisitions vs Dispositions)",
+      "Shared company templates & custom legal clauses",
+    ],
+  },
 };
 
 export const UpgradeGate: React.FC<UpgradeGateProps> = ({
   featureName,
   featureDescription,
   requiredTier,
-  currentTier = "starter",
+  currentTier = "solo",
   benefits,
   onUpgradeClick
 }) => {

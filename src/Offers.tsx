@@ -3,6 +3,63 @@ import { api } from "./api";
 import type { WholesaleOffer, Client } from "./types";
 import DealCalculatorModal from "./DealCalculatorModal";
 
+export function getOfferSelectedStructures(offer: WholesaleOffer): {
+  isCash: boolean;
+  isSubto: boolean;
+  isCreative: boolean;
+} {
+  const typeStr = (offer.offerType || "").toLowerCase().trim();
+
+  // 1. If explicit offerType is single structure, ONLY that structure was selected
+  if (typeStr === "seller financing" || typeStr === "creative") {
+    return { isCash: false, isSubto: false, isCreative: true };
+  }
+  if (typeStr === "subject-to" || typeStr === "subto") {
+    return { isCash: false, isSubto: true, isCreative: false };
+  }
+  if (typeStr === "cash" || typeStr === "cash mao") {
+    return { isCash: (offer.cashOfferAmount || 0) > 0, isSubto: false, isCreative: false };
+  }
+
+  // 2. If selectedOffers array is explicitly set
+  if (Array.isArray(offer.selectedOffers) && offer.selectedOffers.length > 0) {
+    // Guard against legacy default ["cash"] when offer was actually creative or subto
+    if (offer.selectedOffers.length === 1 && offer.selectedOffers[0] === "cash") {
+      if (typeStr.includes("seller financing") || typeStr.includes("creative") || ((offer.creativePurchasePrice || 0) > 0 && (offer.cashOfferAmount || 0) === 0)) {
+        return { isCash: false, isSubto: false, isCreative: true };
+      }
+      if (typeStr.includes("subto") || typeStr.includes("subject-to") || (((offer.subtoPurchasePrice || 0) > 0 || (offer.subtoDebt || 0) > 0) && (offer.cashOfferAmount || 0) === 0)) {
+        return { isCash: false, isSubto: true, isCreative: false };
+      }
+    }
+
+    const isCash = offer.selectedOffers.includes("cash") && (offer.cashOfferAmount || 0) > 0;
+    const isSubto = offer.selectedOffers.includes("subto") && ((offer.subtoPurchasePrice || 0) > 0 || (offer.subtoDebt || 0) > 0);
+    const isCreative = offer.selectedOffers.includes("creative") && (offer.creativePurchasePrice || 0) > 0;
+
+    if (isCash || isSubto || isCreative) {
+      return { isCash, isSubto, isCreative };
+    }
+  }
+
+  // 3. Fallback: only include structures where underwritten value is actually > 0
+  const isCreative = (offer.creativePurchasePrice || 0) > 0;
+  const isSubto = (offer.subtoPurchasePrice || 0) > 0 || (offer.subtoDebt || 0) > 0;
+  const isCash = (offer.cashOfferAmount || 0) > 0;
+
+  return { isCash, isSubto, isCreative };
+}
+
+export function getOfferSelectedAmount(offer: WholesaleOffer): number {
+  const { isCash, isSubto, isCreative } = getOfferSelectedStructures(offer);
+  const amounts: number[] = [];
+  if (isCash && (offer.cashOfferAmount || 0) > 0) amounts.push(offer.cashOfferAmount);
+  if (isSubto && (offer.subtoPurchasePrice || 0) > 0) amounts.push(offer.subtoPurchasePrice);
+  if (isCreative && (offer.creativePurchasePrice || 0) > 0) amounts.push(offer.creativePurchasePrice);
+  if (amounts.length > 0) return Math.max(...amounts);
+  return Math.max(offer.cashOfferAmount || 0, offer.subtoPurchasePrice || 0, offer.creativePurchasePrice || 0);
+}
+
 interface Props {
   crmBusinessName?: string;
   onNavigateToProperty?: (clientId: number) => void;
@@ -269,7 +326,7 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "24px" }}>📋</span>
             <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800, color: "var(--ink)" }}>
-              PSA Sent
+              PSA HUB
             </h1>
           </div>
           <p style={{ margin: "6px 0 0 0", fontSize: "13px", color: "var(--muted-2)" }}>
@@ -738,9 +795,7 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
 
                     {group.offers.map((offer, idx) => {
                       const badge = getStatusBadgeStyle(offer.status);
-                      const isSelectedCash = offer.selectedOffers?.includes("cash") || offer.offerType === "cash" || offer.cashOfferAmount > 0;
-                      const isSelectedSubto = offer.selectedOffers?.includes("subto") || offer.offerType === "subto" || offer.subtoPurchasePrice > 0;
-                      const isSelectedCreative = offer.selectedOffers?.includes("creative") || offer.offerType === "creative" || offer.creativePurchasePrice > 0;
+                      const { isCash: isSelectedCash, isSubto: isSelectedSubto, isCreative: isSelectedCreative } = getOfferSelectedStructures(offer);
 
                       return (
                         <div
@@ -927,29 +982,35 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                                 👁️ Preview Offer
                               </button>
 
-                              {/* Send Offer button */}
-                              <button
-                                type="button"
-                                onClick={() => handleManualSendOffer(offer)}
-                                disabled={sendingOfferId === offer.id}
-                                style={{
-                                  backgroundColor: "#2563eb",
-                                  border: "none",
-                                  color: "#ffffff",
-                                  padding: "6px 12px",
-                                  borderRadius: "6px",
-                                  fontSize: "12px",
-                                  fontWeight: 700,
-                                  cursor: sendingOfferId === offer.id ? "not-allowed" : "pointer",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "5px",
-                                  boxShadow: "0 2px 6px rgba(37, 99, 235, 0.35)",
-                                  opacity: sendingOfferId === offer.id ? 0.7 : 1,
-                                }}
-                              >
-                                📤 {sendingOfferId === offer.id ? "Sending..." : "Send Offer"}
-                              </button>
+                              {/* Send / Resend Offer button */}
+                              {(() => {
+                                const isAlreadySent = offer.emailStatus === "sent" || offer.status?.toLowerCase() === "sent" || (offer.status && offer.status.toLowerCase() !== "draft");
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleManualSendOffer(offer)}
+                                    disabled={sendingOfferId === offer.id}
+                                    style={{
+                                      backgroundColor: isAlreadySent ? "rgba(59, 130, 246, 0.15)" : "#2563eb",
+                                      border: isAlreadySent ? "1px solid #3b82f6" : "none",
+                                      color: isAlreadySent ? "#60a5fa" : "#ffffff",
+                                      padding: "6px 12px",
+                                      borderRadius: "6px",
+                                      fontSize: "12px",
+                                      fontWeight: 700,
+                                      cursor: sendingOfferId === offer.id ? "not-allowed" : "pointer",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "5px",
+                                      boxShadow: isAlreadySent ? "none" : "0 2px 6px rgba(37, 99, 235, 0.35)",
+                                      opacity: sendingOfferId === offer.id ? 0.7 : 1,
+                                    }}
+                                    title={isAlreadySent ? "Offer has already been sent. Click to resend an email copy to the seller." : "Send official offer email with attached PDF"}
+                                  >
+                                    📤 {sendingOfferId === offer.id ? "Sending..." : isAlreadySent ? "Resend Email" : "Send Offer"}
+                                  </button>
+                                );
+                              })()}
 
                               {/* Delete Offer */}
                               <button
@@ -1031,11 +1092,9 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
             </thead>
             <tbody>
               {filteredOffers.map((offer) => {
-                const maxAmt = Math.max(offer.cashOfferAmount || 0, offer.subtoPurchasePrice || 0, offer.creativePurchasePrice || 0);
+                const { isCash: isSelectedCash, isSubto: isSelectedSubto, isCreative: isSelectedCreative } = getOfferSelectedStructures(offer);
+                const maxAmt = getOfferSelectedAmount(offer);
                 const badge = getStatusBadgeStyle(offer.status);
-                const isSelectedCash = offer.selectedOffers?.includes("cash") || offer.offerType === "cash" || (offer.cashOfferAmount || 0) > 0;
-                const isSelectedSubto = offer.selectedOffers?.includes("subto") || offer.offerType === "subto" || (offer.subtoPurchasePrice || 0) > 0 || (offer.subtoDebt || 0) > 0;
-                const isSelectedCreative = offer.selectedOffers?.includes("creative") || offer.offerType === "creative" || (offer.creativePurchasePrice || 0) > 0;
 
                 return (
                   <tr
@@ -1283,28 +1342,34 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                           👁️ Preview
                         </button>
 
-                        {/* Send Offer */}
-                        <button
-                          type="button"
-                          onClick={() => handleManualSendOffer(offer)}
-                          disabled={sendingOfferId === offer.id}
-                          style={{
-                            backgroundColor: "#2563eb",
-                            border: "none",
-                            color: "#ffffff",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            cursor: sendingOfferId === offer.id ? "not-allowed" : "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "3px",
-                            opacity: sendingOfferId === offer.id ? 0.7 : 1,
-                          }}
-                        >
-                          📤 {sendingOfferId === offer.id ? "Sending..." : "Send"}
-                        </button>
+                        {/* Send / Resend Offer */}
+                        {(() => {
+                          const isAlreadySent = offer.emailStatus === "sent" || offer.status?.toLowerCase() === "sent" || (offer.status && offer.status.toLowerCase() !== "draft");
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleManualSendOffer(offer)}
+                              disabled={sendingOfferId === offer.id}
+                              style={{
+                                backgroundColor: isAlreadySent ? "rgba(59, 130, 246, 0.15)" : "#2563eb",
+                                border: isAlreadySent ? "1px solid #3b82f6" : "none",
+                                color: isAlreadySent ? "#60a5fa" : "#ffffff",
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                cursor: sendingOfferId === offer.id ? "not-allowed" : "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                opacity: sendingOfferId === offer.id ? 0.7 : 1,
+                              }}
+                              title={isAlreadySent ? "Offer has already been sent. Click to resend an email copy to the seller." : "Send official offer email with attached PDF"}
+                            >
+                              📤 {sendingOfferId === offer.id ? "Sending..." : isAlreadySent ? "Resend" : "Send"}
+                            </button>
+                          );
+                        })()}
 
                         {/* Delete Offer */}
                         <button
@@ -1493,29 +1558,40 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
                 >
                   Close
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleManualSendOffer(viewingOffer, viewingRecipientEmail)}
-                  disabled={sendingOfferId === viewingOffer.id}
-                  style={{
-                    backgroundColor: "#2563eb",
-                    color: "#ffffff",
-                    border: "none",
-                    padding: "7px 18px",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: sendingOfferId === viewingOffer.id ? "not-allowed" : "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    boxShadow: "0 2px 8px rgba(37, 99, 235, 0.4)",
-                    opacity: sendingOfferId === viewingOffer.id ? 0.7 : 1,
-                  }}
-                >
-                  <span>📤</span>
-                  <span>{sendingOfferId === viewingOffer.id ? "Sending Offer..." : "Send Offer"}</span>
-                </button>
+                  {(() => {
+                    const isAlreadySent = viewingOffer.emailStatus === "sent" || viewingOffer.status?.toLowerCase() === "sent" || (viewingOffer.status && viewingOffer.status.toLowerCase() !== "draft");
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleManualSendOffer(viewingOffer, viewingRecipientEmail)}
+                        disabled={sendingOfferId === viewingOffer.id}
+                        style={{
+                          backgroundColor: isAlreadySent ? "#2563eb" : "#16a34a",
+                          color: "#ffffff",
+                          border: "none",
+                          padding: "7px 18px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: sendingOfferId === viewingOffer.id ? "not-allowed" : "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          boxShadow: "0 2px 8px rgba(37, 99, 235, 0.4)",
+                          opacity: sendingOfferId === viewingOffer.id ? 0.7 : 1,
+                        }}
+                      >
+                        <span>📤</span>
+                        <span>
+                          {sendingOfferId === viewingOffer.id
+                            ? "Sending..."
+                            : isAlreadySent
+                            ? "Resend Offer Email"
+                            : "Send Offer Now"}
+                        </span>
+                      </button>
+                    );
+                  })()}
               </div>
             </div>
           </div>

@@ -168,16 +168,27 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
     );
 
     // 2. Financial Terms
+    const hasEmd = input.earnestMoney != null && Number(input.earnestMoney) > 0;
     const emdDue = input.emdDueDate ? `within 3 business days of mutual execution (by ${input.emdDueDate})` : "within three (3) business days of mutual execution";
-    renderParagraph(
-      "2. PURCHASE PRICE & EARNEST MONEY DEPOSIT",
-      `The total agreed purchase price to be paid by Buyer at closing shall be $${input.purchasePrice.toLocaleString()} ("Purchase Price"). Buyer shall deposit earnest money in the amount of $${input.earnestMoney.toLocaleString()} ("Earnest Money Deposit" or "EMD") with the designated Title/Escrow Company ${emdDue}. The Earnest Money Deposit shall apply toward the Purchase Price at closing and shall remain 100% refundable to Buyer throughout the Inspection Period defined herein.`
-    );
+    if (hasEmd) {
+      renderParagraph(
+        "2. PURCHASE PRICE & EARNEST MONEY DEPOSIT",
+        `The total agreed purchase price to be paid by Buyer at closing shall be $${input.purchasePrice.toLocaleString()} ("Purchase Price"). Buyer shall deposit earnest money in the amount of $${input.earnestMoney.toLocaleString()} ("Earnest Money Deposit" or "EMD") with the designated Title/Escrow Company ${emdDue}. The Earnest Money Deposit shall apply toward the Purchase Price at closing and shall remain 100% refundable to Buyer throughout the Inspection Period defined herein.`
+      );
+    } else {
+      renderParagraph(
+        "2. PURCHASE PRICE",
+        `The total agreed purchase price to be paid by Buyer at closing shall be $${input.purchasePrice.toLocaleString()} ("Purchase Price"), payable in certified funds or wire transfer at closing.`
+      );
+    }
 
     // 3. Inspection & Feasibility
+    const returnEmdText = hasEmd
+      ? ", whereupon the Earnest Money Deposit shall be immediately returned in full to Buyer without penalty or delay."
+      : ", whereupon this Agreement shall terminate and be of no further force or effect without penalty or delay.";
     renderParagraph(
       "3. DUE DILIGENCE, INSPECTION & CONTINGENCY CLOCK",
-      `Buyer's obligation to purchase is expressly contingent upon Buyer's satisfaction, in Buyer's sole and absolute discretion, with the physical condition, mechanical systems, title history, environmental condition, and financial feasibility of the Property. Buyer shall have an inspection period of ${input.inspectionDays} calendar days following the mutual execution date ("Inspection Period"). Buyer and Buyer's agents, contractors, partners, and prospective assignees shall have full, unrestricted access to inspect the Property. If Buyer determines for any reason or no reason that the Property is unsatisfactory, Buyer may terminate this Agreement by written notice prior to the expiration of the Inspection Period, whereupon the Earnest Money Deposit shall be immediately returned in full to Buyer without penalty or delay.`
+      `Buyer's obligation to purchase is expressly contingent upon Buyer's satisfaction, in Buyer's sole and absolute discretion, with the physical condition, mechanical systems, title history, environmental condition, and financial feasibility of the Property. Buyer shall have an inspection period of ${input.inspectionDays} calendar days following the mutual execution date ("Inspection Period"). Buyer and Buyer's agents, contractors, partners, and prospective assignees shall have full, unrestricted access to inspect the Property. If Buyer determines for any reason or no reason that the Property is unsatisfactory, Buyer may terminate this Agreement by written notice prior to the expiration of the Inspection Period${returnEmdText}`
     );
 
     // 4. Closing & Title
@@ -250,23 +261,26 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
       `For valuable consideration, Assignor hereby transfers, sells, assigns, and conveys to Assignee all of Assignor's right, title, claim, interest, and equity in and to the Underlying Contract. In consideration for this Assignment, Assignee shall pay to Assignor an Assignment Fee of $${fee.toLocaleString()} ("Assignment Fee"). The total acquisition price to Assignee shall be $${totalDue.toLocaleString()} (representing the Contract Purchase Price of $${input.purchasePrice.toLocaleString()} plus the Assignment Fee of $${fee.toLocaleString()}), payable at closing.`
     );
 
-    renderParagraph(
-      "3. NON-REFUNDABLE EARNEST MONEY DEPOSIT",
-      `Assignee shall deposit earnest money in the amount of $${input.earnestMoney.toLocaleString()} ("Assignee EMD") with the designated Closing Agent within twenty-four (24) hours of execution. Assignee EMD is strictly non-refundable and shall apply toward the Assignment Fee and Purchase Price at closing.`
-    );
+    let secNum = 3;
+    if (input.earnestMoney != null && Number(input.earnestMoney) > 0) {
+      renderParagraph(
+        `${secNum++}. NON-REFUNDABLE EARNEST MONEY DEPOSIT`,
+        `Assignee shall deposit earnest money in the amount of $${input.earnestMoney.toLocaleString()} ("Assignee EMD") with the designated Closing Agent within twenty-four (24) hours of execution. Assignee EMD is strictly non-refundable and shall apply toward the Assignment Fee and Purchase Price at closing.`
+      );
+    }
 
     renderParagraph(
-      "4. ASSUMPTION OF OBLIGATIONS & CLOSING TIMELINE",
+      `${secNum++}. ASSUMPTION OF OBLIGATIONS & CLOSING TIMELINE`,
       `Assignee hereby accepts this Assignment and expressly assumes all duties, obligations, liabilities, and closing requirements of Buyer under the Underlying Contract. Assignee confirms that Assignee has completed all due diligence and property inspections and is purchasing the Property in 100% 'AS-IS' condition with no further contingencies. Closing shall take place on or before ${input.closingDate || "the date specified in the Underlying Contract"}.`
     );
 
     renderParagraph(
-      "5. NON-AGENCY & INDEPENDENT INVESTOR ACKNOWLEDGEMENT",
+      `${secNum++}. NON-AGENCY & INDEPENDENT INVESTOR ACKNOWLEDGEMENT`,
       `Assignee acknowledges and confirms that Assignee is an independent, sophisticated real estate investor acquiring contractual rights solely for Assignee's own investment purposes, and that Assignor is not acting as Assignee's licensed real estate broker, legal representative, or fiduciary. Assignee has conducted all independent due diligence.`
     );
 
     if (input.customTerms && input.customTerms.trim()) {
-      renderParagraph("6. SPECIAL STIPULATIONS", input.customTerms.trim());
+      renderParagraph(`${secNum++}. SPECIAL STIPULATIONS`, input.customTerms.trim());
     }
   }
 

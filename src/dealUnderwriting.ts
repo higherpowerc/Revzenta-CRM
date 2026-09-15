@@ -644,7 +644,7 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
 
   let optIdx = 1;
 
-  const earnestVal = input.earnestMoney != null && !isNaN(input.earnestMoney) ? input.earnestMoney : 2500;
+  const earnestVal = input.earnestMoney != null && !isNaN(input.earnestMoney) ? input.earnestMoney : 0;
   const inspDays = input.inspectionDays != null && !isNaN(input.inspectionDays) ? input.inspectionDays : 10;
   const closeDays = input.closingDays != null && !isNaN(input.closingDays) ? input.closingDays : 14;
 
@@ -659,7 +659,9 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
     });
     text += `${cashTitle}\n`;
     text += `• Net Cash Purchase Price: $${input.cashMetrics.netWholesaleOffer.toLocaleString()} (Net Walkaway to Seller)\n`;
-    text += `• Earnest Money Deposit: $${earnestVal.toLocaleString()} (Escrow deposited within 48 business hours)\n`;
+    if (earnestVal > 0) {
+      text += `• Earnest Money Deposit: $${earnestVal.toLocaleString()} (Escrow deposited within 48 business hours)\n`;
+    }
     text += `• Inspection Period: ${inspDays} Calendar Days (Full access for professional inspection and due diligence)\n`;
     text += `• Closing Timeline: ${closeDays} Days (or flexible date of Seller's choice)\n`;
     text += `• Condition: Sold 100% strictly "As-Is, Where-Is" (Zero repairs, cleaning, or debris removal required)\n`;
@@ -773,7 +775,7 @@ export function generateMultiOptionProposal(input: ProposalGeneratorInput): {
               </div>
               <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #047857;">
                 <li>Net cash walkaway at closing</li>
-                <li>Earnest Money Deposit: $${earnestVal.toLocaleString()} (escrow deposited within 48 business hours)</li>
+                ${earnestVal > 0 ? `<li>Earnest Money Deposit: $${earnestVal.toLocaleString()} (escrow deposited within 48 business hours)</li>` : ''}
                 <li>Inspection Period: ${inspDays} calendar days (full due diligence & property access)</li>
                 <li>Closing within ${closeDays} business days (or seller's choice)</li>
                 <li>Sold 100% strictly "As-Is" — zero repairs or cleaning</li>

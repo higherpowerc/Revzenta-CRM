@@ -1510,7 +1510,7 @@ export default function PropertyDetailModal({
             {actionType === 'search' && onConvertToLead && (
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn"
                 onClick={onConvertToLead}
                 disabled={isConverting}
                 style={{
@@ -1520,10 +1520,14 @@ export default function PropertyDetailModal({
                   alignItems: 'center',
                   gap: '6px',
                   fontWeight: 700,
+                  backgroundColor: '#f97316',
+                  borderColor: '#ea580c',
+                  color: '#ffffff',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 8px rgba(249, 115, 22, 0.35)',
                 }}
               >
-                <span>➕</span>
-                <span>{isConverting ? 'Importing Lead...' : 'Convert to Lead'}</span>
+                <span>{isConverting ? 'Adding to Hot List...' : '+ Hot List'}</span>
               </button>
             )}
           </div>

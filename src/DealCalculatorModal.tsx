@@ -436,7 +436,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     const cfEmd = p.customFields?.find((c) => c.name.toLowerCase().includes("earnest"))?.value;
     const numEmd = Number(String(cfEmd).replace(/[^0-9.]/g, ""));
     if (!isNaN(numEmd) && numEmd > 0) setEarnestMoneyDeposit(numEmd);
-    else setEarnestMoneyDeposit(2500);
+    else setEarnestMoneyDeposit(0);
 
     const cfBeds = p.customFields?.find((c) => c.name.toLowerCase().includes("bed"))?.value;
     const cfBaths = p.customFields?.find((c) => c.name.toLowerCase().includes("bath"))?.value;
@@ -578,7 +578,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const [creativeIsIO, setCreativeIsIO] = useState<boolean>(false);
   const [creativeRehab] = useState<number>(5000);
   const [creativeAssignmentFee, setCreativeAssignmentFee] = useState<number>(initialFields.fee);
-  const [creativeClosingCosts] = useState<number>(2000);
+  const [creativeClosingCosts] = useState<number>(0);
   const [creativeRent, setCreativeRent] = useState<number>(initialFields.rent);
   const [creativeTaxes, setCreativeTaxes] = useState<number>(180);
   const [creativeInsurance, setCreativeInsurance] = useState<number>(120);
@@ -626,7 +626,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const [subtoArrears, setSubtoArrears] = useState<number>(0);
   const [subtoRehab] = useState<number>(5000);
   const [subtoAssignmentFee, setSubtoAssignmentFee] = useState<number>(initialFields.fee);
-  const [subtoClosingCosts] = useState<number>(2000);
+  const [subtoClosingCosts] = useState<number>(0);
   const [subtoRent, setSubtoRent] = useState<number>(initialFields.rent);
   const [subtoTaxesIns, setSubtoTaxesIns] = useState<number>(250);
   const [subtoHoa] = useState<number>(40);
@@ -733,7 +733,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const [earnestMoneyDeposit, setEarnestMoneyDeposit] = useState<number>(() => {
     const cfEmd = property?.customFields?.find((c) => c.name.toLowerCase().includes("earnest"))?.value;
     const num = Number(String(cfEmd).replace(/[^0-9.]/g, ""));
-    return !isNaN(num) && num > 0 ? num : 2500;
+    return !isNaN(num) && num > 0 ? num : 0;
   });
   const [includeAssignability, setIncludeAssignability] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<"formatted" | "plain">("formatted");
@@ -1186,9 +1186,18 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         agentPhone: agentPhone.trim(),
         recipientType,
         offerType: offerTypeLabel,
+        selectedOffers: selectedProposalOptions,
         cashOfferAmount: selectedProposalOptions.includes("cash") ? cashMetrics.netWholesaleOffer : 0,
         subtoPurchasePrice: selectedProposalOptions.includes("subto") ? subtoPrice : 0,
+        subtoDebt: selectedProposalOptions.includes("subto") ? subtoMetrics.totalExistingDebt : 0,
+        subtoCashToSeller: selectedProposalOptions.includes("subto") ? subtoCashToSeller : 0,
+        subtoMonthlyPayment: selectedProposalOptions.includes("subto") ? subtoMetrics.totalMonthlyDebtService : 0,
         creativePurchasePrice: selectedProposalOptions.includes("creative") ? creativePrice : 0,
+        creativeDownPayment: selectedProposalOptions.includes("creative") ? creativeDown : 0,
+        creativeMonthlyPayment: selectedProposalOptions.includes("creative") ? creativeMetrics.monthlyDebtService : 0,
+        creativeInterestRate: selectedProposalOptions.includes("creative") ? creativeInterestRate : 0,
+        creativeBalloonYears: selectedProposalOptions.includes("creative") ? creativeBalloonYears : 0,
+        creativeTotalPaid: selectedProposalOptions.includes("creative") ? creativeMetrics.totalPayoutToSeller : 0,
         closingDays,
         inspectionDays,
         inspectionPeriodDays: inspectionDays,
@@ -1209,7 +1218,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           { name: "Cash Offer", value: String(cashMetrics.netWholesaleOffer) },
           { name: "Closing Timeline", value: `${closingDays} Days` },
           { name: "Inspection Period", value: `${inspectionDays} Days` },
-          { name: "Earnest Money", value: `$${earnestMoneyDeposit.toLocaleString()}` },
+          ...(earnestMoneyDeposit > 0 ? [{ name: "Earnest Money", value: `$${earnestMoneyDeposit.toLocaleString()}` }] : []),
         ]);
         return res.offer;
       }
@@ -1499,7 +1508,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         creativePurchasePrice: tab === "creative" ? creativePrice : 0,
         subtoPurchasePrice: tab === "subto" ? subtoPrice : 0,
         status: "sent",
-        earnestMoneyDeposit: earnestMoneyDeposit || 2500,
+        earnestMoneyDeposit: earnestMoneyDeposit || 0,
         inspectionPeriodDays: closingDays || 14,
         closingPeriodDays: closingDays || 21,
       };
@@ -1527,7 +1536,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
         { id: "cf_cash_offer", name: "Cash Offer", type: "currency", value: String(offerAmount) },
         { id: "cf_offer_structure", name: "Offer Structure", type: "text", value: offerTypeStr },
         { id: "cf_fee", name: "Assignment Value", type: "currency", value: String(activeFee) },
-        { id: "cf_earnest", name: "Earnest Money", type: "currency", value: String(earnestMoneyDeposit) },
+        ...(earnestMoneyDeposit > 0 ? [{ id: "cf_earnest", name: "Earnest Money", type: "currency", value: String(earnestMoneyDeposit) }] : []),
       ];
 
       if (activeProperty?.id) {
@@ -2100,9 +2109,9 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                   {[
-                    { id: "cash" as const, icon: "💵", label: "Immediate All-Cash", value: "$" + cashMetrics.netWholesaleOffer.toLocaleString(), color: "#38bdf8" },
-                    { id: "subto" as const, icon: "🏦", label: "Subject-To Takeover", value: "$" + subtoPrice.toLocaleString(), color: "#c084fc" },
-                    { id: "creative" as const, icon: "🤝", label: "Seller Financing", value: "$" + creativePrice.toLocaleString(), color: "var(--lime, #d6ff3f)" },
+                    { id: "cash" as const, icon: "💵", label: "Immediate All-Cash", value: "$" + cashMetrics.netWholesaleOffer.toLocaleString(), color: "var(--blue, #2563eb)" },
+                    { id: "subto" as const, icon: "🏦", label: "Subject-To Takeover", value: "$" + subtoPrice.toLocaleString(), color: "var(--violet, #7c3aed)" },
+                    { id: "creative" as const, icon: "🤝", label: "Seller Financing", value: "$" + creativePrice.toLocaleString(), color: "var(--primary, #00a89f)" },
                   ].map((opt) => {
                     const isSelected = selectedProposalOptions.includes(opt.id);
                     return (
@@ -4049,8 +4058,8 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
                     <div style={{ background: "rgba(214, 255, 63, 0.08)", border: "1.5px solid rgba(214, 255, 63, 0.35)", borderRadius: "8px", padding: "7px 10px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontSize: "10px", color: "var(--lime, #d6ff3f)", fontWeight: 800 }}>TIMELINE</div>
-                        <span style={{ fontSize: "9px", color: "var(--lime, #d6ff3f)", fontWeight: 600 }}>✏️ Edit</span>
+                        <div style={{ fontSize: "10px", color: "var(--primary, #00a89f)", fontWeight: 800 }}>TIMELINE</div>
+                        <span style={{ fontSize: "9px", color: "var(--primary, #00a89f)", fontWeight: 600 }}>✏️ Edit</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "2px" }}>
                         <input
@@ -4068,7 +4077,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                             width: "48px",
                             background: "transparent",
                             border: "none",
-                            borderBottom: "1px dashed rgba(214, 255, 63, 0.6)",
+                            borderBottom: "1px dashed var(--primary, #00a89f)",
                             color: "var(--ink, #f8fafc)",
                             fontSize: "14px",
                             fontWeight: 800,
@@ -4080,28 +4089,28 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </div>
                     </div>
 
-                    <div style={{ background: "rgba(168, 85, 247, 0.1)", border: "1.5px solid rgba(168, 85, 247, 0.4)", borderRadius: "8px", padding: "7px 10px" }}>
+                    <div style={{ background: "rgba(124, 58, 237, 0.1)", border: "1.5px solid rgba(124, 58, 237, 0.4)", borderRadius: "8px", padding: "7px 10px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontSize: "10px", color: "#c084fc", fontWeight: 800 }}>EARNEST PRICE (EMD)</div>
-                        <span style={{ fontSize: "9px", color: "#c084fc", fontWeight: 600 }}>✏️ Edit</span>
+                        <div style={{ fontSize: "10px", color: "var(--violet, #7c3aed)", fontWeight: 800 }}>EARNEST / ESCROW (EMD)</div>
+                        <span style={{ fontSize: "9px", color: "var(--violet, #7c3aed)", fontWeight: 600 }}>✏️ Edit</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "2px", marginTop: "2px" }}>
-                        <span style={{ fontSize: "14px", fontWeight: 800, color: "#c084fc" }}>$</span>
+                        <span style={{ fontSize: "14px", fontWeight: 800, color: "var(--violet, #7c3aed)" }}>$</span>
                         <input
                           type="text"
-                          value={earnestMoneyDeposit ? earnestMoneyDeposit.toLocaleString() : ""}
+                          value={earnestMoneyDeposit ? earnestMoneyDeposit.toLocaleString() : "0"}
                           onChange={(e) => {
                             const raw = e.target.value.replace(/[^0-9]/g, "");
                             const val = Number(raw) || 0;
                             setEarnestMoneyDeposit(val);
                           }}
-                          placeholder="2,500"
-                          title="Set earnest price before sending offer"
+                          placeholder="0"
+                          title="Set earnest / escrow deposit before sending offer (default $0)"
                           style={{
                             width: "100%",
                             background: "transparent",
                             border: "none",
-                            borderBottom: "1px dashed rgba(192, 132, 252, 0.6)",
+                            borderBottom: "1px dashed var(--violet, #7c3aed)",
                             color: "var(--ink, #f8fafc)",
                             fontSize: "14px",
                             fontWeight: 800,
@@ -4112,10 +4121,10 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                       </div>
                     </div>
 
-                    <div style={{ background: "rgba(244, 63, 94, 0.08)", border: "1.5px solid rgba(244, 63, 94, 0.35)", borderRadius: "8px", padding: "7px 10px" }}>
+                    <div style={{ background: "rgba(239, 68, 68, 0.08)", border: "1.5px solid rgba(239, 68, 68, 0.35)", borderRadius: "8px", padding: "7px 10px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontSize: "10px", color: "#fb7185", fontWeight: 800 }}>INSPECTION</div>
-                        <span style={{ fontSize: "9px", color: "#fb7185", fontWeight: 600 }}>✏️ Edit</span>
+                        <div style={{ fontSize: "10px", color: "var(--danger, #ef4444)", fontWeight: 800 }}>INSPECTION</div>
+                        <span style={{ fontSize: "9px", color: "var(--danger, #ef4444)", fontWeight: 600 }}>✏️ Edit</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "2px" }}>
                         <input

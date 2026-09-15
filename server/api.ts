@@ -887,21 +887,25 @@ export function isAgreementStatus(v: unknown): v is AgreementStatus {
  * The tier drives auto Services tags + the per-tier onboarding checklist +
  * the future billing tier (per-tier pricing is the owner's call at charge
  * time — NO hard-coded rates). Values: '' (unset) | tier1..tier4. */
-export type PackageTier = "" | "starter" | "pro" | "scale" | "tier1" | "tier2" | "tier3" | "tier4";
-export const TIER_KEYS: readonly string[] = ["starter", "pro", "scale", "tier1", "tier2", "tier3", "tier4"];
+export type PackageTier = "" | "solo" | "team" | "starter" | "pro" | "scale" | "tier1" | "tier2" | "tier3" | "tier4";
+export const TIER_KEYS: readonly string[] = ["solo", "team", "starter", "pro", "scale", "tier1", "tier2", "tier3", "tier4"];
 export const TIER_LABELS: Record<string, string> = {
   "": "— Unset —",
-  starter: "Starter Wholesaler — $24.99/mo",
-  pro: "Pro Dealmaker — $59.99/mo",
-  scale: "Scale & Brokerage — $79/mo",
-  tier1: "Starter Wholesaler — $24.99/mo",
-  tier2: "Pro Dealmaker — $59.99/mo",
-  tier3: "Scale & Brokerage — $79/mo",
+  solo: "Solo — Operate without a team ($60/mo)",
+  team: "Team — Operate with a team ($99/mo)",
+  starter: "Solo — Operate without a team ($60/mo)",
+  pro: "Solo — Operate without a team ($60/mo)",
+  scale: "Team — Operate with a team ($99/mo)",
+  tier1: "Solo — $60/mo",
+  tier2: "Solo — $60/mo",
+  tier3: "Team — $99/mo",
   tier4: "Custom Enterprise Package",
 };
 export const TIER_SERVICE_TAGS: Record<string, string[]> = {
   "": [],
-  starter: ["Inbound Pipeline", "Contacts & Buyers", "Tasks"],
+  solo: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "E-Signatures"],
+  team: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "Team Seats", "Custom Riders"],
+  starter: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "E-Signatures"],
   pro: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "E-Signatures"],
   scale: ["Inbound Pipeline", "RentCast Comps", "Buy Box Matcher", "Transaction Hub", "Team Seats", "Custom Riders"],
   tier1: ["Inbound Pipeline"],
@@ -2346,14 +2350,12 @@ async function provisionPendingSignup(input: {
     return { orgId: existingUser.org_id, userId: existingUser.id };
   }
   if (!pending) return null;
-  const tier = pending.tier === "starter" || pending.tier === "scale" ? pending.tier : "pro";
-  // Owner pricing 2026-09-08 (PR #135, cents) as monthly-equivalent MRR
-  // (dollars): monthly at face value, annual amortized round(annual/12)
-  // (starter 1999c / pro 4799c / scale 6320c).
+  const tier = (pending.tier === "team" || pending.tier === "scale") ? "team" : "solo";
+  // Restructured pricing (Solo $60/mo, Team $99/mo)
   const mrrDollars =
     pending.billing === "annual"
-      ? tier === "starter" ? 19.99 : tier === "scale" ? 63.2 : 47.99
-      : tier === "starter" ? 24.99 : tier === "scale" ? 79 : 59.99;
+      ? tier === "team" ? 79.20 : 48.00
+      : tier === "team" ? 99.00 : 60.00;
   let provisioned: { orgId: number; userId: number };
   try {
     provisioned = insertOrgWithMember({
@@ -2370,7 +2372,8 @@ async function provisionPendingSignup(input: {
          is_licensed_agent = ?,
          license_number = ?,
          state_agreement_accepted_at = datetime('now'),
-         state_agreement_statute = ?
+         state_agreement_statute = ?,
+         onboarding_completed = 0
        WHERE id = ?`
     ).run(
       mrrDollars,
@@ -3713,6 +3716,110 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       return json({ user, token: token ?? undefined, impersonating: true, impersonatedFrom: imp });
     }
     return json({ user, token: token ?? undefined, impersonating: false });
+  }
+
+  /* Mandatory Non-Negotiable Subscriber Onboarding (2026-09-15)
+     Gates new workspace accounts until they calibrate their entity, buy box,
+     title defaults, and transaction terms. */
+  if (pathname === "/api/subscriber/onboarding" && method === "POST") {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+    const user = getUserById(auth.userId);
+    if (!user) return err("Not signed in.", 401);
+
+    const body = await readBody(req);
+    if (!body || typeof body !== "object") {
+      return err("Invalid onboarding payload.", 400);
+    }
+
+    const operatingType = body.operatingType === "individual" ? "individual" : "business";
+    const companyLegalName = typeof body.companyLegalName === "string" && body.companyLegalName.trim()
+      ? body.companyLegalName.trim()
+      : (typeof body.legalName === "string" ? body.legalName.trim() : null);
+    const primaryMarketCity = typeof body.primaryMarketCity === "string" ? body.primaryMarketCity.trim() : null;
+    const communicationsEmail = typeof body.communicationsEmail === "string" ? body.communicationsEmail.trim() : null;
+    const primaryStrategy = typeof body.primaryStrategy === "string" ? body.primaryStrategy.trim() : null;
+    const preferredTitleCompany = typeof body.preferredTitleCompany === "string" ? body.preferredTitleCompany.trim() : null;
+    const preferredTitleEmail = typeof body.preferredTitleEmail === "string" ? body.preferredTitleEmail.trim() : null;
+    const defaultAssignmentFee = typeof body.defaultAssignmentFee === "number" ? body.defaultAssignmentFee : null;
+    const defaultInvestorRule = typeof body.defaultInvestorRule === "string" ? body.defaultInvestorRule.trim() : null;
+    const defaultEmd = typeof body.defaultEmd === "number" ? body.defaultEmd : null;
+    const defaultInspectionDays = typeof body.defaultInspectionDays === "number" ? body.defaultInspectionDays : null;
+    const defaultClosingDays = typeof body.defaultClosingDays === "number" ? body.defaultClosingDays : null;
+
+    db.query(`
+      UPDATE orgs SET
+        onboarding_completed = 1,
+        onboarding_completed_at = datetime('now'),
+        operating_type = COALESCE(?, operating_type),
+        company_legal_name = COALESCE(?, company_legal_name),
+        communications_email = COALESCE(?, communications_email),
+        primary_market_city = COALESCE(?, primary_market_city),
+        primary_strategy = COALESCE(?, primary_strategy),
+        preferred_title_company = COALESCE(?, preferred_title_company),
+        preferred_title_email = COALESCE(?, preferred_title_email),
+        default_assignment_fee = COALESCE(?, default_assignment_fee),
+        default_investor_rule = COALESCE(?, default_investor_rule),
+        default_emd = COALESCE(?, default_emd),
+        default_inspection_days = COALESCE(?, default_inspection_days),
+        default_closing_days = COALESCE(?, default_closing_days)
+      WHERE id = ?
+    `).run(
+      operatingType,
+      companyLegalName,
+      communicationsEmail,
+      primaryMarketCity,
+      primaryStrategy,
+      preferredTitleCompany,
+      preferredTitleEmail,
+      defaultAssignmentFee,
+      defaultInvestorRule,
+      defaultEmd,
+      defaultInspectionDays,
+      defaultClosingDays,
+      user.orgId
+    );
+
+    if (companyLegalName) {
+      db.query("UPDATE orgs SET name = ? WHERE id = ?").run(companyLegalName, user.orgId);
+    }
+
+    if (body.seedDemoLead === true) {
+      const existing = (db.query("SELECT COUNT(*) as count FROM clients WHERE org_id = ?").get(user.orgId) as { count: number })?.count ?? 0;
+      if (existing === 0) {
+        const city = primaryMarketCity || "Detroit, MI";
+        const sampleAddress = `10424 Somerset Ave, ${city}`;
+        db.query(`
+          INSERT INTO clients (
+            org_id, company_name, contact_name, address, city, state, zip,
+            deal_value, stage, client_type, lead_source, notes, custom_fields, created_at, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?,
+            ?, 'Active Negotiation', 'lead', 'Demo Property Intelligence', ?, ?, datetime('now'), datetime('now')
+          )
+        `).run(
+          user.orgId,
+          "Sample Distressed Opportunity",
+          "Marcus Vance (Motivated Seller)",
+          sampleAddress,
+          city.split(",")[0]?.trim() || "Detroit",
+          city.split(",")[1]?.trim() || "MI",
+          "48224",
+          140000,
+          "Walkthrough complete. Property is vacant with motivated out-of-state heir. Roof requires replacement ($8k), cosmetic paint and flooring throughout.",
+          JSON.stringify({
+            arv: 140000,
+            repair_estimate: 25000,
+            mao_cash: 73000,
+            opportunity_score: 91,
+            seller_motivation: "High - Inherited property",
+          })
+        );
+      }
+    }
+
+    const updatedUser = getUserById(user.id);
+    return json({ ok: true, user: updatedUser });
   }
 
   /* Phase 3d — end an owner impersonation: swap back to the admin's own
@@ -6268,7 +6375,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         creativeTotalPaid: r.creative_total_paid,
         closingDays: r.closing_days,
         inspectionDays: r.inspection_days ?? 10,
-        earnestMoneyDeposit: r.earnest_money_deposit ?? 2500,
+        earnestMoneyDeposit: r.earnest_money_deposit ?? 0,
         emailStatus: r.email_status,
         status: r.status || "Sent",
         notes: r.notes || "",
@@ -6449,7 +6556,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         creativePurchasePrice: updated.creative_purchase_price,
         closingDays: updated.closing_days,
         inspectionDays: updated.inspection_days ?? 10,
-        earnestMoneyDeposit: updated.earnest_money_deposit ?? 2500,
+        earnestMoneyDeposit: updated.earnest_money_deposit ?? 0,
         emailStatus: updated.email_status,
         status: updated.status,
         notes: updated.notes,
@@ -6488,7 +6595,9 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const notes = typeof body.notes === "string" ? body.notes : "";
     const closingDays = Number(body.closingDays) || 14;
     const inspectionDays = Number(body.inspectionDays) || Number(body.inspectionPeriodDays) || 10;
-    const earnestMoneyDeposit = Number(body.earnestMoneyDeposit) || Number(body.earnestMoney) || 2500;
+    const earnestMoneyDeposit = body.earnestMoneyDeposit !== undefined
+      ? (Number(body.earnestMoneyDeposit) || 0)
+      : (body.earnestMoney !== undefined ? (Number(body.earnestMoney) || 0) : 0);
 
     // If no clientId was provided, find existing property lead or auto-create one
     if (!clientId && propertyAddress) {
@@ -6555,6 +6664,29 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       console.warn("[offers-post] Warning generating LOI PDF:", pdfErr);
     }
 
+    let selectedOffers = Array.isArray(body.selectedOffers) ? body.selectedOffers : [];
+    if (selectedOffers.length === 0) {
+      const ot = offerType.toLowerCase();
+      if (ot.includes("seller financing") || ot === "creative") {
+        selectedOffers = ["creative"];
+      } else if (ot.includes("subject-to") || ot === "subto") {
+        selectedOffers = ["subto"];
+      } else if (ot === "cash") {
+        selectedOffers = ["cash"];
+      } else {
+        if (cashOfferAmount > 0) selectedOffers.push("cash");
+        if (subtoPurchasePrice > 0 || subtoDebt > 0) selectedOffers.push("subto");
+        if (creativePurchasePrice > 0) selectedOffers.push("creative");
+        if (selectedOffers.length === 0) selectedOffers = ["cash"];
+      }
+    }
+    const selectedOffersJson = JSON.stringify(selectedOffers);
+    const creativeDownPayment = Number(body.creativeDownPayment) || 0;
+    const creativeMonthlyPayment = Number(body.creativeMonthlyPayment) || 0;
+    const creativeInterestRate = Number(body.creativeInterestRate) || 0;
+    const creativeBalloonYears = Number(body.creativeBalloonYears) || 0;
+    const creativeTotalPaid = Number(body.creativeTotalPaid) || 0;
+
     const insertResult = db.query(`
       INSERT INTO offers (
         org_id, client_id, pdf_id, property_address, seller_name, seller_email,
@@ -6564,10 +6696,10 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         creative_balloon_years, creative_total_paid, closing_days, inspection_days, earnest_money_deposit, email_status, status, notes, created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
-        ?, ?, '["cash"]',
+        ?, ?, ?,
         ?, ?, ?, ?, ?,
-        ?, 0, 0, 0,
-        0, 0, ?, ?, ?, 'sent', ?, ?, datetime('now'), datetime('now')
+        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, 'sent', ?, ?, datetime('now'), datetime('now')
       )
     `).run(
       orgId,
@@ -6578,12 +6710,18 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
       sellerEmail,
       businessName,
       offerType,
+      selectedOffersJson,
       cashOfferAmount,
       subtoPurchasePrice,
       subtoDebt,
       subtoCashToSeller,
       subtoMonthlyPayment,
       creativePurchasePrice,
+      creativeDownPayment,
+      creativeMonthlyPayment,
+      creativeInterestRate,
+      creativeBalloonYears,
+      creativeTotalPaid,
       closingDays,
       inspectionDays,
       earnestMoneyDeposit,
@@ -6663,7 +6801,7 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         creativePurchasePrice: created.creative_purchase_price,
         closingDays: created.closing_days,
         inspectionDays: created.inspection_days ?? 10,
-        earnestMoneyDeposit: created.earnest_money_deposit ?? 2500,
+        earnestMoneyDeposit: created.earnest_money_deposit ?? 0,
         emailStatus: created.email_status,
         status: created.status || "Sent",
         notes: created.notes || "",

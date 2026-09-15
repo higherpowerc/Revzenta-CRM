@@ -635,7 +635,7 @@ db.exec(`
     creative_total_paid      REAL NOT NULL DEFAULT 0,
     closing_days             INTEGER NOT NULL DEFAULT 14,
     inspection_days          INTEGER NOT NULL DEFAULT 10,
-    earnest_money_deposit    REAL NOT NULL DEFAULT 2500,
+    earnest_money_deposit    REAL NOT NULL DEFAULT 0,
     email_status             TEXT NOT NULL DEFAULT 'sent',
     status                   TEXT NOT NULL DEFAULT 'Sent',
     notes                    TEXT NOT NULL DEFAULT '',
@@ -1667,13 +1667,25 @@ export interface OrgRow {
   tier: string;
   email_sender_name: string;
   email_reply_to: string;
+  onboarding_completed?: number;
+  onboarding_completed_at?: string;
+  company_legal_name?: string;
+  primary_market_city?: string;
+  primary_strategy?: string;
+  preferred_title_company?: string;
+  preferred_title_email?: string;
+  default_assignment_fee?: number;
+  default_investor_rule?: number;
+  default_emd?: number;
+  default_inspection_days?: number;
+  default_closing_days?: number;
   created_at: string;
 }
 
 export function getOrg(orgId: number): OrgRow | null {
   return db
     .query(
-      "SELECT id, name, stages, accent_color, dashboard_color, custom_fields, service_model, delivery_type, industry, intake_opts, custom_intake_groups, vertical_key, monthly_subscription_amount, revenue_model, agreement_template, agreements_pin_hash, status, canceled_at, retention_until, allow_self_schedule, tier, email_sender_name, email_reply_to, created_at FROM orgs WHERE id = ?",
+      "SELECT * FROM orgs WHERE id = ?",
     )
     .get(orgId) as OrgRow | null;
 }
@@ -1973,7 +1985,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_a
     db.exec("ALTER TABLE offers ADD COLUMN inspection_days INTEGER NOT NULL DEFAULT 10");
   }
   if (!offerCols.some((c) => c.name === "earnest_money_deposit")) {
-    db.exec("ALTER TABLE offers ADD COLUMN earnest_money_deposit REAL NOT NULL DEFAULT 2500");
+    db.exec("ALTER TABLE offers ADD COLUMN earnest_money_deposit REAL NOT NULL DEFAULT 0");
   }
 }
 
@@ -2218,6 +2230,58 @@ try {
   }
   if (!orgCols.some((c) => c.name === "state_agreement_statute")) {
     db.exec("ALTER TABLE orgs ADD COLUMN state_agreement_statute TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "onboarding_completed")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN onboarding_completed INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!orgCols.some((c) => c.name === "onboarding_completed_at")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN onboarding_completed_at TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "company_legal_name")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN company_legal_name TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "operating_type")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN operating_type TEXT NOT NULL DEFAULT 'business'");
+  }
+  if (!orgCols.some((c) => c.name === "communications_email")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN communications_email TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "primary_market_city")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN primary_market_city TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "primary_strategy")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN primary_strategy TEXT NOT NULL DEFAULT 'all'");
+  }
+  if (!orgCols.some((c) => c.name === "preferred_title_company")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN preferred_title_company TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "preferred_title_email")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN preferred_title_email TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "default_assignment_fee")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN default_assignment_fee REAL NOT NULL DEFAULT 10000");
+  }
+  if (!orgCols.some((c) => c.name === "default_investor_rule")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN default_investor_rule REAL NOT NULL DEFAULT 70");
+  }
+  if (!orgCols.some((c) => c.name === "default_emd")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN default_emd REAL NOT NULL DEFAULT 2500");
+  }
+  if (!orgCols.some((c) => c.name === "default_inspection_days")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN default_inspection_days INTEGER NOT NULL DEFAULT 10");
+  }
+  if (!orgCols.some((c) => c.name === "default_closing_days")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN default_closing_days INTEGER NOT NULL DEFAULT 14");
+  }
+
+  // Ensure owner org has onboarding_completed = 1
+  try {
+    const ownerId = getOwnerOrgId();
+    if (ownerId) {
+      db.query("UPDATE orgs SET onboarding_completed = 1 WHERE id = ?").run(ownerId);
+    }
+  } catch {
+    // ignore if table initializing
   }
 
   // Backfill missing webhook_secret with a random token for each org

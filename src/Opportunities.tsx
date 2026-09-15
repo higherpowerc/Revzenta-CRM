@@ -278,9 +278,9 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
         <div>
           <PropertyReviewDossier
             property={reviewingOpportunity}
-            titleBadge="Converted"
+            titleBadge="Hot List"
             onBack={() => setReviewingOpportunity(null)}
-            backLabel="Back to Converted Deals"
+            backLabel="Back to Hot List"
             onPropertyUpdated={(updated) => {
               setOpportunities((prev) =>
                 prev.map((item) => (item.id === updated.id ? updated : item))
@@ -323,13 +323,13 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap", marginBottom: "20px" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 800 }}>🎯 Converted</h1>
+            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 800 }}>🔥 Hot List</h1>
             <span style={{ fontSize: "12px", padding: "3px 9px", borderRadius: "12px", background: "rgba(214, 255, 63, 0.15)", color: "var(--lime, #d6ff3f)", fontWeight: 700 }}>
               {filteredOpportunities.length} Active Deals
             </span>
           </div>
           <p style={{ margin: "6px 0 0", color: "var(--muted, #94a3b8)", fontSize: "14px" }}>
-            Active wholesale properties converted from Intelligent Search with complete valuation, equity, distress, and physical intelligence.
+            Active wholesale properties added to your Hot List with complete valuation, equity, distress, and physical intelligence.
           </p>
         </div>
 
@@ -476,7 +476,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
       {loading && (
         <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted, #94a3b8)" }}>
           <div style={{ fontSize: "28px", marginBottom: "8px" }}>⏳</div>
-          <div>Loading converted opportunities with intelligence dossiers...</div>
+          <div>Loading Hot List properties with intelligence dossiers...</div>
         </div>
       )}
 
@@ -488,10 +488,10 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
 
       {!loading && !error && filteredOpportunities.length === 0 && (
         <div style={{ padding: "48px 24px", border: "1px dashed var(--border-color, #334155)", borderRadius: "12px", textAlign: "center", color: "var(--muted, #94a3b8)", background: "var(--card-bg, #1e293b)" }}>
-          <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔍</div>
-          <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", color: "var(--ink, #f8fafc)" }}>No matching converted properties</h3>
+          <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔥</div>
+          <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", color: "var(--ink, #f8fafc)" }}>No matching properties in Hot List</h3>
           <p style={{ margin: 0, fontSize: "13px", maxWidth: "500px", marginInline: "auto" }}>
-            Convert properties from the <strong>Intelligent Search</strong> tab or create a new deal in <strong>Hunters Hub</strong> to track them here with complete property data.
+            Add properties to your <strong>Hot List</strong> using the <strong>+ Hot List</strong> button in <strong>Intelligent Search</strong>.
           </p>
         </div>
       )}

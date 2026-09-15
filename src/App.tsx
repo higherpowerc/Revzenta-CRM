@@ -27,6 +27,7 @@ import UpgradeGate from "./UpgradeGate";
 import PropertySearch from "./PropertySearch";
 import MarketingSuite from "./MarketingSuite";
 import MessageHub from "./MessageHub";
+import { SubscriberOnboarding } from "./SubscriberOnboarding";
 import { api } from "./api";
 import { DEFAULT_STAGES, TENANT_TABS, type Client, type TenantTab, type User, type PackageTier, normalizeTier, hasTierAccess, TIER_LABELS, TIER_SHORT_LABELS, TIER_BADGES } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
@@ -484,11 +485,11 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard";
-        case "opportunities": return "Converted";
+        case "opportunities": return "Hot List";
         case "properties": return "Intelligent Search";
         case "leads": return "Hunters Hub";
-        case "offers": return "PSA Sent";
-        case "contracts": return "Assignments Sent";
+        case "offers": return "PSA HUB";
+        case "contracts": return "Assignments Hub";
         case "documents": return "Title Hub";
         case "sold": return "Sold Hub";
         case "messages": return "Message Hub";
@@ -791,6 +792,19 @@ export default function App() {
           }
           setViewingWebsite(false);
           window.location.hash = "";
+        }}
+      />
+    );
+  }
+
+  // Mandatory Non-Negotiable Subscriber Onboarding (2026-09-15)
+  // New subscribers must calibrate their entity, buy box, and title logistics before accessing workspace
+  if (user && !user.isOwner && !user.onboardingCompleted) {
+    return (
+      <SubscriberOnboarding
+        user={user}
+        onComplete={(updatedUser) => {
+          setUser(updatedUser);
         }}
       />
     );
@@ -1184,10 +1198,10 @@ export default function App() {
                       setView("opportunities");
                       setMobileMenuOpen(false);
                     }}
-                    title="View converted wholesale deals"
+                    title="View Hot List deals"
                   >
-                    <span className="tab-icon">🎯</span>
-                    <span>Converted</span>
+                    <span className="tab-icon">🔥</span>
+                    <span>Hot List</span>
                   </button>
                 )}
 
@@ -1221,12 +1235,12 @@ export default function App() {
                       setView("offers");
                       setMobileMenuOpen(false);
                     }}
-                    title={hasTierAccess(effectiveTier, "offers") ? "Wholesale purchase proposals & dispatched PSA contracts" : "PSA Sent (Pro & Scale feature)"}
+                    title={hasTierAccess(effectiveTier, "offers") ? "Wholesale purchase proposals & dispatched PSA contracts" : "PSA HUB feature"}
                   >
                     <span className="tab-icon">📑</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                        <span>PSA Sent</span>
+                        <span>PSA HUB</span>
                         {psaSentCount !== null && (
                           <span
                             style={{
@@ -1257,11 +1271,11 @@ export default function App() {
                       setView("contracts");
                       setMobileMenuOpen(false);
                     }}
-                    title={hasTierAccess(effectiveTier, "documents") ? "Wholesale assignment contracts dispatched to cash buyers" : "Assignments Sent (Pro & Scale feature)"}
+                    title={hasTierAccess(effectiveTier, "documents") ? "Wholesale assignment contracts dispatched to cash buyers" : "Assignments Hub feature"}
                   >
                     <span className="tab-icon">✍️</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
-                      <span>Assignments Sent</span>
+                      <span>Assignments Hub</span>
                       {!hasTierAccess(effectiveTier, "documents") && (
                         <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
                       )}
@@ -1873,18 +1887,15 @@ export default function App() {
         ) : effectiveViewFinal === "properties" ? (
           <PropertySearch
             user={user}
-            onNavigateToLead={(clientId) => {
-              setLeadsStage(null);
-              setOnboardingStage(null);
-              setLeadsFilter("active");
-              setView("leads");
+            onNavigateToLead={(_clientId) => {
+              setView("opportunities");
             }}
           />
         ) : effectiveViewFinal === "offers" ? (
           !hasTierAccess(effectiveTier, "offers") ? (
             <UpgradeGate
-              featureName="PSA Sent & Contract Dispatch"
-              featureDescription="Standardized purchase proposals, assignment fee calculations, and automated contract dispatch are included with Pro Dealmaker and Scale & Brokerage packages."
+              featureName="PSA HUB & Contract Dispatch"
+              featureDescription="Standardized purchase proposals, assignment fee calculations, and automated contract dispatch are included with the platform."
               requiredTier="pro"
               currentTier={effectiveTier}
             />
@@ -1951,8 +1962,8 @@ export default function App() {
         ) : effectiveViewFinal === "contracts" ? (
           !hasTierAccess(effectiveTier, "documents") ? (
             <UpgradeGate
-              featureName="Assignments Sent Hub"
-              featureDescription="Generate state-compliant Assignment Contracts and wholesale agreements with auto-included wholesale clauses, send for e-signatures, and track executed agreements seamlessly on the Pro Dealmaker and Scale & Brokerage packages."
+              featureName="Assignments Hub"
+              featureDescription="Generate state-compliant Assignment Contracts and wholesale agreements with auto-included wholesale clauses, send for e-signatures, and track executed agreements seamlessly."
               requiredTier="pro"
               currentTier={effectiveTier}
             />

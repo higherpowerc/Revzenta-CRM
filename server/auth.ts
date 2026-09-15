@@ -4,7 +4,6 @@ import {
   getOrg,
   isOwnerOrg,
   parseStages,
-  parsePermissions,
   DEFAULT_STAGES,
   DEFAULT_ACCENT,
   migrateOwnerPipeline,
@@ -131,6 +130,7 @@ export interface User {
   dashboardColor: string;
   created_at: string;
   tier?: string;
+  onboardingCompleted: boolean;
 }
 
 interface UserRow {
@@ -142,11 +142,21 @@ interface UserRow {
   created_at: string;
 }
 
-/** Effective org admin — stored role='admin' OR the org's original owner
- *  login (its first user by MIN id). Mirrors the api.ts isOrgAdmin() gate so
- *  the UI can show admin controls (team members section) exactly for the users
- *  the server lets manage members. */
-function isOrgAdminUser(userId: number, orgId: number, role: Role): boolean {
+function parsePermissions(raw: string): TabPermissions {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as TabPermissions;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/** Effective org admin check (owner request 2026-08-14): stored role='admin'
+ *  OR the org's original owner login (its first user by MIN id). */
+export function isOrgAdminUser(userId: number, orgId: number, role: Role): boolean {
   if (role === "admin") return true;
   const first = db
     .query("SELECT MIN(id) AS id FROM users WHERE org_id = ?")
@@ -161,6 +171,8 @@ function isOrgAdminUser(userId: number, orgId: number, role: Role): boolean {
  *  never depends on the org NAME string (branding rename 2026-08-18). */
 export function toUser(row: UserRow): User {
   const org = getOrg(row.org_id);
+  const isOwner = row.role === "admin" && isOwnerOrg(row.org_id);
+  const onboardingCompleted = isOwner || Boolean(org?.onboarding_completed);
   return {
     id: row.id,
     email: row.email,
@@ -168,7 +180,7 @@ export function toUser(row: UserRow): User {
     role: row.role,
     permissions: parsePermissions(row.permissions),
     isOrgAdmin: isOrgAdminUser(row.id, row.org_id, row.role),
-    isOwner: row.role === "admin" && isOwnerOrg(row.org_id),
+    isOwner,
     orgName: org?.name ?? "",
     // Wholesale Biz custom menu (owner 2026-09-04) — the workspace's
     // business type rides on the session user so the client nav can switch
@@ -178,6 +190,7 @@ export function toUser(row: UserRow): User {
     accentColor: org?.accent_color ?? DEFAULT_ACCENT,
     dashboardColor: org?.dashboard_color ?? "",
     tier: (org?.tier || "pro") as any,
+    onboardingCompleted,
     created_at: row.created_at,
   };
 }

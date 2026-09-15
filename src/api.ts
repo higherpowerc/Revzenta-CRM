@@ -1,4 +1,4 @@
-import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, TransactionNote, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem, MarketingCampaign, MarketingOverviewData, InternalMessage, TeamMember, GetMessagesResponse } from "./types";
+import type { AgreementEnvelope, Appointment, Buyer, Client, CreatedOrg, CreatedOrgUser, CustomFieldDef, CustomIntakeGroup, DashboardData, Invoice, InvoiceStatus, MeResponse, OnboardingItem, Org, OrgMember, OrgSettings, PropertyEnrichmentResult, ProvisionEvent, RentcastUsageInfo, RevenueModel, SuppressionRecord, TabPermissions, Task, Ticket, TicketPriority, TicketReply, TicketStatus, Transaction, TransactionNote, User, WebhookLog, WebhookSettings, WholesaleOffer, PropertyItem, SavedSearchItem, PropertyDealExplanation, DevSystemStatus, RegisteredProviderInfo, DistressAlertItem, MarketingCampaign, MarketingOverviewData, InternalMessage, TeamMember, GetMessagesResponse, SubscriberOnboardingData } from "./types";
 import type { UnifiedPropertyFinancialProfile } from "./underwritingEngine";
 
 
@@ -930,6 +930,11 @@ export const api = {
   markAllMessagesRead: () =>
     request<{ ok: true }>("/api/messages/mark-all-read", {
       method: "POST",
+    }),
+  completeSubscriberOnboarding: (data: SubscriberOnboardingData) =>
+    request<{ ok: true; user: User }>("/api/subscriber/onboarding", {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 };
 

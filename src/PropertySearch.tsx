@@ -811,14 +811,14 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
             </div>
           </div>
 
-          {/* 3. Convert */}
+          {/* 3. + Hot List */}
           <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.07)", borderRadius: "8px", padding: "12px 14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px" }}>
-              <span style={{ fontSize: "15px" }}>➕</span>
-              <strong style={{ fontSize: "12.5px", color: "var(--lime, #d6ff3f)" }}>CONVERT</strong>
+              <span style={{ fontSize: "15px" }}>🔥</span>
+              <strong style={{ fontSize: "12.5px", color: "#f97316" }}>+ HOT LIST</strong>
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.5 }}>
-              Imports this property into your <strong>Hunters Hub / Deals table</strong> with its complete dossier (equity, mortgage balance, beds, baths, sqft, APN, score) ready to underwrite and dispatch formal LOI purchase offers.
+              Adds this property directly to your <strong>Hot List</strong> with its complete dossier (equity, mortgage balance, beds, baths, sqft, APN, score) ready to underwrite and dispatch formal LOI purchase offers.
             </div>
           </div>
         </div>
@@ -1053,16 +1053,30 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
 
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ flex: "1 1 75px", fontSize: "11px", padding: "6px 8px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
+                    className="btn"
+                    style={{
+                      flex: "1 1 85px",
+                      fontSize: "11px",
+                      padding: "6px 8px",
+                      display: "inline-flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "4px",
+                      backgroundColor: "#f97316",
+                      borderColor: "#ea580c",
+                      color: "#ffffff",
+                      fontWeight: 700,
+                      borderRadius: "6px",
+                      boxShadow: "0 2px 6px rgba(249, 115, 22, 0.35)",
+                    }}
                     disabled={convertingId === prop.id}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleConvertToLead(prop);
                     }}
+                    title="Add to Hot List"
                   >
-                    <span>➕</span>
-                    <span>{convertingId === prop.id ? "..." : "Convert"}</span>
+                    <span>{convertingId === prop.id ? "Adding..." : "+ Hot List"}</span>
                   </button>
                 </div>
               </div>
@@ -1648,14 +1662,22 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
                         {alert.property && (
                           <button
                             type="button"
-                            className="btn btn-primary"
-                            style={{ fontSize: "11px", padding: "4px 10px" }}
+                            className="btn"
+                            style={{
+                              fontSize: "11px",
+                              padding: "4px 10px",
+                              backgroundColor: "#f97316",
+                              borderColor: "#ea580c",
+                              color: "#ffffff",
+                              fontWeight: 700,
+                              borderRadius: "6px",
+                            }}
                             disabled={convertingId === alert.property.id}
                             onClick={() => {
                               if (alert.property) handleConvertToLead(alert.property as any);
                             }}
                           >
-                            ➕ Convert Property to Lead
+                            {convertingId === alert.property.id ? "Adding..." : "+ Hot List"}
                           </button>
                         )}
                         <button

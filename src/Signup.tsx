@@ -11,69 +11,114 @@ interface SignupProps {
   initialTier?: string;
 }
 
-type Tier = "starter" | "pro" | "scale";
+type Tier = "solo" | "team" | "starter" | "pro" | "scale";
 
-const PLANS = {
-  starter: {
-    name: "Starter Wholesaler",
-    badge: "⚡ Starter",
-    monthly: 24.99,
-    annual: 19.99,
+const PLANS: Record<string, {
+  name: string;
+  tagline: string;
+  badge: string;
+  monthly: number;
+  annual: number;
+  color: string;
+  borderColor: string;
+  glowColor: string;
+  features: string[];
+}> = {
+  solo: {
+    name: "Solo",
+    tagline: "Operate without a team",
+    badge: "⚡ Solo Dealmaker",
+    monthly: 60,
+    annual: 48,
     color: "#06b6d4",
     borderColor: "rgba(6,182,212,0.35)",
     glowColor: "rgba(6,182,212,0.15)",
     features: [
-      "Unlimited pipeline leads & contacts",
-      "Inbound Webhook lead ingestion",
-      "PropStream CSV & BatchLeads import",
-      "Cash buyer directory & criteria tagging",
-      "Daily task management & reminders",
-      "Wholesale ROI / MAO calculator",
-      "Dark / Light mode adaptive UI",
+      "Operate without a team (Single Seat)",
+      "Intelligent Search & Revzenta Opportunity Scores",
+      "Hunters Hub Underwriting & Deal Calculator",
+      "Cash MAO, Seller Financing & SubTo structures",
+      "PSA HUB & Contract Dispatch",
+      "Assignments Hub & Digital E-Signatures",
+      "Title Hub & Escrow Tracking",
+      "Investors Hub & Buyer Matching",
+      "Unlimited pipeline leads & contact records",
     ],
   },
-  pro: {
-    name: "Wholesale Pro",
-    badge: "🔥 Pro",
-    monthly: 59.99,
-    annual: 47.99,
+  team: {
+    name: "Team",
+    tagline: "Operate with a team",
+    badge: "👑 Team & Scale",
+    monthly: 99,
+    annual: 79.2,
     color: "#8b5cf6",
     borderColor: "rgba(139,92,246,0.45)",
     glowColor: "rgba(139,92,246,0.18)",
     features: [
-      "Everything in Starter",
-      "1-Click RentCast property specs & AVM",
-      "Automated Buy Box Matcher scoring",
-      "Document & Transaction Hub",
-      "Digital e-signatures for PSA & Assignment",
-      "Inspection & EMD countdown clocks",
-      "Shared Title Company Escrow Portal",
+      "Operate with a team (Multi-Seat Collaboration)",
+      "Everything included in Solo Dealmaker",
+      "Multi-seat team accounts & granular roles",
+      "Acquisition vs. Disposition agent role permissions",
+      "Team deal routing, task delegation & activity audit",
+      "Shared company contracts, riders & wholesale templates",
+      "Priority property intelligence & comps rate limits",
+      "Dedicated onboarding specialist & 24/7 priority support",
+    ],
+  },
+  starter: {
+    name: "Solo",
+    tagline: "Operate without a team",
+    badge: "⚡ Solo Dealmaker",
+    monthly: 60,
+    annual: 48,
+    color: "#06b6d4",
+    borderColor: "rgba(6,182,212,0.35)",
+    glowColor: "rgba(6,182,212,0.15)",
+    features: [
+      "Operate without a team (Single Seat)",
+      "Intelligent Search & Revzenta Opportunity Scores",
+      "Hunters Hub Underwriting & Deal Calculator",
+      "PSA HUB & Contract Dispatch",
+    ],
+  },
+  pro: {
+    name: "Solo",
+    tagline: "Operate without a team",
+    badge: "⚡ Solo Dealmaker",
+    monthly: 60,
+    annual: 48,
+    color: "#06b6d4",
+    borderColor: "rgba(6,182,212,0.35)",
+    glowColor: "rgba(6,182,212,0.15)",
+    features: [
+      "Operate without a team (Single Seat)",
+      "Intelligent Search & Revzenta Opportunity Scores",
+      "Hunters Hub Underwriting & Deal Calculator",
+      "PSA HUB & Contract Dispatch",
     ],
   },
   scale: {
-    name: "Scale Empire",
-    badge: "👑 Scale",
-    monthly: 79,
-    annual: 63.2,
-    color: "#f59e0b",
-    borderColor: "rgba(245,158,11,0.45)",
-    glowColor: "rgba(245,158,11,0.15)",
+    name: "Team",
+    tagline: "Operate with a team",
+    badge: "👑 Team & Scale",
+    monthly: 99,
+    annual: 79.2,
+    color: "#8b5cf6",
+    borderColor: "rgba(139,92,246,0.45)",
+    glowColor: "rgba(139,92,246,0.18)",
     features: [
-      "Everything in Pro",
-      "Multi-seat team accounts & permissions",
-      "Role-based tab controls (Acquisitions vs Dispo)",
-      "Custom state contract templates & riders",
-      "Priority API rate limits",
-      "Dedicated onboarding specialist",
-      "24/7 Priority support",
+      "Operate with a team (Multi-Seat Collaboration)",
+      "Multi-seat team accounts & granular roles",
+      "Shared company contracts & priority support",
     ],
   },
 };
 
-export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: SignupProps) {
+export default function Signup({ onSuccess, onSignIn, initialTier = "solo" }: SignupProps) {
   const [selectedTier, setSelectedTier] = useState<Tier>(() => {
     const t = initialTier.toLowerCase();
-    return (t === "starter" || t === "scale" ? t : "pro") as Tier;
+    if (t === "team" || t === "scale") return "team";
+    return "solo";
   });
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [workspaceName, setWorkspaceName] = useState("");
@@ -95,7 +140,8 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
       const q = h.includes("?") ? h.slice(h.indexOf("?") + 1) : "";
       const sp = new URLSearchParams(q);
       const t = sp.get("tier") || "";
-      if (t === "starter" || t === "pro" || t === "scale") setSelectedTier(t as Tier);
+      if (t === "team" || t === "scale") setSelectedTier("team");
+      else if (t === "solo" || t === "starter" || t === "pro") setSelectedTier("solo");
       const s = sp.get("state") || "";
       if (s && ALL_US_STATES.some(st => st.code.toUpperCase() === s.toUpperCase())) {
         setOperatingState(s.toUpperCase());
@@ -106,9 +152,9 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
     return () => window.removeEventListener("hashchange", readHash);
   }, []);
 
-  const plan = PLANS[selectedTier];
+  const plan = PLANS[selectedTier] || PLANS.solo;
   const price = billing === "annual" ? plan.annual : plan.monthly;
-  const tierOrder: Tier[] = ["starter", "pro", "scale"];
+  const tierOrder: ("solo" | "team")[] = ["solo", "team"];
   const stateRule = getStateComplianceRule(operatingState);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -234,7 +280,7 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
         </div>
 
         {/* Plan cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px", marginBottom: "36px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", marginBottom: "36px" }}>
           {tierOrder.map(t => {
             const p = PLANS[t];
             const isSelected = selectedTier === t;
@@ -246,19 +292,27 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
                 background: isSelected ? `linear-gradient(145deg,${p.glowColor},rgba(15,23,42,0.95))` : "rgba(15,23,42,0.7)",
                 color: "#f1f5f9",
                 border: `2px solid ${isSelected ? p.color : "rgba(255,255,255,0.08)"}`,
-                borderRadius: "14px", padding: "18px 16px", cursor: "pointer", textAlign: "left",
+                borderRadius: "14px", padding: "18px 20px", cursor: "pointer", textAlign: "left",
                 transition: "all 0.25s", position: "relative",
                 boxShadow: isSelected ? `0 0 30px ${p.glowColor}` : "none",
               }}>
-                {t === "pro" && (
+                {t === "solo" && (
+                  <div style={{
+                    position: "absolute", top: "-10px", left: "50%", transform: "translateX(-50%)",
+                    background: "linear-gradient(90deg,#06b6d4,#0ea5e9)", color: "#fff",
+                    fontSize: "10px", fontWeight: 700, padding: "2px 10px", borderRadius: "10px", whiteSpace: "nowrap",
+                  }}>POPULAR SOLO</div>
+                )}
+                {t === "team" && (
                   <div style={{
                     position: "absolute", top: "-10px", left: "50%", transform: "translateX(-50%)",
                     background: "linear-gradient(90deg,#8b5cf6,#6366f1)", color: "#fff",
                     fontSize: "10px", fontWeight: 700, padding: "2px 10px", borderRadius: "10px", whiteSpace: "nowrap",
-                  }}>MOST POPULAR</div>
+                  }}>POWER TEAM</div>
                 )}
                 <div style={{ fontSize: "20px", marginBottom: "4px" }}>{p.badge}</div>
-                <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "10px" }}>{p.name}</div>
+                <div style={{ fontSize: "16px", fontWeight: 800, color: "#f1f5f9", marginBottom: "2px" }}>{p.name}</div>
+                <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "12px", fontStyle: "italic" }}>&quot;{p.tagline}&quot;</div>
                 <div style={{ fontSize: "28px", fontWeight: 800, color: isSelected ? p.color : "#f1f5f9", lineHeight: 1 }}>
                   ${billing === "annual" ? p.annual : p.monthly}
                   <span style={{ fontSize: "14px", fontWeight: 400, color: "#64748b" }}>/mo</span>
@@ -279,7 +333,7 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
               <span style={{ fontSize: "24px" }}>{plan.badge.split(" ")[0]}</span>
               <div>
-                <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>{plan.name}</div>
+                <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>{plan.name} — &quot;{plan.tagline}&quot;</div>
                 <div style={{ fontSize: "13px", color: "#64748b" }}>Billed {billing === "annual" ? "annually — save 20%" : "monthly"} • cancel anytime</div>
               </div>
             </div>

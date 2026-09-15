@@ -1221,7 +1221,7 @@ export default function Dashboard({
                   badgeTone="tone-orange"
                   subtitle="Formal purchase offers dispatched, pending seller response, and accepted"
                   onView={onGoToOffers}
-                  viewTitle="Open PSA Sent"
+                  viewTitle="Open PSA HUB"
                 />
 
                 <div className="window-stat-grid">
@@ -1280,7 +1280,7 @@ export default function Dashboard({
               </div>
 
               <div className="dashboard-window-footer">
-                <span>PSA Sent</span>
+                <span>PSA HUB</span>
                 <span>{acceptedOffersCount} Accepted · {Math.max(0, totalOffersSent - acceptedOffersCount)} Pending Response</span>
               </div>
             </div>
