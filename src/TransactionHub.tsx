@@ -10,6 +10,8 @@ interface Props {
 
 const STATE_OPTIONS = [
   { value: "US General", label: "US General Standard" },
+  { value: "IL", label: "Illinois (225 ILCS 454 - 1 Assignment/Yr Cap)" },
+  { value: "OK", label: "Oklahoma (SB 924 Predatory Wholesaling Act)" },
   { value: "TX", label: "Texas (Prop Code § 5.086 Disclosure)" },
   { value: "FL", label: "Florida (Wholesale & Assignment Disclosure)" },
   { value: "CA", label: "California (Civil Code § 1624 / 1689)" },
@@ -4758,6 +4760,20 @@ function CreateTransactionModal({ properties, buyers, crmBusinessName, onClose, 
               </select>
             </div>
           </div>
+
+          {/* State-Specific Wholesaling Statutory Warning Banners */}
+          {stateJurisdiction === "IL" && (
+            <div style={{ marginBottom: "14px", padding: "10px 12px", borderRadius: "6px", backgroundColor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.3)", fontSize: "12px", color: "#dc2626", lineHeight: 1.5 }}>
+              <strong>⚠️ Illinois Wholesaling Statutory Notice (225 ILCS 454 / Public Act 101-0357):</strong>
+              <div>Illinois law strictly restricts unlicensed individuals to a maximum of one (1) contract assignment within any rolling 12-month period. If you do not hold an active Illinois managing real estate broker or broker license, double-closing or transactional funding must be utilized to maintain statutory compliance.</div>
+            </div>
+          )}
+          {stateJurisdiction === "OK" && (
+            <div style={{ marginBottom: "14px", padding: "10px 12px", borderRadius: "6px", backgroundColor: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.3)", fontSize: "12px", color: "#d97706", lineHeight: 1.5 }}>
+              <strong>⚠️ Oklahoma Statutory Notice (HB 2673 / SB 924 Predatory Wholesaling Act):</strong>
+              <div>Oklahoma law requires affirmative written disclosure of equitable interest prior to advertising and strictly regulates public marketing of purchase agreements without a real estate license. Mandatory disclosures will be embedded into your contract.</div>
+            </div>
+          )}
 
           {/* Parties: Wholesaler & Investor for Assignment, or Seller & Buyer for PSA */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>

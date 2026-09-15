@@ -214,6 +214,10 @@ export async function generateContractPdf(input: ContractPdfInput): Promise<Uint
       stateDisclosure = "North Carolina Standard Addendum: Equitable interest assignment disclosure pursuant to NC Real Estate Commission guidelines.";
     } else if (input.stateJurisdiction === "AZ") {
       stateDisclosure = "Arizona Wholesale Disclosure (A.R.S. Section 32-2181): Buyer discloses that Buyer holds equitable interest in the Property through this contract and may assign this purchase agreement to a third party before the close of escrow.";
+    } else if (input.stateJurisdiction === "IL" || state.includes("IL") || state.includes("Illinois")) {
+      stateDisclosure = "Illinois Wholesaling Statutory Notice (225 ILCS 454 / Public Act 101-0357): Buyer discloses that Buyer holds equitable interest in the Property pursuant to an assignable purchase agreement and does not hold fee simple legal title. Seller acknowledges Buyer acts as an independent principal and retains the right to assign equitable interest. Unlicensed assignments are strictly subject to Illinois 1-transaction annual statutory caps.";
+    } else if (input.stateJurisdiction === "OK" || state.includes("OK") || state.includes("Oklahoma")) {
+      stateDisclosure = "Oklahoma Predatory Real Estate Wholesaling Act Notice (18 O.S. § 858-301 / SB 924): Buyer affirmatively discloses that Buyer holds equitable interest only and is marketing contractual purchase rights, not the fee simple real estate. Buyer is not a licensed real estate broker.";
     } else if (state.includes("CA") || state.includes("California")) {
       stateDisclosure = "California Civil Code Disclosures: The parties agree that this Agreement represents the entire agreement between the parties. Buyer holds equitable rights under contract and may assign such rights. Seller acknowledges receipt of all statutory disclosure obligations.";
     } else if (state.includes("GA") || state.includes("Georgia")) {
