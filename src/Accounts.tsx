@@ -14,6 +14,9 @@ interface Props {
    *  workspace (server-side impersonation). Throws on failure so the caller
    *  can surface the error. */
   onViewAccount: (orgId: number) => Promise<void>;
+  /** Initial selected category from sidebar */
+  initialCategory?: string;
+  onCategoryChange?: (category: string) => void;
 }
 
 /** Random password (crypto-grade): one from each class + extras, 19 chars. */
@@ -66,7 +69,7 @@ function planCellLabel(tier?: string | null): string {
  *  their content and can never collide. The PR #102 money-at-a-glance
  *  subscription value keeps its own column (was stacked above the cycle
  *  date); the cycle date stays inline-editable. */
-export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
+export default function Accounts({ ownerOrgId, onViewAccount, initialCategory = "all", onCategoryChange }: Props) {
   /* Global privacy eye (2026-08-14 owner request) — blur PII (client/company names, phone, email, address) here too. */
   const pii = usePii();
   const [orgs, setOrgs] = useState<Org[] | null>(null);
@@ -249,6 +252,82 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
      and the linked client record carries canceledAccount for Finance. */
   const activeOrgs = visibleOrgs ? visibleOrgs.filter((o) => o.status !== "canceled") : null;
   const inactiveOrgs = visibleOrgs ? visibleOrgs.filter((o) => o.status === "canceled") : null;
+
+  // Category filter state: "all" | "active" | "plans" | "inactive"
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || "all");
+  // Specific tier filter: "all" | "pro" | "scale" | "starter"
+  const [tierFilter, setTierFilter] = useState<string>("all");
+  // Search query filter
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  useEffect(() => {
+    if (initialCategory) {
+      if (["starter", "pro", "scale"].includes(initialCategory)) {
+        setSelectedCategory("plans");
+        setTierFilter(initialCategory);
+      } else {
+        setSelectedCategory(initialCategory);
+        if (initialCategory !== "plans") {
+          setTierFilter("all");
+        }
+      }
+    }
+  }, [initialCategory]);
+
+  const handleSelectCategory = (cat: string) => {
+    setSelectedCategory(cat);
+    if (cat !== "plans") {
+      setTierFilter("all");
+    }
+    onCategoryChange?.(cat);
+  };
+
+  const matchesSearch = (o: Org) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const linked = clientByOrg[o.id];
+    return (
+      (o.name && o.name.toLowerCase().includes(q)) ||
+      (o.email && o.email.toLowerCase().includes(q)) ||
+      (o.contactEmail && o.contactEmail.toLowerCase().includes(q)) ||
+      (linked?.companyName && linked.companyName.toLowerCase().includes(q)) ||
+      (linked?.phone && linked.phone.toLowerCase().includes(q)) ||
+      (linked?.email && linked.email.toLowerCase().includes(q)) ||
+      (o.tier && o.tier.toLowerCase().includes(q))
+    );
+  };
+
+  const counts = {
+    all: visibleOrgs ? visibleOrgs.length : 0,
+    active: activeOrgs ? activeOrgs.length : 0,
+    inactive: inactiveOrgs ? inactiveOrgs.length : 0,
+    pro: activeOrgs ? activeOrgs.filter((o) => normalizeTier(o.tier) === "pro").length : 0,
+    scale: activeOrgs ? activeOrgs.filter((o) => normalizeTier(o.tier) === "scale").length : 0,
+    starter: activeOrgs ? activeOrgs.filter((o) => normalizeTier(o.tier) === "starter").length : 0,
+  };
+
+  // Filtered active organizations according to selected category, tier, and search query
+  const filteredActiveOrgs = activeOrgs
+    ? activeOrgs.filter((o) => {
+        if (!matchesSearch(o)) return false;
+        if (selectedCategory === "pro") return normalizeTier(o.tier) === "pro";
+        if (selectedCategory === "scale") return normalizeTier(o.tier) === "scale";
+        if (selectedCategory === "starter") return normalizeTier(o.tier) === "starter";
+        if (selectedCategory === "plans" && tierFilter !== "all") {
+          return normalizeTier(o.tier) === tierFilter;
+        }
+        return true;
+      })
+    : null;
+
+  // Filtered inactive organizations
+  const filteredInactiveOrgs = inactiveOrgs ? inactiveOrgs.filter(matchesSearch) : null;
+
+  // Active MRR from filtered active orgs
+  const activeMrr = (filteredActiveOrgs || []).reduce(
+    (sum, o) => sum + (o.monthlySubscriptionAmount || 0),
+    0
+  );
 
   /** Mark inactive (owner 2026-08-27): the row leaves "Active client accounts"
    *  and appears under "Inactive clients" with all data retained. Reversible
@@ -571,6 +650,215 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [editing]);
 
+  const renderInactiveTable = (title = "Inactive clients") => (
+    <div className="card table-wrap admin-table accounts-inactive">
+      <div className="admin-card-head">
+        <h3 className="admin-card-title">{title}</h3>
+        <p className="admin-card-sub">
+          {filteredInactiveOrgs
+            ? `${filteredInactiveOrgs.length} inactive account${filteredInactiveOrgs.length === 1 ? "" : "s"}${
+                searchQuery ? ` (filtered from ${inactiveOrgs?.length || 0})` : ""
+              } — data retained, logins blocked`
+            : "Loading…"}
+        </p>
+      </div>
+      {!filteredInactiveOrgs ? (
+        <div className="skeleton-block" aria-label="Loading inactive clients" />
+      ) : filteredInactiveOrgs.length === 0 ? (
+        <div className="empty">
+          <p className="empty-title">
+            {searchQuery ? "No inactive accounts match your search" : "No inactive clients"}
+          </p>
+          <p className="empty-sub">
+            {searchQuery ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ marginTop: "8px" }}
+                onClick={() => setSearchQuery("")}
+              >
+                Clear search
+              </button>
+            ) : (
+              "Accounts you mark inactive (canceled) are kept here with all of their data — nothing is deleted."
+            )}
+          </p>
+        </div>
+      ) : (
+        <table className="table accounts-table">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Plan</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th className="num">Members</th>
+              <th className="num">Clients records</th>
+              <th>Created</th>
+              <th className="num">
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
+                  <span>Subscription</span>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    style={{ padding: "2px", border: "none", background: "transparent", cursor: "pointer", color: "inherit", opacity: 0.8 }}
+                    title={subHidden ? "Show subscription charges" : "Hide subscription charges"}
+                    aria-label={subHidden ? "Show subscription charges" : "Hide subscription charges"}
+                    onClick={() => {
+                      setSubHidden((prev) => !prev);
+                      setRevealedSubRows({});
+                    }}
+                  >
+                    {subHidden ? <PiiEyeOffIcon /> : <PiiEyeIcon />}
+                  </button>
+                </div>
+              </th>
+              <th className="actions-th">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredInactiveOrgs.map((o) => {
+              const linked = clientByOrg[o.id];
+              const isRevealed = subHidden ? !!revealedSubRows[o.id] : !revealedSubRows[o.id];
+              const isSubPrivate = !isRevealed;
+              const amt = o.monthlySubscriptionAmount ?? 0;
+
+              return (
+                <tr key={o.id}>
+                  <td className="acc-strong" data-label="Account">
+                    <span className={`acc-name${blurPii(pii)}`} title={o.name}>
+                      {o.name}
+                    </span>
+                    <span className="badge badge-warn" style={{ marginLeft: "8px", fontSize: "11px" }}>
+                      Canceled
+                    </span>
+                  </td>
+                  <td data-label="Plan">
+                    <span
+                      className={`chip ${
+                        normalizeTier(o.tier) === "scale"
+                          ? "chip-scale"
+                          : normalizeTier(o.tier) === "pro"
+                          ? "chip-pro"
+                          : "chip-starter"
+                      }`}
+                      style={{
+                        background:
+                          normalizeTier(o.tier) === "scale"
+                            ? "rgba(139, 92, 246, 0.12)"
+                            : normalizeTier(o.tier) === "pro"
+                            ? "rgba(245, 158, 11, 0.12)"
+                            : "rgba(0, 168, 159, 0.12)",
+                        color:
+                          normalizeTier(o.tier) === "scale"
+                            ? "#8b5cf6"
+                            : normalizeTier(o.tier) === "pro"
+                            ? "#f59e0b"
+                            : "#00a89f",
+                        border: `1px solid ${
+                          normalizeTier(o.tier) === "scale"
+                            ? "rgba(139, 92, 246, 0.3)"
+                            : normalizeTier(o.tier) === "pro"
+                            ? "rgba(245, 158, 11, 0.3)"
+                            : "rgba(0, 168, 159, 0.3)"
+                        }`,
+                      }}
+                      title={`Plan: ${planCellLabel(o.tier)}`}
+                    >
+                      {TIER_BADGES[normalizeTier(o.tier)]?.icon || "⚡"}{" "}
+                      {planCellLabel(o.tier)}
+                    </span>
+                  </td>
+                  <td data-label="Phone">
+                    {linked?.phone ? (
+                      <a href={`tel:${linked.phone}`} className={`acc-link${blurPii(pii)}`}>
+                        {linked.phone}
+                      </a>
+                    ) : (
+                      <span className="acc-muted">—</span>
+                    )}
+                  </td>
+                  <td data-label="Email">
+                    <a
+                      href={`mailto:${o.contactEmail || o.email}`}
+                      className={`acc-link${blurPii(pii)}`}
+                      title={o.contactEmail || o.email}
+                    >
+                      {o.contactEmail || o.email}
+                    </a>
+                  </td>
+                  <td className="num" data-label="Members">
+                    {o.userCount}
+                  </td>
+                  <td className="num" data-label="Clients records">
+                    {o.clientCount}
+                  </td>
+                  <td data-label="Created">{fmtDate(o.createdAt)}</td>
+                  <td className="num" data-label="Subscription" title="Monthly subscription charge">
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center", width: "100%" }}>
+                      {amt > 0 ? (
+                        <span className={isSubPrivate ? "pii-blur" : undefined} style={{ fontVariantNumeric: "tabular-nums" }}>
+                          {isSubPrivate ? "••••••" : `${money(amt)}/mo`}
+                        </span>
+                      ) : (
+                        <span className="acc-muted">&mdash;</span>
+                      )}
+                      {amt > 0 && (
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          style={{ padding: "2px", border: "none", background: "transparent", cursor: "pointer", color: "inherit", opacity: 0.65 }}
+                          title={isSubPrivate ? "Reveal subscription charge" : "Hide subscription charge"}
+                          aria-label={isSubPrivate ? "Reveal subscription charge" : "Hide subscription charge"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRowSub(o.id);
+                          }}
+                        >
+                          {isSubPrivate ? <PiiEyeOffIcon /> : <PiiEyeIcon />}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td data-label="Actions">
+                    <div className="row-actions">
+                      <button
+                        className="btn btn-primary btn-sm"
+                        title="Reactivate this account — it returns to Active client accounts and the client can sign in again"
+                        aria-label={`Restore ${o.name}`}
+                        disabled={markingOrgId !== null || restoringOrgId !== null}
+                        onClick={() => handleRestore(o)}
+                      >
+                        {restoringOrgId === o.id ? "Restoring…" : "Restore"}
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title="Open this account's auto-seeded onboarding checklist (driven by its package tier)"
+                        aria-label={`Checklist for ${o.name}`}
+                        onClick={() => openOnboarding(o)}
+                      >
+                        ✓ Checklist
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        title="Permanently remove this workspace and all of its data"
+                        aria-label={`Delete ${o.name}`}
+                        disabled={busy}
+                        onClick={() => setDeleting(o)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+
   return (
     <div className="accounts-section">
       <div className="page-head accounts-head">
@@ -591,6 +879,172 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
       {/* 3g-3 — sold-lead auto-provisioning notices: name the sold client +
           the new workspace, dismissed on view. */}
       <ProvisionNotices onViewAccount={(orgId) => handleViewAccount({ id: orgId } as Org)} />
+
+      {/* Subscribers Category Toolbar */}
+      <div className="subscribers-cat-bar">
+        <div className="subscribers-cat-main">
+          <div className="subscribers-cat-seg" role="tablist" aria-label="Subscribers categories">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={selectedCategory === "all"}
+              className={`subscribers-cat-btn ${selectedCategory === "all" ? "active" : ""}`}
+              onClick={() => handleSelectCategory("all")}
+            >
+              <span>👥</span>
+              <span>All Subscribers</span>
+              <span className="seg-count">{counts.all}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={selectedCategory === "active"}
+              className={`subscribers-cat-btn ${selectedCategory === "active" ? "active" : ""}`}
+              onClick={() => handleSelectCategory("active")}
+            >
+              <span>🟢</span>
+              <span>Active Workspaces</span>
+              <span className="seg-count">{counts.active}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={selectedCategory === "plans"}
+              className={`subscribers-cat-btn ${selectedCategory === "plans" ? "active" : ""}`}
+              onClick={() => handleSelectCategory("plans")}
+            >
+              <span>💎</span>
+              <span>Plans &amp; Tiers</span>
+              <span className="seg-count">{counts.active}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={selectedCategory === "inactive"}
+              className={`subscribers-cat-btn ${selectedCategory === "inactive" ? "active" : ""}`}
+              onClick={() => handleSelectCategory("inactive")}
+            >
+              <span>⏸️</span>
+              <span>Inactive Accounts</span>
+              <span className="seg-count">{counts.inactive}</span>
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <input
+              type="search"
+              className="input search"
+              placeholder="Search subscribers by name, email, phone…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ minWidth: "260px" }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSearchQuery("")}
+                title="Clear search"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Plan Tiers Sub-Chips */}
+        {selectedCategory === "plans" && (
+          <div className="subscribers-sub-chips">
+            <button
+              type="button"
+              className={`subscribers-tier-pill ${tierFilter === "all" ? "active" : ""}`}
+              onClick={() => setTierFilter("all")}
+            >
+              <span>All Plans ({counts.active})</span>
+            </button>
+            <button
+              type="button"
+              className={`subscribers-tier-pill ${tierFilter === "pro" ? "active" : ""}`}
+              onClick={() => setTierFilter("pro")}
+            >
+              <span>🔥 Pro Dealmaker ({counts.pro})</span>
+            </button>
+            <button
+              type="button"
+              className={`subscribers-tier-pill ${tierFilter === "scale" ? "active" : ""}`}
+              onClick={() => setTierFilter("scale")}
+            >
+              <span>👑 Scale &amp; Brokerage ({counts.scale})</span>
+            </button>
+            <button
+              type="button"
+              className={`subscribers-tier-pill ${tierFilter === "starter" ? "active" : ""}`}
+              onClick={() => setTierFilter("starter")}
+            >
+              <span>⚡ Starter ({counts.starter})</span>
+            </button>
+          </div>
+        )}
+
+        {/* Plan Overview Card when on Plans & Tiers */}
+        {selectedCategory === "plans" && (
+          <div className="subscribers-plan-card">
+            <div className="subscribers-plan-card-left">
+              <div className="subscribers-plan-icon">
+                {tierFilter === "pro" ? "🔥" : tierFilter === "scale" ? "👑" : tierFilter === "starter" ? "⚡" : "💎"}
+              </div>
+              <div>
+                <h4 className="subscribers-plan-title">
+                  {tierFilter === "pro"
+                    ? "Pro Dealmaker Plan · $59.99/mo"
+                    : tierFilter === "scale"
+                    ? "Scale & Brokerage Plan · $79/mo"
+                    : tierFilter === "starter"
+                    ? "Starter Wholesaler Plan · $24.99/mo"
+                    : "All Subscription Plans & Tiers"}
+                </h4>
+                <p className="subscribers-plan-desc">
+                  {tierFilter === "pro"
+                    ? "Full wholesale deal pipeline, AI Buy Box Matcher, Instant Comps, automated investor disposition."
+                    : tierFilter === "scale"
+                    ? "High-volume wholesale brokerage, multi-agent workspaces, advanced buyers, white-label reports."
+                    : tierFilter === "starter"
+                    ? "Core real estate wholesale CRM, deal tracking, contracts, and contacts."
+                    : "Comprehensive overview of active subscriber workspaces categorized by package tier and MRR."}
+                </p>
+              </div>
+            </div>
+            <div className="subscribers-plan-stats">
+              <div className="subscribers-plan-stat">
+                <span className="subscribers-plan-stat-val">
+                  {tierFilter === "pro"
+                    ? counts.pro
+                    : tierFilter === "scale"
+                    ? counts.scale
+                    : tierFilter === "starter"
+                    ? counts.starter
+                    : counts.active}
+                </span>
+                <span className="subscribers-plan-stat-label">Subscribers</span>
+              </div>
+              <div className="subscribers-plan-stat">
+                <span className="subscribers-plan-stat-val">
+                  {money(
+                    tierFilter === "pro"
+                      ? counts.pro * 59.99
+                      : tierFilter === "scale"
+                      ? counts.scale * 79
+                      : tierFilter === "starter"
+                      ? counts.starter * 24.99
+                      : activeMrr
+                  )}
+                </span>
+                <span className="subscribers-plan-stat-label">Total MRR</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="admin-grid">
         <div className="card admin-form">
@@ -784,73 +1238,113 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
           )}
         </div>
 
-        <div className="card table-wrap admin-table">
-          <div className="admin-card-head">
-            <h3 className="admin-card-title">Active client accounts</h3>
-            <p className="admin-card-sub">
-              {activeOrgs ? `${activeOrgs.length} active workspace${activeOrgs.length === 1 ? "" : "s"}` : "Loading…"}
-            </p>
-          </div>
-          {!activeOrgs ? (
-            <div className="skeleton-block" aria-label="Loading client accounts" />
-          ) : activeOrgs.length === 0 ? (
-            <div className="empty">
-              <p className="empty-title">No active client accounts</p>
-              <p className="empty-sub">
-                Create a client account below, or restore one from the Inactive clients window.
+        {selectedCategory === "inactive" ? (
+          renderInactiveTable("Inactive client accounts")
+        ) : (
+          <div className="card table-wrap admin-table">
+            <div className="admin-card-head">
+              <h3 className="admin-card-title">
+                {selectedCategory === "plans"
+                  ? tierFilter === "pro"
+                    ? "Pro Dealmaker subscribers"
+                    : tierFilter === "scale"
+                    ? "Scale & Brokerage subscribers"
+                    : tierFilter === "starter"
+                    ? "Starter subscribers"
+                    : "Subscription plan subscribers"
+                  : selectedCategory === "active"
+                  ? "Active client accounts"
+                  : "All subscriber accounts"}
+              </h3>
+              <p className="admin-card-sub">
+                {!filteredActiveOrgs
+                  ? "Loading…"
+                  : `${filteredActiveOrgs.length} active workspace${filteredActiveOrgs.length === 1 ? "" : "s"}${
+                      searchQuery || (selectedCategory === "plans" && tierFilter !== "all")
+                        ? ` (filtered from ${activeOrgs?.length || 0})`
+                        : ""
+                    } · Total MRR: ${money(activeMrr)}`}
               </p>
             </div>
-          ) : (
-            <table className="table accounts-table">
-              {/* Owner 2026-08-27 table cleanup — EVERY data point owns a
-    clearly-labeled column and nothing truncates (scoped .accounts-table CSS;
-    other .table users keep the shared .cell-* ellipsis). ELEVEN columns:
-    Account | Package | Status | Phone | Email | Members | Client
-    records | Created | Subscription | Billing cycle | Actions.
-    Owner 2026-08-28: the Deal value column is REMOVED — deal value has no
-    real equation, so owner money figures are subscription-based only.
-    Owner 2026-08-28 privacy fix: the PASSWORD column was REMOVED — a
-    client's password is private to the client and must not sit in the
-    owner's table; it is surfaced ONLY one-time (post-creation temp-password
-    modal, per-row "Reset password" action), never persistently here.
-    NO fixed colgroup (owner live-test 2026-08-27: under table-layout:fixed the
-    locked % widths made nowrap chips, the non-wrapping action buttons and the
-    150px date input PAINT OVER the neighbouring columns). With the scoped
-    table-layout:auto the columns size to their content and can never collide;
-    long values wrap to extra lines instead of clipping, and the Actions
-    column wraps its buttons (scoped .accounts-table .row-actions guard). */}
-              <thead>
-                <tr>
-                  <th>Account</th>
-                  <th>Plan</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th className="num">Members</th>
-                  <th className="num">Clients records</th>
-                  <th>Created</th>
-                  <th className="num">
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
-                      <span>Subscription</span>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        style={{ padding: "2px", border: "none", background: "transparent", cursor: "pointer", color: "inherit", opacity: 0.8 }}
-                        title={subHidden ? "Show subscription charges" : "Hide subscription charges"}
-                        aria-label={subHidden ? "Show subscription charges" : "Hide subscription charges"}
-                        onClick={() => {
-                          setSubHidden((prev) => !prev);
-                          setRevealedSubRows({});
-                        }}
-                      >
-                        {subHidden ? <PiiEyeOffIcon /> : <PiiEyeIcon />}
-                      </button>
-                    </div>
-                  </th>
-                  <th className="actions-th">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeOrgs.map((o) => {
+            {!filteredActiveOrgs ? (
+              <div className="skeleton-block" aria-label="Loading client accounts" />
+            ) : filteredActiveOrgs.length === 0 ? (
+              <div className="empty">
+                <p className="empty-title">
+                  {searchQuery || (selectedCategory === "plans" && tierFilter !== "all")
+                    ? "No accounts match your category and search filter"
+                    : "No active client accounts"}
+                </p>
+                <p className="empty-sub">
+                  {searchQuery || (selectedCategory === "plans" && tierFilter !== "all") ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{ marginTop: "8px" }}
+                      onClick={() => {
+                        setSearchQuery("");
+                        setTierFilter("all");
+                        setSelectedCategory("all");
+                      }}
+                    >
+                      Reset filter
+                    </button>
+                  ) : (
+                    "Create a client account below, or restore one from the Inactive clients window."
+                  )}
+                </p>
+              </div>
+            ) : (
+              <table className="table accounts-table">
+                {/* Owner 2026-08-27 table cleanup — EVERY data point owns a
+      clearly-labeled column and nothing truncates (scoped .accounts-table CSS;
+      other .table users keep the shared .cell-* ellipsis). ELEVEN columns:
+      Account | Package | Status | Phone | Email | Members | Client
+      records | Created | Subscription | Billing cycle | Actions.
+      Owner 2026-08-28: the Deal value column is REMOVED — deal value has no
+      real equation, so owner money figures are subscription-based only.
+      Owner 2026-08-28 privacy fix: the PASSWORD column was REMOVED — a
+      client's password is private to the client and must not sit in the
+      owner's table; it is surfaced ONLY one-time (post-creation temp-password
+      modal, per-row "Reset password" action), never persistently here.
+      NO fixed colgroup (owner live-test 2026-08-27: under table-layout:fixed the
+      locked % widths made nowrap chips, the non-wrapping action buttons and the
+      150px date input PAINT OVER the neighbouring columns). With the scoped
+      table-layout:auto the columns size to their content and can never collide;
+      long values wrap to extra lines instead of clipping, and the Actions
+      column wraps its buttons (scoped .accounts-table .row-actions guard). */}
+                <thead>
+                  <tr>
+                    <th>Account</th>
+                    <th>Plan</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th className="num">Members</th>
+                    <th className="num">Clients records</th>
+                    <th>Created</th>
+                    <th className="num">
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
+                        <span>Subscription</span>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          style={{ padding: "2px", border: "none", background: "transparent", cursor: "pointer", color: "inherit", opacity: 0.8 }}
+                          title={subHidden ? "Show subscription charges" : "Hide subscription charges"}
+                          aria-label={subHidden ? "Show subscription charges" : "Hide subscription charges"}
+                          onClick={() => {
+                            setSubHidden((prev) => !prev);
+                            setRevealedSubRows({});
+                          }}
+                        >
+                          {subHidden ? <PiiEyeOffIcon /> : <PiiEyeIcon />}
+                        </button>
+                      </div>
+                    </th>
+                    <th className="actions-th">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredActiveOrgs.map((o) => {
                   /* The linked owner-org client record (provisionedOrgId join)
                      — feeds the Phone column. */
                   const linked = clientByOrg[o.id];
@@ -1034,210 +1528,11 @@ export default function Accounts({ ownerOrgId, onViewAccount }: Props) {
             </table>
           )}
         </div>
-      </div>
-
-      {/* Owner 2026-08-27 — INACTIVE CLIENTS window (backlog cb1c9700): a
-          SEPARATE window under the Active client accounts table. Accounts the
-          owner marked inactive (canceled) live here — NOT mixed into the
-          active table. Data is RETAINED (the tenant's CRM, users, records all
-          stay); the client's logins are blocked while inactive. Actions:
-          Restore (back to active, symmetric) and Delete (the hard tear-down,
-          confirm-guarded). Owner-only: rendered in the owner's Clients tab
-          only, fed by the owner-only /api/admin/orgs + cancel/restore
-          endpoints. */}
-      <div className="card table-wrap admin-table accounts-inactive">
-        <div className="admin-card-head">
-          <h3 className="admin-card-title">Inactive clients</h3>
-          <p className="admin-card-sub">
-            {inactiveOrgs
-              ? `${inactiveOrgs.length} inactive account${inactiveOrgs.length === 1 ? "" : "s"} — data retained, logins blocked`
-              : "Loading…"}
-          </p>
-        </div>
-        {!inactiveOrgs ? (
-          <div className="skeleton-block" aria-label="Loading inactive clients" />
-        ) : inactiveOrgs.length === 0 ? (
-          <div className="empty">
-            <p className="empty-title">No inactive clients</p>
-            <p className="empty-sub">
-              Accounts you mark inactive (canceled) are kept here with all of their data — nothing is deleted.
-            </p>
-          </div>
-        ) : (
-          <table className="table accounts-table">
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Plan</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th className="num">Members</th>
-                <th className="num">Clients records</th>
-                <th>Created</th>
-                <th className="num">
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center" }}>
-                    <span>Subscription</span>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      style={{ padding: "2px", border: "none", background: "transparent", cursor: "pointer", color: "inherit", opacity: 0.8 }}
-                      title={subHidden ? "Show subscription charges" : "Hide subscription charges"}
-                      aria-label={subHidden ? "Show subscription charges" : "Hide subscription charges"}
-                      onClick={() => {
-                        setSubHidden((prev) => !prev);
-                        setRevealedSubRows({});
-                      }}
-                    >
-                      {subHidden ? <PiiEyeOffIcon /> : <PiiEyeIcon />}
-                    </button>
-                  </div>
-                </th>
-                <th className="actions-th">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inactiveOrgs.map((o) => {
-                const linked = clientByOrg[o.id];
-                const isRevealed = subHidden ? !!revealedSubRows[o.id] : !revealedSubRows[o.id];
-                const isSubPrivate = !isRevealed;
-                const amt = o.monthlySubscriptionAmount ?? 0;
-
-                return (
-                  <tr key={o.id} className="row-inactive">
-                    <td className="acc-strong" data-label="Account">
-                      <span className={`acc-name${blurPii(pii)}`} title={o.name}>
-                        {o.name}
-                      </span>
-                      <div style={{ marginTop: "4px" }}>
-                        <span className="chip chip-archived" title="Inactive account — data retained, logins blocked">
-                          Inactive
-                        </span>
-                      </div>
-                    </td>
-                    <td data-label="Plan">
-                      <span
-                        className="chip"
-                        style={{
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          background:
-                            normalizeTier(o.tier) === "scale"
-                              ? "rgba(245, 158, 11, 0.15)"
-                              : normalizeTier(o.tier) === "pro"
-                              ? "rgba(168, 85, 247, 0.15)"
-                              : "rgba(6, 182, 212, 0.15)",
-                          color:
-                            normalizeTier(o.tier) === "scale"
-                              ? "#fbbf24"
-                              : normalizeTier(o.tier) === "pro"
-                              ? "#c084fc"
-                              : "#22d3ee",
-                          border:
-                            normalizeTier(o.tier) === "scale"
-                              ? "1px solid rgba(245, 158, 11, 0.3)"
-                              : normalizeTier(o.tier) === "pro"
-                              ? "1px solid rgba(168, 85, 247, 0.3)"
-                              : "1px solid rgba(6, 182, 212, 0.3)",
-                          textTransform: "none",
-                          letterSpacing: "normal"
-                        }}
-                        title={`Plan: ${planCellLabel(o.tier)}`}
-                      >
-                        {TIER_BADGES[normalizeTier(o.tier)]?.icon || "⚡"}{" "}
-                        {planCellLabel(o.tier)}
-                      </span>
-                    </td>
-                    <td className="acc-line" data-label="Phone">
-                      {linked?.phone ? (
-                        <span className={blurPii(pii)}>{linked.phone}</span>
-                      ) : (
-                        <span className="acc-muted">&mdash;</span>
-                      )}
-                    </td>
-                    <td className="acc-line acc-email" data-label="Email">
-                      {o.loginEmail ? (
-                        <span className={`acc-email-text${blurPii(pii)}`} title={o.loginEmail}>
-                          {o.loginEmail}
-                        </span>
-                      ) : (
-                        <span className="acc-muted">&mdash;</span>
-                      )}
-                    </td>
-                    <td className="num" data-label="Members">
-                      {o.userCount}
-                    </td>
-                    <td className="num" data-label="Clients records">
-                      {o.clientCount}
-                    </td>
-                    <td data-label="Created">{fmtDate(o.createdAt)}</td>
-                    <td className="num" data-label="Subscription" title="Monthly subscription charge">
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "center", width: "100%" }}>
-                        {amt > 0 ? (
-                          <span className={isSubPrivate ? "pii-blur" : undefined} style={{ fontVariantNumeric: "tabular-nums" }}>
-                            {isSubPrivate ? "••••••" : `${money(amt)}/mo`}
-                          </span>
-                        ) : (
-                          <span className="acc-muted">&mdash;</span>
-                        )}
-                        {amt > 0 && (
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            style={{ padding: "2px", border: "none", background: "transparent", cursor: "pointer", color: "inherit", opacity: 0.65 }}
-                            title={isSubPrivate ? "Reveal subscription charge" : "Hide subscription charge"}
-                            aria-label={isSubPrivate ? "Reveal subscription charge" : "Hide subscription charge"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleRowSub(o.id);
-                            }}
-                          >
-                            {isSubPrivate ? <PiiEyeOffIcon /> : <PiiEyeIcon />}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td data-label="Actions">
-                      <div className="row-actions">
-                        <button
-                          className="btn btn-primary btn-sm"
-                          title="Reactivate this account — it returns to Active client accounts and the client can sign in again"
-                          aria-label={`Restore ${o.name}`}
-                          disabled={markingOrgId !== null || restoringOrgId !== null}
-                          onClick={() => handleRestore(o)}
-                        >
-                          {restoringOrgId === o.id ? "Restoring…" : "Restore"}
-                        </button>
-                        {/* Owner 2026-08-27 — the checklist stays reachable on
-                            an inactive account too (onboarding can continue). */}
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          title="Open this account's auto-seeded onboarding checklist (driven by its package tier)"
-                          aria-label={`Onboarding checklist for ${o.name}`}
-                          disabled={markingOrgId !== null || restoringOrgId !== null}
-                          onClick={() => openOnboarding(o)}
-                        >
-                          {o.onboardingTotal
-                            ? `Onboarding (${o.onboardingDone ?? 0}/${o.onboardingTotal})`
-                            : "Onboarding"}
-                        </button>
-                        <button
-                          className="icon-btn danger"
-                          title="Permanently delete this inactive account and all of its data"
-                          aria-label={`Delete ${o.name}`}
-                          disabled={markingOrgId !== null || restoringOrgId !== null}
-                          onClick={() => setDeleting(o)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         )}
       </div>
+
+      {/* When viewing All Subscribers, show the Inactive table beneath the active table */}
+      {selectedCategory === "all" && renderInactiveTable("Inactive clients — data retained, logins blocked")}
 
       {deleting && (
         <ConfirmDeleteModal

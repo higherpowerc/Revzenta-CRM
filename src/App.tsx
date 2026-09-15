@@ -82,6 +82,8 @@ export default function App() {
    *  any stage deep-link) resets it to "active" so a normal tab visit opens
    *  the pipeline on Active. */
   const [leadsFilter, setLeadsFilter] = useState<Filter>("active");
+  /** Category filter for the Subscribers view ("all" | "active" | "plans" | "inactive"). */
+  const [subscriberCategory, setSubscriberCategory] = useState<string>("all");
   /** 3k — a reset token from the URL hash (`#/reset?token=…`), shown while
    *  the user is signed out. */
   const [resetToken, setResetToken] = useState<string | null>(null);
@@ -874,15 +876,60 @@ export default function App() {
                   <span>Subscribers &amp; Workspaces</span>
                 </div>
                 <button
-                  className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
+                  className={effectiveViewFinal === "clients" && subscriberCategory === "all" ? "tab active" : "tab"}
                   onClick={() => {
                     setView("clients");
+                    setSubscriberCategory("all");
                     setMobileMenuOpen(false);
                   }}
-                  title="Website subscribers, tenant workspaces, and 1-click CRM launch"
+                  title="All client organizations, subscriber accounts, and workspaces"
                 >
                   <span className="tab-icon">👥</span>
-                  <span>Subscribers</span>
+                  <span>All Subscribers</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "clients" && subscriberCategory === "active" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("clients");
+                    setSubscriberCategory("active");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Active wholesale client workspaces with live subscriptions"
+                >
+                  <span className="tab-icon">🟢</span>
+                  <span>Active Subscribers</span>
+                </button>
+                <button
+                  className={
+                    effectiveViewFinal === "clients" &&
+                    (subscriberCategory === "plans" ||
+                      subscriberCategory === "pro" ||
+                      subscriberCategory === "scale" ||
+                      subscriberCategory === "starter")
+                      ? "tab active"
+                      : "tab"
+                  }
+                  onClick={() => {
+                    setView("clients");
+                    setSubscriberCategory("plans");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Filter subscribers by subscription tier (Starter, Pro Dealmaker, Scale)"
+                >
+                  <span className="tab-icon">💎</span>
+                  <span>Plans &amp; Tiers</span>
+                </button>
+                <button
+                  className={effectiveViewFinal === "clients" && subscriberCategory === "inactive" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setView("clients");
+                    setSubscriberCategory("inactive");
+                    setMobileMenuOpen(false);
+                  }}
+                  title="Canceled and inactive accounts (data retained)"
+                >
+                  <span className="tab-icon">⏸️</span>
+                  <span>Inactive Accounts</span>
                 </button>
                 <button
                   className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
@@ -1801,6 +1848,8 @@ export default function App() {
             ownerOrgId={isOwnerOrg ? user.orgId : undefined}
             onViewAccount={isOwnerOrg ? handleImpersonate : undefined}
             isWholesale={isWholesale}
+            subscriberCategory={subscriberCategory}
+            onSelectCategory={setSubscriberCategory}
           />
         ) : effectiveViewFinal === "calendar" ? (
           /* Owner 2026-08-20 sales rework — the owner's Calendar view of

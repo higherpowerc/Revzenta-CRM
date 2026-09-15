@@ -40,6 +40,9 @@ interface Props {
   onViewAccount?: (orgId: number) => Promise<void>;
   /** Housing wholesale vertical customization — displays as Buyers / Cash Buyers list. */
   isWholesale?: boolean;
+  /** Active category filter for Subscribers ("all" | "active" | "plans" | "inactive"). */
+  subscriberCategory?: string;
+  onSelectCategory?: (category: string) => void;
 }
 
 /** The sold-customer directory (owner request 2026-08-14): every client in
@@ -53,7 +56,16 @@ interface Props {
  *  filtering happens client-side. For the OWNER this tab ALSO hosts the
  *  Accounts panel (create / view / reset password / delete client accounts —
  *  the account management moved here from Administration on 2026-08-18). */
-export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = true, ownerOrgId, onViewAccount, isWholesale = false }: Props) {
+export default function ClientsDirectory({
+  stages,
+  ownerOrg = false,
+  canEdit = true,
+  ownerOrgId,
+  onViewAccount,
+  isWholesale = false,
+  subscriberCategory,
+  onSelectCategory,
+}: Props) {
   /* Global privacy eye (2026-08-14 owner request) — blur client
      names/addresses/contact details in the directory rows. */
   const pii = usePii();
@@ -363,6 +375,8 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
           <Accounts
             ownerOrgId={ownerOrgId}
             onViewAccount={onViewAccount}
+            initialCategory={subscriberCategory}
+            onCategoryChange={onSelectCategory}
           />
         )}
       </div>
@@ -727,6 +741,8 @@ export default function ClientsDirectory({ stages, ownerOrg = false, canEdit = t
         <Accounts
           ownerOrgId={ownerOrgId}
           onViewAccount={onViewAccount}
+          initialCategory={subscriberCategory}
+          onCategoryChange={onSelectCategory}
         />
       )}
 

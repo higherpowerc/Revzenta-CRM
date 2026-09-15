@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropertyImage from './PropertyImage';
+import { useTheme } from './theme';
+import ThemeToggle from './ThemeToggle';
 
 export interface PropertyDetailData {
   id?: number | string;
@@ -93,8 +95,11 @@ export default function PropertyDetailModal({
   loiStatus,
   actionType = 'search',
 }: PropertyDetailModalProps) {
+  const [theme] = useTheme();
+  const isLight = theme === 'light';
+
   const [copied, setCopied] = useState(false);
-  const [imgMode, setImgMode] = useState<'street' | 'both'>('street');
+  const [imgMode, setImgMode] = useState<'street' | 'satellite' | 'roadmap' | 'both'>('street');
 
   // Interactive Wholesale MAO calculator state
   const rawValue = parseNum(property.estimatedValue);
@@ -131,7 +136,6 @@ export default function PropertyDetailModal({
   )}`;
 
   // Calculate Wholesale MAO (70% Rule)
-  // MAO = (ARV * 0.70) - Repairs - Wholesale Fee
   const arv = rawValue;
   const mao = arv > 0 ? Math.max(0, Math.round(arv * 0.70 - repairEstimate - assignmentFee)) : 0;
 
@@ -187,28 +191,56 @@ export default function PropertyDetailModal({
 
   // Opportunity score color formatting
   const score = property.opportunityScore;
-  let scoreBg = 'rgba(16, 185, 129, 0.15)';
-  let scoreColor = '#10b981';
+  let scoreBg = isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.2)';
+  let scoreColor = isLight ? '#047857' : '#10b981';
   let scoreLabel = 'High Target';
   if (score != null) {
     if (score >= 90) {
-      scoreBg = 'rgba(16, 185, 129, 0.2)';
-      scoreColor = '#10b981';
+      scoreBg = isLight ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.25)';
+      scoreColor = isLight ? '#047857' : '#10b981';
       scoreLabel = 'Prime Opportunity';
     } else if (score >= 75) {
-      scoreBg = 'rgba(56, 189, 248, 0.2)';
-      scoreColor = '#38bdf8';
+      scoreBg = isLight ? 'rgba(2, 132, 199, 0.12)' : 'rgba(56, 189, 248, 0.2)';
+      scoreColor = isLight ? '#0284c7' : '#38bdf8';
       scoreLabel = 'Strong Target';
     } else if (score >= 50) {
-      scoreBg = 'rgba(245, 158, 11, 0.2)';
-      scoreColor = '#f59e0b';
+      scoreBg = isLight ? 'rgba(217, 119, 6, 0.12)' : 'rgba(245, 158, 11, 0.2)';
+      scoreColor = isLight ? '#b45309' : '#f59e0b';
       scoreLabel = 'Moderate Deal';
     } else {
-      scoreBg = 'rgba(148, 163, 184, 0.2)';
-      scoreColor = '#94a3b8';
+      scoreBg = isLight ? 'rgba(100, 116, 139, 0.12)' : 'rgba(148, 163, 184, 0.2)';
+      scoreColor = isLight ? '#475569' : '#94a3b8';
       scoreLabel = 'Standard Lead';
     }
   }
+
+  // Theme-aware tokens
+  const colors = {
+    overlayBg: isLight ? 'rgba(15, 23, 42, 0.65)' : 'rgba(5, 10, 20, 0.85)',
+    modalBg: isLight ? '#ffffff' : '#121216',
+    border: isLight ? '#e2e8f0' : '#30363d',
+    headerBg: isLight ? '#f8fafc' : '#16161b',
+    footerBg: isLight ? '#f8fafc' : '#16161b',
+    sectionBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+    boxBg: isLight ? '#ffffff' : 'rgba(0, 0, 0, 0.35)',
+    boxBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.07)',
+    inkPrimary: isLight ? '#0f172a' : '#f2f1ec',
+    inkSecondary: isLight ? '#334155' : '#cbd5e1',
+    inkMuted: isLight ? '#64748b' : '#94a3b8',
+    pillBg: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)',
+    pillBorder: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+    accentBlue: isLight ? '#0284c7' : '#38bdf8',
+    accentGreen: isLight ? '#047857' : '#10b981',
+    accentGreenBg: isLight ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.15)',
+    accentGreenBorder: isLight ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.3)',
+    accentAmber: isLight ? '#b45309' : '#f59e0b',
+    calcCardBg: isLight ? 'rgba(0, 168, 159, 0.06)' : 'rgba(0, 168, 159, 0.12)',
+    calcCardBorder: isLight ? '1px solid rgba(0, 168, 159, 0.3)' : '1px solid rgba(0, 168, 159, 0.35)',
+    calcTitle: isLight ? '#0f766e' : '#2dd4bf',
+    distressBg: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.18)',
+    distressBorder: isLight ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(239, 68, 68, 0.4)',
+    distressText: isLight ? '#b91c1c' : '#fca5a5',
+  };
 
   return (
     <div
@@ -218,7 +250,7 @@ export default function PropertyDetailModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(5, 10, 20, 0.82)',
+        backgroundColor: colors.overlayBg,
         backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
@@ -230,16 +262,19 @@ export default function PropertyDetailModal({
     >
       <div
         style={{
-          background: 'var(--card-bg, #1e293b)',
-          border: '1px solid var(--border-color, #334155)',
+          background: colors.modalBg,
+          border: `1px solid ${colors.border}`,
           borderRadius: '16px',
           width: '100%',
           maxWidth: '960px',
           maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7)',
+          boxShadow: isLight
+            ? '0 20px 50px rgba(0, 0, 0, 0.15)'
+            : '0 25px 60px -15px rgba(0, 0, 0, 0.8)',
           overflow: 'hidden',
+          color: colors.inkPrimary,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -247,28 +282,30 @@ export default function PropertyDetailModal({
         <div
           style={{
             padding: '16px 22px',
-            borderBottom: '1px solid var(--border-color, #334155)',
+            borderBottom: `1px solid ${colors.border}`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: 'rgba(15, 23, 42, 0.65)',
+            background: colors.headerBg,
+            flexWrap: 'wrap',
+            gap: '12px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '20px' }}>🏡</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>🏡</span>
             <div>
               <h2
                 style={{
                   margin: 0,
                   fontSize: '18px',
                   fontWeight: 800,
-                  color: 'var(--ink, #f8fafc)',
+                  color: colors.inkPrimary,
                   letterSpacing: '-0.3px',
                 }}
               >
                 {property.address || 'Property Details'}
               </h2>
-              <div style={{ fontSize: '13px', color: 'var(--muted, #94a3b8)', marginTop: '2px' }}>
+              <div style={{ fontSize: '13px', color: colors.inkMuted, marginTop: '2px' }}>
                 {[property.city, property.state, property.zip].filter(Boolean).join(', ')}
                 {property.county ? ` · ${property.county} County` : ''}
                 {property.apn ? ` · APN: ${property.apn}` : ''}
@@ -276,19 +313,23 @@ export default function PropertyDetailModal({
             </div>
           </div>
 
-          {/* Header Action Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Header Action Buttons & Theme Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <ThemeToggle />
+
             <button
               type="button"
               onClick={handleCopyAddress}
               className="btn btn-ghost btn-sm"
               style={{
                 fontSize: '12px',
-                padding: '6px 10px',
+                padding: '6px 12px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                border: '1px solid var(--border-color, #334155)',
+                border: `1px solid ${colors.border}`,
+                color: colors.inkPrimary,
+                background: colors.boxBg,
               }}
               title="Copy property address"
             >
@@ -303,13 +344,14 @@ export default function PropertyDetailModal({
               className="btn btn-ghost btn-sm"
               style={{
                 fontSize: '12px',
-                padding: '6px 10px',
+                padding: '6px 12px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                border: '1px solid var(--border-color, #334155)',
+                border: `1px solid ${colors.border}`,
                 textDecoration: 'none',
-                color: 'var(--ink, #f8fafc)',
+                color: colors.inkPrimary,
+                background: colors.boxBg,
               }}
               title="View in Google Maps"
             >
@@ -321,9 +363,9 @@ export default function PropertyDetailModal({
               type="button"
               onClick={onClose}
               style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--border-color, #334155)',
-                color: 'var(--muted, #94a3b8)',
+                background: colors.pillBg,
+                border: `1px solid ${colors.border}`,
+                color: colors.inkMuted,
                 borderRadius: '8px',
                 width: '32px',
                 height: '32px',
@@ -350,6 +392,7 @@ export default function PropertyDetailModal({
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
+            background: colors.modalBg,
           }}
         >
           {/* Status Chips Row */}
@@ -359,7 +402,7 @@ export default function PropertyDetailModal({
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '8px',
+              gap: '10px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -369,7 +412,7 @@ export default function PropertyDetailModal({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '4px 12px',
+                    padding: '5px 12px',
                     borderRadius: '20px',
                     background: scoreBg,
                     border: `1px solid ${scoreColor}`,
@@ -379,18 +422,19 @@ export default function PropertyDetailModal({
                   }}
                 >
                   <span>★ Revzenta Score: {score}/100</span>
-                  <span style={{ opacity: 0.8, fontSize: '11px' }}>({scoreLabel})</span>
+                  <span style={{ opacity: 0.85, fontSize: '11px' }}>({scoreLabel})</span>
                 </div>
               )}
 
               <span
                 style={{
                   fontSize: '12px',
-                  fontWeight: 600,
-                  padding: '4px 10px',
+                  fontWeight: 700,
+                  padding: '5px 10px',
                   borderRadius: '6px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  color: 'var(--muted, #cbd5e1)',
+                  background: colors.pillBg,
+                  color: colors.inkSecondary,
+                  border: colors.pillBorder,
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
                 }}
@@ -403,11 +447,11 @@ export default function PropertyDetailModal({
                   style={{
                     fontSize: '12px',
                     fontWeight: 700,
-                    padding: '4px 10px',
+                    padding: '5px 10px',
                     borderRadius: '6px',
-                    background: 'rgba(56, 189, 248, 0.15)',
-                    color: '#38bdf8',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    background: isLight ? 'rgba(2, 132, 199, 0.12)' : 'rgba(56, 189, 248, 0.15)',
+                    color: isLight ? '#0284c7' : '#38bdf8',
+                    border: isLight ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
                   }}
                 >
                   Stage: {property.stage}
@@ -419,15 +463,26 @@ export default function PropertyDetailModal({
                   style={{
                     fontSize: '12px',
                     fontWeight: 700,
-                    padding: '4px 10px',
+                    padding: '5px 10px',
                     borderRadius: '6px',
                     background:
-                      loiStatus === 'Sent' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.1)',
-                    color: loiStatus === 'Sent' ? '#10b981' : 'var(--muted, #94a3b8)',
+                      loiStatus === 'Sent'
+                        ? isLight
+                          ? 'rgba(16, 185, 129, 0.12)'
+                          : 'rgba(16, 185, 129, 0.15)'
+                        : colors.pillBg,
+                    color:
+                      loiStatus === 'Sent'
+                        ? isLight
+                          ? '#047857'
+                          : '#10b981'
+                        : colors.inkMuted,
                     border:
                       loiStatus === 'Sent'
-                        ? '1px solid rgba(16, 185, 129, 0.4)'
-                        : '1px solid rgba(148, 163, 184, 0.3)',
+                        ? isLight
+                          ? '1px solid rgba(16, 185, 129, 0.4)'
+                          : '1px solid rgba(16, 185, 129, 0.4)'
+                        : `1px solid ${colors.border}`,
                   }}
                 >
                   LOI: {loiStatus}
@@ -435,59 +490,63 @@ export default function PropertyDetailModal({
               )}
             </div>
 
-            {/* Photo mode toggle */}
+            {/* Photo mode selector tabs */}
             <div
               style={{
                 display: 'inline-flex',
-                background: 'rgba(0,0,0,0.3)',
-                padding: '2px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color, #334155)',
+                background: colors.boxBg,
+                padding: '3px',
+                borderRadius: '8px',
+                border: `1px solid ${colors.border}`,
+                gap: '2px',
               }}
             >
-              <button
-                type="button"
-                onClick={() => setImgMode('street')}
-                style={{
-                  padding: '3px 10px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  borderRadius: '4px',
-                  border: 'none',
-                  background: imgMode === 'street' ? 'var(--lime, #d6ff3f)' : 'transparent',
-                  color: imgMode === 'street' ? '#0f172a' : 'var(--muted, #94a3b8)',
-                  cursor: 'pointer',
-                }}
-              >
-                Street View
-              </button>
-              <button
-                type="button"
-                onClick={() => setImgMode('both')}
-                style={{
-                  padding: '3px 10px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  borderRadius: '4px',
-                  border: 'none',
-                  background: imgMode === 'both' ? 'var(--lime, #d6ff3f)' : 'transparent',
-                  color: imgMode === 'both' ? '#0f172a' : 'var(--muted, #94a3b8)',
-                  cursor: 'pointer',
-                }}
-              >
-                Street + Satellite
-              </button>
+              {[
+                { id: 'street', label: '📸 Street View' },
+                { id: 'satellite', label: '🛰️ Satellite' },
+                { id: 'roadmap', label: '🗺️ Map' },
+                { id: 'both', label: '⊞ Split View' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setImgMode(tab.id as any)}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: 'none',
+                    background:
+                      imgMode === tab.id
+                        ? isLight
+                          ? '#00a89f'
+                          : 'var(--lime, #00a89f)'
+                        : 'transparent',
+                    color:
+                      imgMode === tab.id
+                        ? '#ffffff'
+                        : colors.inkMuted,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* ── Visual Imagery Banner ─────────────────────────────────── */}
+          {/* ── Visual Imagery Banner: High-Resolution Property Picture ── */}
           <div
             style={{
               borderRadius: '12px',
               overflow: 'hidden',
-              border: '1px solid var(--border-color, #334155)',
-              background: '#0b1329',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+              border: `1px solid ${colors.border}`,
+              background: isLight ? '#f1f5f9' : '#0b1329',
+              boxShadow: isLight
+                ? '0 4px 12px rgba(0,0,0,0.06)'
+                : '0 4px 16px rgba(0,0,0,0.3)',
             }}
           >
             <PropertyImage
@@ -498,18 +557,18 @@ export default function PropertyDetailModal({
               latitude={property.latitude}
               longitude={property.longitude}
               mode={imgMode}
-              streetHeight={240}
-              satelliteHeight={240}
+              streetHeight={280}
+              satelliteHeight={280}
             />
           </div>
 
           {/* ── SECTION 1: Financial Snapshot & Wholesale Calculator ─── */}
           <div
             style={{
-              background: 'rgba(15, 23, 42, 0.45)',
-              border: '1px solid var(--border-color, #334155)',
+              background: colors.sectionBg,
+              border: `1px solid ${colors.border}`,
               borderRadius: '12px',
-              padding: '16px 18px',
+              padding: '18px 20px',
             }}
           >
             <div
@@ -517,14 +576,14 @@ export default function PropertyDetailModal({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '14px',
+                marginBottom: '16px',
               }}
             >
               <div
                 style={{
                   fontSize: '13px',
                   fontWeight: 800,
-                  color: '#38bdf8',
+                  color: colors.accentBlue,
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   display: 'flex',
@@ -536,8 +595,8 @@ export default function PropertyDetailModal({
                 <span>Financial Snapshot &amp; Valuation</span>
               </div>
               {property.updatedAt && (
-                <span style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>
-                  Refreshed: {new Date(property.updatedAt).toLocaleDateString()}
+                <span style={{ fontSize: '11px', color: colors.inkMuted }}>
+                  Synced: {new Date(property.updatedAt).toLocaleDateString()}
                 </span>
               )}
             </div>
@@ -546,7 +605,7 @@ export default function PropertyDetailModal({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
                 gap: '12px',
                 marginBottom: '16px',
               }}
@@ -554,27 +613,27 @@ export default function PropertyDetailModal({
               {/* Est Value */}
               <div
                 style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  background: colors.boxBg,
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: colors.boxBorder,
                 }}
               >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11.5px', color: colors.inkMuted, fontWeight: 700 }}>
                   Estimated Market Value (ARV)
                 </div>
                 <div
                   style={{
-                    fontSize: '20px',
+                    fontSize: '22px',
                     fontWeight: 800,
-                    color: '#f8fafc',
+                    color: colors.inkPrimary,
                     marginTop: '4px',
                   }}
                 >
                   {formatCurrency(property.estimatedValue)}
                 </div>
                 {(property.valueRangeLow || property.valueRangeHigh) && (
-                  <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11px', color: colors.inkMuted, marginTop: '2px' }}>
                     Range: {formatCurrency(property.valueRangeLow)} – {formatCurrency(property.valueRangeHigh)}
                   </div>
                 )}
@@ -583,26 +642,26 @@ export default function PropertyDetailModal({
               {/* Est Equity */}
               <div
                 style={{
-                  background: 'rgba(16, 185, 129, 0.08)',
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  background: colors.accentGreenBg,
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: `1px solid ${colors.accentGreenBorder}`,
                 }}
               >
-                <div style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>
+                <div style={{ fontSize: '11.5px', color: colors.accentGreen, fontWeight: 700 }}>
                   Estimated Equity Spread
                 </div>
                 <div
                   style={{
-                    fontSize: '20px',
+                    fontSize: '22px',
                     fontWeight: 800,
-                    color: '#10b981',
+                    color: colors.accentGreen,
                     marginTop: '4px',
                   }}
                 >
                   {equityPct}% ({formatCurrency(property.estimatedEquity || rawEquity)})
                 </div>
-                <div style={{ fontSize: '11px', color: 'rgba(16, 185, 129, 0.8)', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: colors.accentGreen, opacity: 0.85, marginTop: '2px', fontWeight: 600 }}>
                   {equityPct >= 40 ? 'High Equity Target' : 'Moderate Equity Position'}
                 </div>
               </div>
@@ -610,26 +669,26 @@ export default function PropertyDetailModal({
               {/* Mortgage Balance */}
               <div
                 style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  background: colors.boxBg,
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: colors.boxBorder,
                 }}
               >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11.5px', color: colors.inkMuted, fontWeight: 700 }}>
                   Open Mortgage Balance
                 </div>
                 <div
                   style={{
-                    fontSize: '20px',
+                    fontSize: '22px',
                     fontWeight: 800,
-                    color: rawMortgage > 0 ? '#f59e0b' : '#38bdf8',
+                    color: rawMortgage > 0 ? colors.accentAmber : colors.accentBlue,
                     marginTop: '4px',
                   }}
                 >
                   {rawMortgage > 0 ? formatCurrency(property.mortgageBalance) : 'Free & Clear'}
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: colors.inkMuted, marginTop: '2px' }}>
                   {rawMortgage > 0 ? 'Recorded First Lien Debt' : 'No Recorded Mortgages'}
                 </div>
               </div>
@@ -637,26 +696,26 @@ export default function PropertyDetailModal({
               {/* Estimated Rent */}
               <div
                 style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  background: colors.boxBg,
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: colors.boxBorder,
                 }}
               >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11.5px', color: colors.inkMuted, fontWeight: 700 }}>
                   Estimated Market Rent
                 </div>
                 <div
                   style={{
-                    fontSize: '20px',
+                    fontSize: '22px',
                     fontWeight: 800,
-                    color: '#38bdf8',
+                    color: colors.accentBlue,
                     marginTop: '4px',
                   }}
                 >
                   {property.estimatedRent ? `${formatCurrency(property.estimatedRent)}/mo` : '—'}
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: colors.inkMuted, marginTop: '2px' }}>
                   {rawValue > 0 && parseNum(property.estimatedRent) > 0
                     ? `${(((parseNum(property.estimatedRent) * 12) / rawValue) * 100).toFixed(1)}% Gross Yield`
                     : 'Rental Potential'}
@@ -668,21 +727,24 @@ export default function PropertyDetailModal({
             <div
               style={{
                 display: 'flex',
-                gap: '16px',
+                gap: '20px',
                 flexWrap: 'wrap',
-                padding: '10px 14px',
-                background: 'rgba(0,0,0,0.2)',
+                padding: '12px 16px',
+                background: colors.boxBg,
                 borderRadius: '8px',
-                fontSize: '12px',
-                color: 'var(--muted, #cbd5e1)',
+                border: colors.boxBorder,
+                fontSize: '12.5px',
+                color: colors.inkSecondary,
                 marginBottom: '16px',
               }}
             >
               <div>
-                <strong>Assessed Tax Value:</strong> {formatCurrency(property.taxAssessedValue)}
+                <strong style={{ color: colors.inkPrimary }}>Assessed Tax Value:</strong>{' '}
+                {formatCurrency(property.taxAssessedValue)}
               </div>
               <div>
-                <strong>Last Recorded Sale:</strong> {formatCurrency(property.lastSalePrice)}{' '}
+                <strong style={{ color: colors.inkPrimary }}>Last Recorded Sale:</strong>{' '}
+                {formatCurrency(property.lastSalePrice)}{' '}
                 {property.lastSaleDate ? `(${property.lastSaleDate})` : ''}
               </div>
             </div>
@@ -690,10 +752,10 @@ export default function PropertyDetailModal({
             {/* Wholesale Underwriting Formula (Interactive 70% Rule MAO) */}
             <div
               style={{
-                background: 'rgba(214, 255, 63, 0.05)',
-                border: '1px solid rgba(214, 255, 63, 0.2)',
+                background: colors.calcCardBg,
+                border: colors.calcCardBorder,
                 borderRadius: '10px',
-                padding: '14px 16px',
+                padding: '16px 18px',
               }}
             >
               <div
@@ -701,23 +763,23 @@ export default function PropertyDetailModal({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '10px',
+                  marginBottom: '12px',
                   flexWrap: 'wrap',
                   gap: '6px',
                 }}
               >
                 <span
                   style={{
-                    fontSize: '12px',
+                    fontSize: '12.5px',
                     fontWeight: 800,
-                    color: 'var(--lime, #d6ff3f)',
+                    color: colors.calcTitle,
                     letterSpacing: '0.4px',
                     textTransform: 'uppercase',
                   }}
                 >
                   ⚡ Wholesale Deal Calculator (70% Rule)
                 </span>
-                <span style={{ fontSize: '11.5px', color: 'var(--muted, #94a3b8)' }}>
+                <span style={{ fontSize: '11.5px', color: colors.inkMuted }}>
                   MAO = (ARV × 0.70) − Repairs − Fee
                 </span>
               </div>
@@ -725,42 +787,45 @@ export default function PropertyDetailModal({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                  gap: '10px',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                  gap: '12px',
                   alignItems: 'center',
                 }}
               >
                 {/* 70% Base */}
-                <div style={{ fontSize: '12px' }}>
-                  <div style={{ color: 'var(--muted, #94a3b8)' }}>70% of ARV:</div>
-                  <strong style={{ fontSize: '14px', color: '#f8fafc' }}>
+                <div style={{ fontSize: '12.5px' }}>
+                  <div style={{ color: colors.inkMuted }}>70% of ARV:</div>
+                  <strong style={{ fontSize: '16px', color: colors.inkPrimary }}>
                     {formatCurrency(arv > 0 ? arv * 0.7 : 0)}
                   </strong>
                 </div>
 
                 {/* Repair Allowance Selector */}
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', marginBottom: '3px' }}>
+                  <div style={{ fontSize: '11.5px', color: colors.inkMuted, marginBottom: '4px' }}>
                     Est. Repairs:
                   </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '5px' }}>
                     {[10000, 25000, 50000].map((amt) => (
                       <button
                         key={amt}
                         type="button"
                         onClick={() => setRepairEstimate(amt)}
                         style={{
-                          padding: '2px 6px',
-                          fontSize: '10px',
+                          padding: '4px 8px',
+                          fontSize: '11px',
                           fontWeight: 700,
-                          borderRadius: '4px',
+                          borderRadius: '6px',
                           border:
                             repairEstimate === amt
-                              ? '1px solid var(--lime, #d6ff3f)'
-                              : '1px solid rgba(255,255,255,0.1)',
+                              ? '1px solid #00a89f'
+                              : `1px solid ${colors.border}`,
                           background:
-                            repairEstimate === amt ? 'rgba(214, 255, 63, 0.15)' : 'rgba(0,0,0,0.2)',
-                          color: repairEstimate === amt ? 'var(--lime, #d6ff3f)' : '#cbd5e1',
+                            repairEstimate === amt
+                              ? '#00a89f'
+                              : colors.boxBg,
+                          color:
+                            repairEstimate === amt ? '#ffffff' : colors.inkSecondary,
                           cursor: 'pointer',
                         }}
                       >
@@ -772,27 +837,27 @@ export default function PropertyDetailModal({
 
                 {/* Wholesale Fee */}
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)', marginBottom: '3px' }}>
+                  <div style={{ fontSize: '11.5px', color: colors.inkMuted, marginBottom: '4px' }}>
                     Wholesale Fee:
                   </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '5px' }}>
                     {[10000, 15000, 25000].map((fee) => (
                       <button
                         key={fee}
                         type="button"
                         onClick={() => setAssignmentFee(fee)}
                         style={{
-                          padding: '2px 6px',
-                          fontSize: '10px',
+                          padding: '4px 8px',
+                          fontSize: '11px',
                           fontWeight: 700,
-                          borderRadius: '4px',
+                          borderRadius: '6px',
                           border:
                             assignmentFee === fee
-                              ? '1px solid #38bdf8'
-                              : '1px solid rgba(255,255,255,0.1)',
+                              ? '1px solid #0284c7'
+                              : `1px solid ${colors.border}`,
                           background:
-                            assignmentFee === fee ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0,0,0,0.2)',
-                          color: assignmentFee === fee ? '#38bdf8' : '#cbd5e1',
+                            assignmentFee === fee ? '#0284c7' : colors.boxBg,
+                          color: assignmentFee === fee ? '#ffffff' : colors.inkSecondary,
                           cursor: 'pointer',
                         }}
                       >
@@ -805,17 +870,17 @@ export default function PropertyDetailModal({
                 {/* Target Max Allowable Offer */}
                 <div
                   style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '8px 12px',
+                    background: colors.boxBg,
+                    padding: '10px 14px',
                     borderRadius: '8px',
-                    border: '1px solid rgba(214, 255, 63, 0.3)',
+                    border: isLight ? '2px solid #00a89f' : '1px solid #00a89f',
                     textAlign: 'right',
                   }}
                 >
-                  <div style={{ fontSize: '11px', color: 'var(--lime, #d6ff3f)', fontWeight: 700 }}>
+                  <div style={{ fontSize: '11px', color: colors.calcTitle, fontWeight: 800 }}>
                     Target MAO:
                   </div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, color: '#f8fafc' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: colors.inkPrimary }}>
                     {formatCurrency(mao)}
                   </div>
                 </div>
@@ -826,17 +891,17 @@ export default function PropertyDetailModal({
           {/* ── SECTION 2: Physical Property Specifications ──────────── */}
           <div
             style={{
-              background: 'rgba(15, 23, 42, 0.45)',
-              border: '1px solid var(--border-color, #334155)',
+              background: colors.sectionBg,
+              border: `1px solid ${colors.border}`,
               borderRadius: '12px',
-              padding: '16px 18px',
+              padding: '18px 20px',
             }}
           >
             <div
               style={{
                 fontSize: '13px',
                 fontWeight: 800,
-                color: '#38bdf8',
+                color: colors.accentBlue,
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 marginBottom: '14px',
@@ -856,148 +921,70 @@ export default function PropertyDetailModal({
                 gap: '10px',
               }}
             >
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>🛏️ Bedrooms</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                  {property.bedrooms ? `${property.bedrooms} Beds` : '—'}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>🛁 Bathrooms</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                  {property.bathrooms ? `${property.bathrooms} Baths` : '—'}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>📐 Living Area</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                  {property.squareFeet
+              {[
+                { label: '🛏️ Bedrooms', val: property.bedrooms ? `${property.bedrooms} Beds` : '—' },
+                { label: '🛁 Bathrooms', val: property.bathrooms ? `${property.bathrooms} Baths` : '—' },
+                {
+                  label: '📐 Living Area',
+                  val: property.squareFeet
                     ? typeof property.squareFeet === 'number'
                       ? `${property.squareFeet.toLocaleString()} SqFt`
                       : property.squareFeet
-                    : '—'}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>🌳 Lot Size</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                  {property.lotSize ? String(property.lotSize) : '—'}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>🏗️ Year Built</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                  {property.yearBuilt
+                    : '—',
+                },
+                { label: '🌳 Lot Size', val: property.lotSize ? String(property.lotSize) : '—' },
+                {
+                  label: '🏗️ Year Built',
+                  val: property.yearBuilt
                     ? `${property.yearBuilt} (${new Date().getFullYear() - Number(property.yearBuilt)} yrs)`
-                    : '—'}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>🏢 Stories</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                  {property.stories ? `${property.stories} Story` : '—'}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>🚗 Garage</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                  {property.garageSpaces ? `${property.garageSpaces} Spaces` : '—'}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'var(--muted, #94a3b8)' }}>🏷️ APN Parcel</div>
+                    : '—',
+                },
+                { label: '🏢 Stories', val: property.stories ? `${property.stories} Story` : '—' },
+                { label: '🚗 Garage', val: property.garageSpaces ? `${property.garageSpaces} Spaces` : '—' },
+                { label: '🏷️ APN Parcel', val: property.apn || '—', mono: true },
+              ].map((spec, i) => (
                 <div
+                  key={i}
                   style={{
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: '#f8fafc',
-                    marginTop: '2px',
-                    fontFamily: 'monospace',
+                    background: colors.boxBg,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: colors.boxBorder,
                   }}
                 >
-                  {property.apn || '—'}
+                  <div style={{ fontSize: '11px', color: colors.inkMuted, fontWeight: 600 }}>
+                    {spec.label}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      color: colors.inkPrimary,
+                      marginTop: '2px',
+                      fontFamily: spec.mono ? 'monospace' : 'inherit',
+                    }}
+                  >
+                    {spec.val}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
 
           {/* ── SECTION 3: Distress Signals & Seller Motivation ───────── */}
           <div
             style={{
-              background: 'rgba(15, 23, 42, 0.45)',
-              border: '1px solid var(--border-color, #334155)',
+              background: colors.sectionBg,
+              border: `1px solid ${colors.border}`,
               borderRadius: '12px',
-              padding: '16px 18px',
+              padding: '18px 20px',
             }}
           >
             <div
               style={{
                 fontSize: '13px',
                 fontWeight: 800,
-                color: '#f59e0b',
+                color: colors.accentAmber,
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 marginBottom: '14px',
@@ -1011,7 +998,7 @@ export default function PropertyDetailModal({
             </div>
 
             {distressList.length > 0 ? (
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
                 {distressList.map((d) => (
                   <div
                     key={d}
@@ -1021,9 +1008,9 @@ export default function PropertyDetailModal({
                       gap: '6px',
                       padding: '6px 12px',
                       borderRadius: '8px',
-                      background: 'rgba(239, 68, 68, 0.12)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: '#fca5a5',
+                      background: colors.distressBg,
+                      border: colors.distressBorder,
+                      color: colors.distressText,
                       fontSize: '12px',
                       fontWeight: 700,
                     }}
@@ -1036,13 +1023,14 @@ export default function PropertyDetailModal({
             ) : (
               <div
                 style={{
-                  padding: '10px 14px',
+                  padding: '12px 16px',
                   borderRadius: '8px',
-                  background: 'rgba(16, 185, 129, 0.08)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  color: '#6ee7b7',
-                  fontSize: '12.5px',
-                  marginBottom: '12px',
+                  background: colors.accentGreenBg,
+                  border: `1px solid ${colors.accentGreenBorder}`,
+                  color: colors.accentGreen,
+                  fontSize: '13px',
+                  marginBottom: '14px',
+                  lineHeight: 1.5,
                 }}
               >
                 ✓ <strong>Standard Equity Profile:</strong> No public distress records (tax delinquent,
@@ -1055,16 +1043,16 @@ export default function PropertyDetailModal({
             {property.opportunityReasons && (
               <div
                 style={{
-                  fontSize: '12.5px',
-                  color: 'var(--muted, #cbd5e1)',
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '10px 14px',
+                  fontSize: '13px',
+                  color: colors.inkSecondary,
+                  background: colors.boxBg,
+                  padding: '12px 16px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  lineHeight: 1.5,
+                  border: colors.boxBorder,
+                  lineHeight: 1.6,
                 }}
               >
-                <strong style={{ color: '#f8fafc' }}>🧠 Revzenta AI Underwriting Insights:</strong>{' '}
+                <strong style={{ color: colors.inkPrimary }}>🧠 Revzenta AI Underwriting Insights:</strong>{' '}
                 {Array.isArray(property.opportunityReasons)
                   ? property.opportunityReasons.join(' · ')
                   : property.opportunityReasons}
@@ -1075,29 +1063,29 @@ export default function PropertyDetailModal({
           {/* ── SECTION 4: Ownership & Provenance ─────────────────────── */}
           <div
             style={{
-              background: 'rgba(15, 23, 42, 0.45)',
-              border: '1px solid var(--border-color, #334155)',
+              background: colors.sectionBg,
+              border: `1px solid ${colors.border}`,
               borderRadius: '12px',
-              padding: '14px 18px',
+              padding: '14px 20px',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '10px',
-              fontSize: '12px',
-              color: 'var(--muted, #94a3b8)',
+              fontSize: '12.5px',
+              color: colors.inkMuted,
             }}
           >
             <div>
-              <strong>👤 Recorded Owner:</strong>{' '}
-              <span style={{ color: 'var(--ink, #f8fafc)' }}>
+              <strong style={{ color: colors.inkPrimary }}>👤 Recorded Owner:</strong>{' '}
+              <span style={{ color: colors.inkPrimary, fontWeight: 600 }}>
                 {property.ownerName || 'Public Assessor Record'}
               </span>{' '}
               {property.ownerOccupied ? `(${property.ownerOccupied})` : ''}
             </div>
             <div>
-              <strong>📡 Data Source:</strong>{' '}
-              <span style={{ color: 'var(--ink, #f8fafc)' }}>
+              <strong style={{ color: colors.inkPrimary }}>📡 Data Source:</strong>{' '}
+              <span style={{ color: colors.inkPrimary, fontWeight: 600 }}>
                 {property.sourceProvider || 'Unified Assessor + RentCast'}
               </span>
             </div>
@@ -1108,8 +1096,8 @@ export default function PropertyDetailModal({
         <div
           style={{
             padding: '16px 22px',
-            borderTop: '1px solid var(--border-color, #334155)',
-            background: 'rgba(15, 23, 42, 0.85)',
+            borderTop: `1px solid ${colors.border}`,
+            background: colors.footerBg,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -1121,7 +1109,13 @@ export default function PropertyDetailModal({
             type="button"
             className="btn btn-secondary"
             onClick={onClose}
-            style={{ fontSize: '13px', padding: '8px 16px' }}
+            style={{
+              fontSize: '13px',
+              padding: '8px 18px',
+              background: colors.boxBg,
+              border: `1px solid ${colors.border}`,
+              color: colors.inkPrimary,
+            }}
           >
             Close
           </button>
@@ -1141,8 +1135,9 @@ export default function PropertyDetailModal({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  color: '#c084fc',
-                  borderColor: 'rgba(192, 132, 252, 0.4)',
+                  color: isLight ? '#7c3aed' : '#c084fc',
+                  borderColor: isLight ? 'rgba(124, 58, 237, 0.4)' : 'rgba(192, 132, 252, 0.4)',
+                  background: colors.boxBg,
                 }}
               >
                 <span>🧠</span>
@@ -1167,10 +1162,19 @@ export default function PropertyDetailModal({
                   border:
                     loiStatus === 'Sent'
                       ? '1px solid rgba(16, 185, 129, 0.5)'
-                      : '1px solid rgba(148, 163, 184, 0.3)',
+                      : `1px solid ${colors.border}`,
                   backgroundColor:
-                    loiStatus === 'Sent' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.1)',
-                  color: loiStatus === 'Sent' ? '#10b981' : 'var(--muted, #94a3b8)',
+                    loiStatus === 'Sent'
+                      ? isLight
+                        ? 'rgba(16, 185, 129, 0.12)'
+                        : 'rgba(16, 185, 129, 0.15)'
+                      : colors.boxBg,
+                  color:
+                    loiStatus === 'Sent'
+                      ? isLight
+                        ? '#047857'
+                        : '#10b981'
+                      : colors.inkMuted,
                 }}
               >
                 <span>{loiStatus === 'Sent' ? '✓' : '○'}</span>
