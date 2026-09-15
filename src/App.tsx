@@ -1233,31 +1233,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* Sub-menu under Title Hub: Deals and Contracts */}
-                {canSeeTab("documents") && (
-                  <button
-                    className={effectiveViewFinal === "contracts" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setView("contracts");
-                      setMobileMenuOpen(false);
-                    }}
-                    title={hasTierAccess(effectiveTier, "documents") ? "State-compliant purchase & assignment contracts, e-signatures, and agreements table" : "Deals & Contracts (Pro & Scale feature)"}
-                    style={{
-                      paddingLeft: "26px",
-                      position: "relative",
-                    }}
-                  >
-                    <span style={{ position: "absolute", left: "12px", color: "var(--muted)", fontSize: "11px", opacity: 0.75 }}>↳</span>
-                    <span className="tab-icon" style={{ fontSize: "14px" }}>📄</span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
-                      <span>Deals and Contracts</span>
-                      {!hasTierAccess(effectiveTier, "documents") && (
-                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
-                      )}
-                    </span>
-                  </button>
-                )}
-
                 {/* 6. Sold Hub */}
                 {canSeeTab("documents") && (
                   <button
@@ -1278,38 +1253,23 @@ export default function App() {
                   </button>
                 )}
 
-                {/* 5. Buy Box */}
-                {canSeeTab("buybox") && (
+                {/* 5. Investors & Buy Box (merged) */}
+                {(canSeeTab("buybox") || canSeeTab("investors")) && (
                   <button
-                    className={effectiveViewFinal === "buybox" ? "tab active" : "tab"}
+                    className={(effectiveViewFinal === "buybox" || effectiveViewFinal === "clients" || effectiveViewFinal === "buyers") ? "tab active" : "tab"}
                     onClick={() => {
                       setView("buybox");
                       setMobileMenuOpen(false);
                     }}
-                    title={hasTierAccess(effectiveTier, "buybox") ? "Investor buy box criteria matching engine" : "Buy Box Matcher (Pro & Scale feature)"}
+                    title={hasTierAccess(effectiveTier, "buybox") ? "Investor network, buy box criteria matching, and quick buyer list" : "Investors & Buy Box (Pro & Scale feature)"}
                   >
-                    <span className="tab-icon">🎯</span>
+                    <span className="tab-icon">💼</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
-                      <span>Buy Box</span>
+                      <span>Investors & Buy Box</span>
                       {!hasTierAccess(effectiveTier, "buybox") && (
                         <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
                       )}
                     </span>
-                  </button>
-                )}
-
-                {/* 6. Investors */}
-                {canSeeTab("investors") && (
-                  <button
-                    className={effectiveViewFinal === "clients" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setView("clients");
-                      setMobileMenuOpen(false);
-                    }}
-                    title="Vetted cash buyers and creative finance network"
-                  >
-                    <span className="tab-icon">💼</span>
-                    <span>Investors</span>
                   </button>
                 )}
 

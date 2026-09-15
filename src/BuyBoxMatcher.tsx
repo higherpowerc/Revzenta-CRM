@@ -14,6 +14,7 @@ import {
 import BuyerModal from "./BuyerModal";
 import CsvImportModal from "./CsvImportModal";
 import { blurPii, usePii } from "./pii";
+import Buyers from "./Buyers";
 
 interface Props {
   canEdit?: boolean;
@@ -24,7 +25,7 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
   const [clients, setClients] = useState<Client[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"matcher" | "directory">("matcher");
+  const [activeTab, setActiveTab] = useState<"matcher" | "directory" | "buyers">("matcher");
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
   const [buyerModal, setBuyerModal] = useState<{ mode: "create" } | { mode: "edit"; client: Client } | null>(null);
   const [csvModal, setCsvModal] = useState(false);
@@ -113,13 +114,13 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
     <div className="page page-stack">
       <div className="page-head">
         <div>
-          <h1>🎯 Buy Box & Dispo Matcher</h1>
+          <h1>💼 Investors & Buy Box</h1>
           <p className="page-sub">
-            Automatically match your wholesale property inventory with verified investors
+            Manage your investor network, track buy box criteria, and auto-match deals to buyers
           </p>
         </div>
         <div className="page-actions" style={{ display: "flex", gap: "8px" }}>
-          {canEdit && (
+          {canEdit && activeTab !== "buyers" && (
             <button
               type="button"
               className="btn btn-ghost"
@@ -129,7 +130,7 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
               📥 Upload CSV
             </button>
           )}
-          {canEdit && (
+          {canEdit && activeTab !== "buyers" && (
             <button className="btn btn-primary" onClick={() => setBuyerModal({ mode: "create" })}>
               + New Investor
             </button>
@@ -154,6 +155,13 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
           onClick={() => setActiveTab("directory")}
         >
           📋 Investor Buy Boxes ({buyers.length} Investors)
+        </button>
+        <button
+          type="button"
+          className={activeTab === "buyers" ? "btn btn-primary" : "btn btn-ghost"}
+          onClick={() => setActiveTab("buyers")}
+        >
+          🏃 Quick Buyer List
         </button>
       </div>
 
@@ -397,8 +405,8 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
             )}
           </div>
         </div>
-      ) : (
-        /* Mode 2: Buy Boxes Directory */
+      ) : activeTab === "directory" ? (
+        /* Tab 2: Buy Boxes Directory */
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "16px" }}>
           {buyers.map((b) => {
             const maxBudget = getBuyerMaxBudget(b);
@@ -488,7 +496,10 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
             );
           })}
         </div>
-      )}
+      ) : activeTab === "buyers" ? (
+        /* Tab 3: Quick Buyer List — the dedicated /api/buyers endpoint list with quick-add, search, edit, delete */
+        <Buyers canEdit={canEdit} />
+      ) : null}
 
       {/* Buyer Modal */}
       {buyerModal && (
