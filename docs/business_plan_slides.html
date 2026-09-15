@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revzenta CRM — Business Plan Slides</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #1d4ed8;
+      --accent: #10b981;
+      --bg-dark: #090d16;
+      --card-dark: #111827;
+      --card-border: #1f2937;
+    }
+    body {
+      background-color: var(--bg-dark);
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    .slide {
+      display: none;
+      min-height: 84vh;
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .slide.active {
+      display: flex;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px) scale(0.995); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+    .stat-glow {
+      text-shadow: 0 0 20px rgba(59, 130, 246, 0.35);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body class="bg-[#090d16] text-gray-100 min-h-screen flex flex-col justify-between p-4 md:p-8">
+
+  <!-- Top Presentation Header -->
+  <header class="flex items-center justify-between border-b border-gray-800/80 pb-4 mb-4">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-emerald-400 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-blue-500/20">
+        R
+      </div>
+      <div>
+        <span class="font-bold tracking-tight text-white text-base">REVZENTA</span>
+        <span class="text-xs text-emerald-400 font-semibold ml-2 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40">BUSINESS PLAN</span>
+      </div>
+    </div>
+
+    <!-- Slide Navigation Indicators -->
+    <div class="flex items-center space-x-2">
+      <span id="slideCounter" class="text-xs font-mono text-gray-400 mr-2">Slide 1 of 11</span>
+      <button onclick="prevSlide()" class="p-2 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 transition-colors cursor-pointer" title="Previous (Left Arrow)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <button onclick="nextSlide()" class="p-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer shadow-md shadow-blue-600/30" title="Next (Right Arrow or Space)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Slides Container -->
+  <main class="flex-1 flex items-center justify-center">
+
+    <!-- SLIDE 1: Title Slide -->
+    <section class="slide active flex-col justify-center items-center text-center max-w-4xl mx-auto px-4 py-8">
+      <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-950/80 border border-blue-800/50 text-blue-400 text-xs font-semibold mb-6">
+        <span>⚡ THE NEXT-GENERATION REAL ESTATE OS</span>
+      </div>
+      <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
+        Next-Generation <span class="bg-gradient-to-r from-blue-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">Deal Intelligence</span> &amp; Transaction Operating System
+      </h1>
+      <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        Empowering real estate wholesalers and creative finance investors to find, underwrite, contract, and close off-market property deals in a unified, compliant platform.
+      </p>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
+        <div class="glass-card rounded-xl p-4 border border-gray-800">
+          <div class="text-2xl font-bold text-blue-400">$14.2B</div>
+          <div class="text-xs text-gray-400 mt-1 uppercase font-medium">Market TAM</div>
+        </div>
+        <div class="glass-card rounded-xl p-4 border border-gray-800">
+          <div class="text-2xl font-bold text-emerald-400">97%+</div>
+          <div class="text-xs text-gray-400 mt-1 uppercase font-medium">Gross Margins</div>
+        </div>
+        <div class="glass-card rounded-xl p-4 border border-gray-800">
+          <div class="text-2xl font-bold text-amber-400">420K+</div>
+          <div class="text-xs text-gray-400 mt-1 uppercase font-medium">Target Dealmakers</div>
+        </div>
+        <div class="glass-card rounded-xl p-4 border border-gray-800">
+          <div class="text-2xl font-bold text-purple-400">Zero-Friction</div>
+          <div class="text-xs text-gray-400 mt-1 uppercase font-medium">Title Coordination</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: The Problem -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-red-400 font-bold uppercase tracking-wider">The Market Pain</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">A Broken, Fragmented $14B Tech Stack</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Wholesalers and acquisitions teams lose deals, earnest money, and hours every week to disconnected tools.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="glass-card rounded-xl p-5 border border-red-900/30 bg-gradient-to-br from-gray-900 via-gray-900 to-red-950/20">
+          <div class="w-10 h-10 rounded-lg bg-red-900/30 text-red-400 flex items-center justify-center text-xl mb-3">🧩</div>
+          <h3 class="text-base font-bold text-white mb-1">5+ Disconnected Subscriptions</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Investors pay $400–$800/mo across PropStream (data), BatchLeads (skip trace), Podio (CRM), DocuSign (contracts), and Slack/SMS. Data is manually copied, causing costly human errors.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-red-900/30 bg-gradient-to-br from-gray-900 via-gray-900 to-red-950/20">
+          <div class="w-10 h-10 rounded-lg bg-red-900/30 text-red-400 flex items-center justify-center text-xl mb-3">⏱️</div>
+          <h3 class="text-base font-bold text-white mb-1">Missed Contingency Deadlines</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Inspection periods and Earnest Money Deposit (EMD) milestones slip through the cracks on spreadsheets, leading to forfeited deposits, broken contracts, and litigation.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-red-900/30 bg-gradient-to-br from-gray-900 via-gray-900 to-red-950/20">
+          <div class="w-10 h-10 rounded-lg bg-red-900/30 text-red-400 flex items-center justify-center text-xl mb-3">🕳️</div>
+          <h3 class="text-base font-bold text-white mb-1">The Escrow Communication Black Hole</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Title companies refuse to create logins for investor CRMs. Coordination happens via unencrypted emails, exposing transactions to wire fraud, payoff delays, and lost assignment spreads.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-red-900/30 bg-gradient-to-br from-gray-900 via-gray-900 to-red-950/20">
+          <div class="w-10 h-10 rounded-lg bg-red-900/30 text-red-400 flex items-center justify-center text-xl mb-3">⚖️</div>
+          <h3 class="text-base font-bold text-white mb-1">Heavy Regulatory &amp; Legal Scrutiny</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">TCPA fines up to $1,500 per text and state wholesaling bans (IL 225 ILCS 454, OK SB 924, TX § 5.086) put wholesalers at risk of unlicensed brokerage allegations without automated disclosures.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: The Solution -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">The Revzenta Advantage</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">One Unified Operating System for the Entire Deal</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Uniting intelligence, multi-strategy underwriting, legal transactions, and escrow coordination.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="glass-card rounded-xl p-4 border border-blue-900/40 hover:border-blue-500/50 transition-colors">
+          <div class="text-2xl mb-2">🌐</div>
+          <div class="text-xs font-bold text-blue-400 uppercase tracking-wide">1. Sourcing</div>
+          <h4 class="text-sm font-bold text-white mt-1 mb-1">Property Intelligence</h4>
+          <p class="text-xs text-gray-400 leading-relaxed">AI natural-language property queries, distress motivation scores (probate, tax liens, absentee), Street View &amp; satellite imagery.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-4 border border-emerald-900/40 hover:border-emerald-500/50 transition-colors">
+          <div class="text-2xl mb-2">🧮</div>
+          <div class="text-xs font-bold text-emerald-400 uppercase tracking-wide">2. Underwriting</div>
+          <h4 class="text-sm font-bold text-white mt-1 mb-1">Creative Underwriter</h4>
+          <p class="text-xs text-gray-400 leading-relaxed">Multi-strategy math in seconds: 70% MAO cash offers, wholesale assignment spreads, Seller Finance amortizations, and Subject-To wrap mortgages.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-4 border border-purple-900/40 hover:border-purple-500/50 transition-colors">
+          <div class="text-2xl mb-2">🤝</div>
+          <div class="text-xs font-bold text-purple-400 uppercase tracking-wide">3. Title &amp; Closing</div>
+          <h4 class="text-sm font-bold text-white mt-1 mb-1">Zero-Login Portal</h4>
+          <p class="text-xs text-gray-400 leading-relaxed">Magic token link for Title &amp; Escrow officers. Two-way notes, milestone checklists, wire fraud security notices, and EMD countdowns.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-4 border border-amber-900/40 hover:border-amber-500/50 transition-colors">
+          <div class="text-2xl mb-2">💼</div>
+          <div class="text-xs font-bold text-amber-400 uppercase tracking-wide">4. Dispositions</div>
+          <h4 class="text-sm font-bold text-white mt-1 mb-1">Investors Hub</h4>
+          <p class="text-xs text-gray-400 leading-relaxed">Auto-matches inventory against verified cash buyer buy boxes. Generates deal pitches with mandatory equitable interest disclosures.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 rounded-xl bg-blue-950/30 border border-blue-800/40 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <span class="text-xl">🚀</span>
+          <span class="text-xs text-gray-300 font-medium">Replaces: PropStream ($99/mo) + BatchLeads ($119/mo) + Podio ($24/mo) + DocuSign ($40/mo) = <strong class="text-white">$282+/month saved per seat</strong></span>
+        </div>
+        <span class="badge bg-emerald-950 text-emerald-300 border border-emerald-700/50">All-in-One</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: Market Size & TAM -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-blue-400 font-bold uppercase tracking-wider">Market Sizing</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">The $14.2B Real Estate Tech Market</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Expanding rapidly with the rise of off-market acquisitions and institutional retail disintermediation.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-card rounded-xl p-6 border border-blue-800/50 relative overflow-hidden">
+          <div class="absolute -right-4 -bottom-4 text-7xl opacity-5 font-black">TAM</div>
+          <span class="text-xs font-bold text-blue-400 uppercase tracking-widest">Total Addressable</span>
+          <div class="text-4xl font-extrabold text-white mt-2 mb-2 stat-glow">$14.2B</div>
+          <p class="text-xs text-gray-400 leading-relaxed">Global Real Estate CRM &amp; Transaction Management software market, growing at an 11.4% CAGR through 2032.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-6 border border-teal-800/50 relative overflow-hidden">
+          <div class="absolute -right-4 -bottom-4 text-7xl opacity-5 font-black">SAM</div>
+          <span class="text-xs font-bold text-teal-400 uppercase tracking-widest">Serviceable Addressable</span>
+          <div class="text-4xl font-extrabold text-teal-300 mt-2 mb-2 stat-glow">$3.8B</div>
+          <p class="text-xs text-gray-400 leading-relaxed">420,000+ active US &amp; Canadian real estate wholesalers, creative finance investors, and independent boutique acquisitions brokerages.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-6 border border-emerald-800/50 relative overflow-hidden">
+          <div class="absolute -right-4 -bottom-4 text-7xl opacity-5 font-black">SOM</div>
+          <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Serviceable Obtainable (5-Yr)</span>
+          <div class="text-4xl font-extrabold text-emerald-400 mt-2 mb-2 stat-glow">$185M</div>
+          <p class="text-xs text-gray-400 leading-relaxed">Capturing 50,000 high-velocity dealmakers (~12% of SAM) at an average ARPU of $65/mo with viral title company network effects.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 grid grid-cols-3 gap-4 text-center">
+        <div class="p-3 rounded-lg bg-gray-900/60 border border-gray-800">
+          <div class="text-sm font-bold text-gray-200">1.4 Million</div>
+          <div class="text-[11px] text-gray-400">Off-Market US Residential Transactions / Year</div>
+        </div>
+        <div class="p-3 rounded-lg bg-gray-900/60 border border-gray-800">
+          <div class="text-sm font-bold text-gray-200">$2.4 Trillion</div>
+          <div class="text-[11px] text-gray-400">Total Off-Market Real Estate Transaction Value</div>
+        </div>
+        <div class="p-3 rounded-lg bg-gray-900/60 border border-gray-800">
+          <div class="text-sm font-bold text-gray-200">$12,400</div>
+          <div class="text-[11px] text-gray-400">Average Gross Assignment Spread per Closed Deal</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: Business Model & Pricing Tiers -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Revenue Model</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">High-Margin Subscription Tiers</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Self-serve Stripe checkout with frictionless onboarding and zero setup friction.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Starter Plan -->
+        <div class="glass-card rounded-xl p-5 border border-gray-800 flex flex-col justify-between">
+          <div>
+            <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Starter</span>
+            <div class="text-3xl font-extrabold text-white mt-1 mb-3">$24.99 <span class="text-xs text-gray-400 font-normal">/ mo</span></div>
+            <p class="text-xs text-gray-400 mb-4">Solo wholesalers and new dealmakers closing 1–2 deals per quarter.</p>
+            <ul class="text-xs text-gray-300 space-y-2 border-t border-gray-800 pt-3">
+              <li>✓ Nationwide Property Search &amp; AVM</li>
+              <li>✓ Creative Underwriting Engine</li>
+              <li>✓ Full Pipeline &amp; Lead Management</li>
+              <li>✓ Standard Purchase Agreements</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Pro Dealmaker (Highlighted) -->
+        <div class="glass-card rounded-xl p-5 border-2 border-blue-500 bg-gradient-to-b from-blue-950/30 to-gray-900 relative flex flex-col justify-between shadow-lg shadow-blue-500/10">
+          <div class="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-blue-600 text-[10px] font-bold text-white uppercase tracking-wider">Most Popular</div>
+          <div>
+            <span class="text-xs text-blue-400 uppercase font-bold tracking-wider">Pro Dealmaker</span>
+            <div class="text-3xl font-extrabold text-white mt-1 mb-3">$59.99 <span class="text-xs text-gray-400 font-normal">/ mo</span></div>
+            <p class="text-xs text-gray-300 mb-4">Full-time wholesalers &amp; acquisitions teams scaling monthly volume.</p>
+            <ul class="text-xs text-gray-200 space-y-2 border-t border-blue-900/50 pt-3">
+              <li>✓ <strong>Everything in Starter, plus:</strong></li>
+              <li>✓ <strong>Investors Hub &amp; Buy Box Matcher</strong></li>
+              <li>✓ <strong>Offers Repository &amp; Dispatcher</strong></li>
+              <li>✓ <strong>Title Hub &amp; Standalone Escrow Portal</strong></li>
+              <li>✓ Built-in E-Signatures &amp; Audit Trail</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Scale Plan -->
+        <div class="glass-card rounded-xl p-5 border border-purple-900/60 flex flex-col justify-between">
+          <div>
+            <span class="text-xs text-purple-400 uppercase font-bold tracking-wider">Scale Enterprise</span>
+            <div class="text-3xl font-extrabold text-white mt-1 mb-3">$79.00 <span class="text-xs text-gray-400 font-normal">/ mo</span></div>
+            <p class="text-xs text-gray-400 mb-4">High-volume investment shops, dispositions teams, and brokerages.</p>
+            <ul class="text-xs text-gray-300 space-y-2 border-t border-gray-800 pt-3">
+              <li>✓ <strong>Everything in Pro Dealmaker, plus:</strong></li>
+              <li>✓ Unlimited Contract Generation &amp; Title Links</li>
+              <li>✓ Sold Hub &amp; Revenue Analytics</li>
+              <li>✓ Priority Queue &amp; API Webhook Connectors</li>
+              <li>✓ Multi-seat Team Collaboration</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: Unit Economics & Margins -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Financial Viability</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">Best-in-Class SaaS Unit Economics</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Capital-efficient architecture delivering &gt;97% gross margins and rapid cash-flow positive scaling.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="glass-card rounded-xl p-5 border border-emerald-900/40 text-center">
+          <div class="text-3xl font-black text-emerald-400 mb-1">97.2%</div>
+          <div class="text-xs font-bold text-gray-200">Gross Margin</div>
+          <p class="text-[11px] text-gray-400 mt-2">API overhead per active user is under $1.50/mo (Gemini Flash, RentCast cache, Resend).</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-blue-900/40 text-center">
+          <div class="text-3xl font-black text-blue-400 mb-1">$61.50</div>
+          <div class="text-xs font-bold text-gray-200">Blended ARPU</div>
+          <p class="text-[11px] text-gray-400 mt-2">Weighted average monthly revenue across Starter ($24.99), Pro ($59.99), and Scale ($79).</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-purple-900/40 text-center">
+          <div class="text-3xl font-black text-purple-400 mb-1">14.2x</div>
+          <div class="text-xs font-bold text-gray-200">LTV / CAC Ratio</div>
+          <p class="text-[11px] text-gray-400 mt-2">Estimated $738 LTV (12-mo average tenure) against $52 organic &amp; influencer CAC.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-amber-900/40 text-center">
+          <div class="text-3xl font-black text-amber-400 mb-1">3 Users</div>
+          <div class="text-xs font-bold text-gray-200">Break-Even Threshold</div>
+          <p class="text-[11px] text-gray-400 mt-2">Server infrastructure &amp; API costs are covered with just three Pro subscribers.</p>
+        </div>
+      </div>
+
+      <!-- Cost Structure Breakdown -->
+      <div class="mt-6 glass-card rounded-xl p-4 border border-gray-800">
+        <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider mb-3">Third-Party Cost Architecture (100 Active Users)</h4>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div class="p-2.5 rounded bg-gray-900/80 border border-gray-800">
+            <span class="text-gray-400 block">Google Maps:</span>
+            <strong class="text-emerald-400">$0.00</strong> <span class="text-[10px] text-gray-500">($200 free credit)</span>
+          </div>
+          <div class="p-2.5 rounded bg-gray-900/80 border border-gray-800">
+            <span class="text-gray-400 block">Gemini Flash AI:</span>
+            <strong class="text-emerald-400">~$1.20 / mo</strong> <span class="text-[10px] text-gray-500">(10k searches)</span>
+          </div>
+          <div class="p-2.5 rounded bg-gray-900/80 border border-gray-800">
+            <span class="text-gray-400 block">RentCast Valuations:</span>
+            <strong class="text-emerald-400">$49.00 / mo</strong> <span class="text-[10px] text-gray-500">(5,000 calls)</span>
+          </div>
+          <div class="p-2.5 rounded bg-gray-900/80 border border-gray-800">
+            <span class="text-gray-400 block">Resend Emails:</span>
+            <strong class="text-emerald-400">$0.00</strong> <span class="text-[10px] text-gray-500">(3k free/mo)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Regulatory & Compliance Moat -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-amber-400 font-bold uppercase tracking-wider">Competitive Moat</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">Built-in Legal &amp; Regulatory Safeguards</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Shielding wholesalers and our platform from regulatory fines, TCPA lawsuits, and brokerage board actions.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="glass-card rounded-xl p-5 border border-gray-800">
+          <div class="w-8 h-8 rounded-md bg-blue-900/40 text-blue-400 flex items-center justify-center font-bold mb-3">⚖️</div>
+          <h3 class="text-sm font-bold text-white mb-1">Unlicensed Brokerage Shield</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Automated statutory non-agency disclaimers on contracts and deal pitches. Guarantees users market <em>contractual equitable interest</em>, not fee simple real property.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-gray-800">
+          <div class="w-8 h-8 rounded-md bg-emerald-900/40 text-emerald-400 flex items-center justify-center font-bold mb-3">🛡️</div>
+          <h3 class="text-sm font-bold text-white mb-1">Automated TCPA Guard Engine</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Built-in quiet hours enforcement (8am–9pm recipient local time), automatic STOP keyword opt-out processing, and suppression registry scrubbing prevent $1,500/text fines.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-gray-800">
+          <div class="w-8 h-8 rounded-md bg-purple-900/40 text-purple-400 flex items-center justify-center font-bold mb-3">🗺️</div>
+          <h3 class="text-sm font-bold text-white mb-1">State Statutory Matrices</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">50-State legal explorer. Active compliance warnings for Illinois (225 ILCS 454 one-deal annual cap) and Oklahoma (SB 924 Predatory Wholesaling Act).</p>
+        </div>
+      </div>
+
+      <div class="mt-4 glass-card rounded-xl p-4 border border-gray-800">
+        <div class="flex items-center justify-between text-xs text-gray-300">
+          <span>📜 <strong>ESIGN Act (15 U.S.C. § 7001) &amp; UETA Compliant:</strong> Cryptographic audit trails with IP logging and verifiable consent.</span>
+          <span class="text-emerald-400 font-bold ml-2">100% Enforced</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: The Viral Growth Engine -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-teal-400 font-bold uppercase tracking-wider">Distribution</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">Built-in Viral Title Company Network Effect</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Every transaction closed creates an organic distribution loop to new escrow officers, buyers, and sellers.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+        <div class="glass-card rounded-xl p-6 border border-gray-800">
+          <div class="text-3xl mb-3">1️⃣</div>
+          <h3 class="text-sm font-bold text-white mb-2">Wholesaler Creates Deal</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Subscriber generates a state-compliant contract and emails the Title Portal link to their escrow officer.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-6 border border-teal-800/60 bg-teal-950/10">
+          <div class="text-3xl mb-3">2️⃣</div>
+          <h3 class="text-sm font-bold text-teal-300 mb-2">Title Officers Love the Portal</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Zero-login magic links, two-way notes, and clear milestones save title officers 3+ hours per closing. They recommend Revzenta to other wholesaler clients.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-6 border border-gray-800">
+          <div class="text-3xl mb-3">3️⃣</div>
+          <h3 class="text-sm font-bold text-white mb-2">Zero-CAC Customer Acquisition</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Title officers, cash buyers in the Investors Hub, and co-wholesalers see the Revzenta watermark and sign up organically.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 rounded-xl bg-gray-900 border border-gray-800 flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="text-lg">📈</span>
+          <span class="text-gray-300"><strong>Additional Channels:</strong> Wholesaling YouTube creators, Pace Morby / SubTo creative finance communities, direct Facebook / Discord communities.</span>
+        </div>
+        <span class="text-teal-400 font-bold">K-Factor &gt; 1.2</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: 3-Year Financial Projections -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-blue-400 font-bold uppercase tracking-wider">Financial Roadmap</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">3-Year ARR &amp; Growth Projections</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Conservative growth model based on viral title expansion and influencer onboarding.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-card rounded-xl p-6 border border-gray-800">
+          <span class="text-xs font-bold text-blue-400 uppercase tracking-widest">Year 1 (Launch &amp; Scale)</span>
+          <div class="text-3xl font-extrabold text-white mt-2 mb-1">$369,000</div>
+          <div class="text-xs text-emerald-400 font-semibold mb-4">Annual Recurring Revenue (ARR)</div>
+          <div class="space-y-2 text-xs text-gray-400 border-t border-gray-800 pt-3">
+            <div class="flex justify-between"><span>Active Subscribers:</span> <strong class="text-white">500</strong></div>
+            <div class="flex justify-between"><span>Monthly MRR:</span> <strong class="text-white">$30,750</strong></div>
+            <div class="flex justify-between"><span>Net Margin:</span> <strong class="text-emerald-400">88%</strong></div>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-xl p-6 border border-teal-800/60 bg-gradient-to-b from-gray-900 to-teal-950/20">
+          <span class="text-xs font-bold text-teal-400 uppercase tracking-widest">Year 2 (Market Penetration)</span>
+          <div class="text-3xl font-extrabold text-white mt-2 mb-1">$1,845,000</div>
+          <div class="text-xs text-emerald-400 font-semibold mb-4">Annual Recurring Revenue (ARR)</div>
+          <div class="space-y-2 text-xs text-gray-400 border-t border-gray-800 pt-3">
+            <div class="flex justify-between"><span>Active Subscribers:</span> <strong class="text-white">2,500</strong></div>
+            <div class="flex justify-between"><span>Monthly MRR:</span> <strong class="text-white">$153,750</strong></div>
+            <div class="flex justify-between"><span>Net Margin:</span> <strong class="text-emerald-400">92%</strong></div>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-xl p-6 border border-emerald-800/60 bg-gradient-to-b from-gray-900 to-emerald-950/20">
+          <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Year 3 (Ecosystem Dominance)</span>
+          <div class="text-3xl font-extrabold text-white mt-2 mb-1">$5,535,000</div>
+          <div class="text-xs text-emerald-400 font-semibold mb-4">Annual Recurring Revenue (ARR)</div>
+          <div class="space-y-2 text-xs text-gray-400 border-t border-gray-800 pt-3">
+            <div class="flex justify-between"><span>Active Subscribers:</span> <strong class="text-white">7,500</strong></div>
+            <div class="flex justify-between"><span>Monthly MRR:</span> <strong class="text-white">$461,250</strong></div>
+            <div class="flex justify-between"><span>Net Margin:</span> <strong class="text-emerald-400">94%</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: Competitive Landscape -->
+    <section class="slide flex-col justify-center max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="text-left mb-6">
+        <span class="text-xs text-purple-400 font-bold uppercase tracking-wider">Competition</span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white mt-1">Why Revzenta Wins</h2>
+        <p class="text-gray-400 text-sm md:text-base mt-1">Purpose-built real estate workflows vs. generic, brittle, and overpriced point solutions.</p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left text-gray-300 glass-card rounded-xl border border-gray-800">
+          <thead class="text-[11px] text-gray-400 uppercase bg-gray-900/80 border-b border-gray-800">
+            <tr>
+              <th class="py-3 px-4">Feature / Capability</th>
+              <th class="py-3 px-4 text-blue-400 font-bold">Revzenta CRM</th>
+              <th class="py-3 px-4">PropStream</th>
+              <th class="py-3 px-4">Podio</th>
+              <th class="py-3 px-4">REI Reply</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-800/60">
+            <tr>
+              <td class="py-3 px-4 font-semibold text-white">Standalone Escrow Title Portal</td>
+              <td class="py-3 px-4 text-emerald-400 font-bold">✓ Included (Zero-Login)</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-white">Multi-Strategy Creative Underwriting</td>
+              <td class="py-3 px-4 text-emerald-400 font-bold">✓ Cash, Sub-To, Wrap, Seller Fin</td>
+              <td class="py-3 px-4 text-gray-500">✗ Cash comps only</td>
+              <td class="py-3 px-4 text-gray-500">✗ Custom code needed</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-white">State Wholesaling Safe Harbors</td>
+              <td class="py-3 px-4 text-emerald-400 font-bold">✓ Built-in (IL, OK, TX, AZ)</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-white">Automated TCPA Quiet Hours &amp; STOP Opt-Out</td>
+              <td class="py-3 px-4 text-emerald-400 font-bold">✓ Automated &amp; Hardcoded</td>
+              <td class="py-3 px-4 text-gray-500">✗ N/A</td>
+              <td class="py-3 px-4 text-gray-500">✗ None</td>
+              <td class="py-3 px-4 text-yellow-500">⚠️ Manual tag setup</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-white">Starting Price</td>
+              <td class="py-3 px-4 text-emerald-400 font-bold">$24.99 / mo</td>
+              <td class="py-3 px-4">$99.00 / mo</td>
+              <td class="py-3 px-4">$24.00 / seat + devs</td>
+              <td class="py-3 px-4">$49.00 / mo</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SLIDE 11: Roadmap & Next Steps -->
+    <section class="slide flex-col justify-center items-center text-center max-w-4xl mx-auto px-4 py-8">
+      <span class="text-xs text-blue-400 font-bold uppercase tracking-widest">Execution Roadmap</span>
+      <h2 class="text-4xl md:text-5xl font-extrabold text-white mt-2 mb-6">Built, Verified &amp; Ready to Scale</h2>
+      <p class="text-base text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed">
+        The core operating system, 50-state transaction engine, and Title Portal are 100% production-ready.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left w-full max-w-3xl mb-10">
+        <div class="glass-card rounded-xl p-5 border border-emerald-800/40">
+          <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Phase 1: Complete ✅</div>
+          <h4 class="text-sm font-bold text-white mb-2">Production Core Engine</h4>
+          <p class="text-xs text-gray-400 leading-relaxed">86/86 automated tests, Stripe subscription billing, Title Hub, Investors Hub, and TCPA suppression engine.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-blue-800/40">
+          <div class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">Phase 2: Immediate 🎯</div>
+          <h4 class="text-sm font-bold text-white mb-2">Telephony &amp; Beta Launch</h4>
+          <p class="text-xs text-gray-400 leading-relaxed">Connect Twilio carrier gateway for real mobile SMS. Onboard first 50 beta wholesale subscribers via direct communities.</p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-purple-800/40">
+          <div class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">Phase 3: Scale 🚀</div>
+          <h4 class="text-sm font-bold text-white mb-2">Mobile Native &amp; Ecosystem</h4>
+          <p class="text-xs text-gray-400 leading-relaxed">iOS &amp; Android PWA push notifications, automated transactional funding partnerships, and Title Company verified partner badges.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <button onclick="goToSlide(0)" class="px-6 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold transition-colors cursor-pointer">
+          Restart Presentation ↺
+        </button>
+        <button onclick="toggleFullscreen()" class="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-lg shadow-blue-500/20">
+          Toggle Fullscreen ⛶
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Slide Progress & Controls -->
+  <footer class="flex items-center justify-between border-t border-gray-800/80 pt-4 mt-4 text-xs text-gray-400">
+    <div class="flex items-center space-x-2">
+      <span>Use <kbd class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 font-mono text-[10px]">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 font-mono text-[10px]">→</kbd> or <kbd class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 font-mono text-[10px]">Space</kbd> to navigate</span>
+    </div>
+
+    <!-- Slide Thumbnails / Progress Dots -->
+    <div class="flex space-x-1.5" id="dotsContainer"></div>
+
+    <div class="text-gray-500 font-mono">
+      Revzenta Inc. © 2026
+    </div>
+  </footer>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const counter = document.getElementById('slideCounter');
+    const dotsContainer = document.getElementById('dotsContainer');
+
+    // Build Dots
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('button');
+      dot.className = `w-2 h-2 rounded-full transition-all cursor-pointer ${i === 0 ? 'bg-blue-500 w-4' : 'bg-gray-700 hover:bg-gray-500'}`;
+      dot.onclick = () => goToSlide(i);
+      dotsContainer.appendChild(dot);
+    }
+
+    function updateView() {
+      slides.forEach((slide, idx) => {
+        slide.classList.toggle('active', idx === currentSlide);
+      });
+      counter.textContent = `Slide ${currentSlide + 1} of ${totalSlides}`;
+      
+      const dots = dotsContainer.children;
+      for (let i = 0; i < dots.length; i++) {
+        dots[i].className = `h-2 rounded-full transition-all cursor-pointer ${i === currentSlide ? 'bg-blue-500 w-5' : 'bg-gray-700 w-2 hover:bg-gray-500'}`;
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateView();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateView();
+      }
+    }
+
+    function goToSlide(idx) {
+      if (idx >= 0 && idx < totalSlides) {
+        currentSlide = idx;
+        updateView();
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    }
+
+    // Keyboard support
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      } else if (e.key === 'Home') {
+        goToSlide(0);
+      } else if (e.key === 'End') {
+        goToSlide(totalSlides - 1);
+      }
+    });
+  </script>
+</body>
+</html>
