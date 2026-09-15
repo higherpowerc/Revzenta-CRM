@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import ThemeToggle from "./ThemeToggle";
+import { ALL_US_STATES, getStateComplianceRule } from "./stateWholesaleCompliance";
 
 interface LegalPageProps {
   onBack: () => void;
@@ -7,6 +9,7 @@ interface LegalPageProps {
   onNavigatePrivacy?: () => void;
   onNavigateTerms?: () => void;
   onNavigateSecurity?: () => void;
+  initialState?: string;
 }
 
 export default function CustomerAgreement({
@@ -16,7 +19,23 @@ export default function CustomerAgreement({
   onNavigatePrivacy,
   onNavigateTerms,
   onNavigateSecurity,
+  initialState,
 }: LegalPageProps) {
+  const [selectedState, setSelectedState] = useState<string>(() => {
+    if (initialState) return initialState.toUpperCase();
+    const hash = window.location.hash;
+    const qIdx = hash.indexOf("?");
+    if (qIdx !== -1) {
+      const p = new URLSearchParams(hash.slice(qIdx + 1));
+      const s = p.get("state");
+      if (s) return s.toUpperCase();
+    }
+    const sp = new URLSearchParams(window.location.search).get("state");
+    return sp ? sp.toUpperCase() : "TX";
+  });
+
+  const stateRule = getStateComplianceRule(selectedState);
+
   return (
     <div className="rw-page" style={{ minHeight: "100vh", backgroundColor: "var(--rw-bg)", color: "var(--rw-text)" }}>
       {/* ── Top Navigation Bar ── */}
@@ -195,8 +214,138 @@ export default function CustomerAgreement({
             (a) <strong>Software Provider Status:</strong> Subscriber explicitly acknowledges that Revzenta LLC is an enterprise technology provider and is <strong>NOT a licensed real estate broker, brokerage, agent, appraisal firm, or escrow agency</strong>.<br />
             (b) <strong>Principal Investor Capacity:</strong> In marketing real estate contracts or utilizing Revzenta deal underwriting tools, Subscriber acts solely as an independent principal real estate investor acquiring or assigning equitable contractual rights pursuant to the Equitable Interest Doctrine and state-specific disclosure requirements.<br />
             (c) <strong>Subscriber Sole Duty for State-Specific Wholesaling Guidelines:</strong> Real estate wholesaling laws, licensing mandates, marketing restrictions, and disclosure rules vary significantly by state and municipality (including, but not limited to, wholesaling licensing statutes, equitable interest advertising constraints, double-closing rules, and earnest money deposit requirements). It is Subscriber&apos;s sole, non-delegable duty to ensure that all wholesaling practices, contracts, seller communications, and dispositions strictly comply with lawful practices and state-specific guidelines in each jurisdiction where Subscriber conducts transactions.<br />
-            (d) <strong>No Defense or Legal Representation:</strong> Revzenta LLC does NOT defend, represent, counsel, or indemnify Subscriber against state-specific laws, real estate licensing commission investigations, regulatory citations, statutory penalties, or civil lawsuits arising out of Subscriber&apos;s wholesaling practices. Subscriber assumes full, independent legal and financial responsibility for its transactions and agrees to indemnify and hold harmless Revzenta LLC from any regulatory enforcement or third-party claims arising from Subscriber&apos;s activities.
+            (d) <strong>No Defense or Legal Representation:</strong> Revzenta LLC does NOT defend, represent, counsel, or indemnify Subscriber against state-specific laws, real estate licensing commission investigations, regulatory citations, statutory penalties, or civil lawsuits arising out of Subscriber&apos;s wholesaling practices. Subscriber assumes full, independent legal and financial responsibility for its transactions and agrees to indemnify and hold harmless Revzenta LLC from any regulatory enforcement or third-party claims arising from Subscriber&apos;s activities.<br />
+            (e) <strong>Affirmative State Statutory Warranty:</strong> Subscriber explicitly warrants and covenants that in executing real estate wholesale transactions within <strong>{stateRule.name}</strong>, Subscriber adheres to <code>{stateRule.citation}</code> and maintains the appropriate licensing or statutory written disclosures required by law.
           </p>
+
+          {/* ── 5.1 State-Specific Wholesaling Statutory Addendum ── */}
+          <div
+            style={{
+              marginTop: "20px",
+              marginBottom: "20px",
+              padding: "20px 24px",
+              borderRadius: "10px",
+              backgroundColor:
+                stateRule.category === "license_required"
+                  ? "rgba(239, 68, 68, 0.08)"
+                  : stateRule.category === "mandatory_disclosure"
+                  ? "rgba(245, 158, 11, 0.08)"
+                  : "rgba(16, 185, 129, 0.08)",
+              border:
+                stateRule.category === "license_required"
+                  ? "1px solid rgba(239, 68, 68, 0.3)"
+                  : stateRule.category === "mandatory_disclosure"
+                  ? "1px solid rgba(245, 158, 11, 0.3)"
+                  : "1px solid rgba(16, 185, 129, 0.3)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
+              <div>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    padding: "3px 8px",
+                    borderRadius: "6px",
+                    backgroundColor:
+                      stateRule.category === "license_required"
+                        ? "rgba(239, 68, 68, 0.2)"
+                        : stateRule.category === "mandatory_disclosure"
+                        ? "rgba(245, 158, 11, 0.2)"
+                        : "rgba(16, 185, 129, 0.2)",
+                    color:
+                      stateRule.category === "license_required"
+                        ? "#ef4444"
+                        : stateRule.category === "mandatory_disclosure"
+                        ? "#f59e0b"
+                        : "#10b981",
+                  }}
+                >
+                  {stateRule.category === "license_required"
+                    ? "⚖️ License Required / Restricted Jurisdiction"
+                    : stateRule.category === "mandatory_disclosure"
+                    ? "ℹ️ Mandatory Written Equitable Disclosure State"
+                    : "✓ Standard Equitable Interest Doctrine"}
+                </span>
+                <h4 style={{ margin: "8px 0 2px", fontSize: "16px", fontWeight: 800, color: "var(--rw-text)" }}>
+                  5.1 {stateRule.agreementAddendumTitle}
+                </h4>
+                <div style={{ fontSize: "12px", color: "var(--rw-text-dim)" }}>
+                  Statute: <strong>{stateRule.citation}</strong> · Effective: {stateRule.effectiveDate}
+                </div>
+              </div>
+
+              {/* State Switcher Dropdown inside Agreement */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--rw-text-dim)" }}>
+                  Change State:
+                </label>
+                <select
+                  value={selectedState}
+                  onChange={(e) => setSelectedState(e.target.value)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    border: "1px solid var(--rw-border)",
+                    backgroundColor: "var(--rw-surface)",
+                    color: "var(--rw-text)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {ALL_US_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {stateRule.licenseRequiredNotice && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "6px",
+                  backgroundColor: "rgba(239, 68, 68, 0.15)",
+                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  color: "#f87171",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  marginBottom: "12px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {stateRule.licenseRequiredNotice}
+              </div>
+            )}
+
+            <p style={{ fontSize: "13px", color: "var(--rw-text-dim)", lineHeight: 1.6, marginBottom: "12px" }}>
+              {stateRule.summary}
+            </p>
+
+            <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--rw-text)", marginBottom: "6px" }}>
+              Key Statutory Compliance Requirements for {stateRule.name}:
+            </div>
+            <ul style={{ margin: "0 0 14px", paddingLeft: "20px", fontSize: "13px", color: "var(--rw-text-dim)", lineHeight: 1.6 }}>
+              {stateRule.keyRequirements.map((req, idx) => (
+                <li key={idx} style={{ marginBottom: "4px" }}>{req}</li>
+              ))}
+            </ul>
+
+            <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--rw-text)", marginBottom: "6px" }}>
+              Binding Subscriber Addendum Clauses:
+            </div>
+            <div style={{ fontSize: "12.5px", color: "var(--rw-text-dim)", lineHeight: 1.6, display: "flex", flexDirection: "column", gap: "6px" }}>
+              {stateRule.agreementAddendumClauses.map((clause, idx) => (
+                <div key={idx} style={{ paddingLeft: "12px", borderLeft: "2px solid var(--rw-primary)" }}>
+                  {clause}
+                </div>
+              ))}
+            </div>
+          </div>
 
           <h3 style={{ fontSize: "16px", fontWeight: 700, marginTop: "24px", marginBottom: "8px", color: "var(--rw-text)" }}>
             6. FAIR CREDIT REPORTING ACT (FCRA 15 U.S.C. § 1681a) NOTICE

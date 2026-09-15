@@ -2319,6 +2319,10 @@ async function provisionPendingSignup(input: {
     tier: string;
     billing: string;
     stripe_session_id: string;
+    operating_state?: string;
+    is_licensed_agent?: number;
+    license_number?: string;
+    state_agreement_statute?: string;
   } | null;
   if (!pending && input.sessionId) {
     pending = db
@@ -2359,8 +2363,23 @@ async function provisionPendingSignup(input: {
       verticalKey: "wholesalebiz",
       tier,
     });
-    db.query("UPDATE orgs SET monthly_subscription_amount = ? WHERE id = ?")
-      .run(mrrDollars, provisioned.orgId);
+    db.query(
+      `UPDATE orgs SET
+         monthly_subscription_amount = ?,
+         operating_state = ?,
+         is_licensed_agent = ?,
+         license_number = ?,
+         state_agreement_accepted_at = datetime('now'),
+         state_agreement_statute = ?
+       WHERE id = ?`
+    ).run(
+      mrrDollars,
+      pending.operating_state || "TX",
+      pending.is_licensed_agent || 0,
+      pending.license_number || "",
+      pending.state_agreement_statute || "",
+      provisioned.orgId,
+    );
   } catch (e) {
     console.error("[signup] post-payment provisioning failed for", pending.email + ":", e instanceof Error ? e.message : e);
     return null;
@@ -3320,6 +3339,10 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     const tier = tierRaw === "starter" || tierRaw === "scale" ? tierRaw : "pro";
     const billingRaw = typeof body.billing === "string" ? body.billing.trim().toLowerCase() : "monthly";
     const billing: "monthly" | "annual" = billingRaw === "annual" ? "annual" : "monthly";
+    const stateRaw = typeof body.state === "string" ? body.state.trim().toUpperCase() : "TX";
+    const isLicensed = body.isLicensed === true ? 1 : 0;
+    const licenseNumber = typeof body.licenseNumber === "string" ? body.licenseNumber.trim() : "";
+    const stateAgreementStatute = typeof body.stateAgreementStatute === "string" ? body.stateAgreementStatute.trim() : "";
 
     if (!email || !EMAIL_RE.test(email)) return err("A valid email address is required.", 400);
     if (!password || password.length < 8) return err("Password must be at least 8 characters.", 400);
@@ -3357,15 +3380,19 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
     // trial, NO pre-payment provisioning, NO session cookie).
     if (s && body.skipStripe !== true) {
       db.query(
-        `INSERT INTO pending_signups (email, workspace_name, password_hash, tier, billing, stripe_session_id)
-         VALUES (?, ?, ?, ?, ?, '')
+        `INSERT INTO pending_signups (email, workspace_name, password_hash, tier, billing, stripe_session_id, operating_state, is_licensed_agent, license_number, state_agreement_statute)
+         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?)
          ON CONFLICT(email) DO UPDATE SET
            workspace_name = excluded.workspace_name,
            password_hash = excluded.password_hash,
            tier = excluded.tier,
            billing = excluded.billing,
+           operating_state = excluded.operating_state,
+           is_licensed_agent = excluded.is_licensed_agent,
+           license_number = excluded.license_number,
+           state_agreement_statute = excluded.state_agreement_statute,
            created_at = datetime('now')`,
-      ).run(email, workspaceName, passwordHash, tier, billing);
+      ).run(email, workspaceName, passwordHash, tier, billing, stateRaw, isLicensed, licenseNumber, stateAgreementStatute);
       let session: Stripe.Checkout.Session;
       try {
         session = await s.checkout.sessions.create({
@@ -3423,6 +3450,15 @@ async function handleApi(req: Request, url: URL, server?: { requestIP(req: Reque
         verticalKey: "wholesalebiz",
         tier,
       });
+      db.query(
+        `UPDATE orgs SET
+           operating_state = ?,
+           is_licensed_agent = ?,
+           license_number = ?,
+           state_agreement_accepted_at = datetime('now'),
+           state_agreement_statute = ?
+         WHERE id = ?`
+      ).run(stateRaw, isLicensed, licenseNumber, stateAgreementStatute, provisioned.orgId);
     } catch (e) {
       return err(e instanceof Error ? e.message : "Failed to provision workspace.", 400);
     }

@@ -93,6 +93,10 @@ export const api = {
     tier?: string;
     billing?: "monthly" | "annual";
     skipStripe?: boolean;
+    state?: string;
+    isLicensed?: boolean;
+    licenseNumber?: string;
+    stateAgreementStatute?: string;
   }) => {
     const res = await request<{
       ok: boolean;

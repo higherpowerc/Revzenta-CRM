@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { api, ApiError } from "./api";
 import type { User } from "./types";
 import revzentaLogo from "./assets/revzenta-logo.png";
+import { ALL_US_STATES, getStateComplianceRule } from "./stateWholesaleCompliance";
 
 interface SignupProps {
   onSuccess: (user: User) => void;
@@ -80,6 +81,10 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [operatingState, setOperatingState] = useState("TX");
+  const [isLicensed, setIsLicensed] = useState<"yes" | "no" | "">("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [stateAgreementAgreed, setStateAgreementAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -88,8 +93,13 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
     const readHash = () => {
       const h = window.location.hash;
       const q = h.includes("?") ? h.slice(h.indexOf("?") + 1) : "";
-      const t = new URLSearchParams(q).get("tier") || "";
+      const sp = new URLSearchParams(q);
+      const t = sp.get("tier") || "";
       if (t === "starter" || t === "pro" || t === "scale") setSelectedTier(t as Tier);
+      const s = sp.get("state") || "";
+      if (s && ALL_US_STATES.some(st => st.code.toUpperCase() === s.toUpperCase())) {
+        setOperatingState(s.toUpperCase());
+      }
     };
     readHash();
     window.addEventListener("hashchange", readHash);
@@ -99,10 +109,19 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
   const plan = PLANS[selectedTier];
   const price = billing === "annual" ? plan.annual : plan.monthly;
   const tierOrder: Tier[] = ["starter", "pro", "scale"];
+  const stateRule = getStateComplianceRule(operatingState);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreed) { setError("Please agree to the Customer Agreement to continue."); return; }
+    if (!agreed) { setError("Please agree to the Master Customer Agreement, Terms, and Privacy Policy."); return; }
+    if (!stateAgreementAgreed) {
+      setError(`Please review and accept the ${stateRule.name} Wholesaling Compliance Schedule & Statutory Addendum.`);
+      return;
+    }
+    if (stateRule.category === "license_required" && !isLicensed) {
+      setError(`Please confirm your real estate licensing status for ${stateRule.name}.`);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -113,6 +132,10 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
         tier: selectedTier,
         billing,
         skipStripe: false,
+        state: operatingState,
+        isLicensed: isLicensed === "yes",
+        licenseNumber: licenseNumber.trim(),
+        stateAgreementStatute: stateRule.citation,
       });
       if (res.checkoutUrl) {
         setSuccess("Redirecting to secure checkout — your workspace activates after payment…");
@@ -128,7 +151,7 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
     } finally {
       setLoading(false);
     }
-  }, [agreed, workspaceName, email, password, selectedTier, billing, onSuccess]);
+  }, [agreed, stateAgreementAgreed, operatingState, stateRule, isLicensed, licenseNumber, workspaceName, email, password, selectedTier, billing, onSuccess]);
 
   const inp: React.CSSProperties = {
     width: "100%", boxSizing: "border-box",
@@ -322,6 +345,134 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
                 </div>
               </div>
 
+              {/* State Selection */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 500 }}>
+                    Primary Operating State *
+                  </label>
+                  <span style={{ fontSize: "11px", color: "#64748b" }}>
+                    Sets statutory wholesaling addendum
+                  </span>
+                </div>
+                <select
+                  value={operatingState}
+                  onChange={(e) => {
+                    setOperatingState(e.target.value);
+                    setStateAgreementAgreed(false);
+                    setIsLicensed("");
+                  }}
+                  style={{
+                    ...inp,
+                    cursor: "pointer",
+                    background: "rgba(30, 41, 59, 0.7)",
+                  }}
+                  required
+                >
+                  {ALL_US_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* State-Specific Statutory Wholesaling Advisory Box */}
+              <div
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "10px",
+                  background:
+                    stateRule.category === "license_required"
+                      ? "rgba(239, 68, 68, 0.12)"
+                      : stateRule.category === "mandatory_disclosure"
+                      ? "rgba(245, 158, 11, 0.12)"
+                      : "rgba(16, 185, 129, 0.08)",
+                  border:
+                    stateRule.category === "license_required"
+                      ? "1px solid rgba(239, 68, 68, 0.35)"
+                      : stateRule.category === "mandatory_disclosure"
+                      ? "1px solid rgba(245, 158, 11, 0.35)"
+                      : "1px solid rgba(16, 185, 129, 0.25)",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", marginBottom: "6px", flexWrap: "wrap" }}>
+                  <strong style={{
+                    color:
+                      stateRule.category === "license_required"
+                        ? "#f87171"
+                        : stateRule.category === "mandatory_disclosure"
+                        ? "#fbbf24"
+                        : "#34d399",
+                    fontSize: "12.5px",
+                  }}>
+                    {stateRule.category === "license_required"
+                      ? `⚖️ ${stateRule.name} Licensing Mandate`
+                      : stateRule.category === "mandatory_disclosure"
+                      ? `ℹ️ ${stateRule.name} Mandatory Equitable Disclosure`
+                      : `✓ ${stateRule.name} Equitable Conversion`}
+                  </strong>
+                  <span style={{ fontSize: "10px", color: "#94a3b8", background: "rgba(0,0,0,0.3)", padding: "2px 6px", borderRadius: "4px" }}>
+                    {stateRule.citation}
+                  </span>
+                </div>
+
+                <p style={{ margin: "0 0 8px", color: "#cbd5e1", fontSize: "12px" }}>
+                  {stateRule.summary}
+                </p>
+
+                {/* If License Required: Licensing status radio questions */}
+                {stateRule.category === "license_required" && (
+                  <div style={{ borderTop: "1px solid rgba(239, 68, 68, 0.25)", paddingTop: "8px", marginTop: "8px" }}>
+                    <div style={{ fontWeight: 600, color: "#fca5a5", marginBottom: "6px" }}>
+                      Are you an actively licensed real estate agent or broker in {stateRule.name}?
+                    </div>
+                    <div style={{ display: "flex", gap: "16px", marginBottom: "8px", flexWrap: "wrap" }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", color: "#f1f5f9" }}>
+                        <input
+                          type="radio"
+                          name="isLicensed"
+                          checked={isLicensed === "yes"}
+                          onChange={() => setIsLicensed("yes")}
+                          style={{ accentColor: "#ef4444" }}
+                        />
+                        <span>Yes, I am actively licensed</span>
+                      </label>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", color: "#f1f5f9" }}>
+                        <input
+                          type="radio"
+                          name="isLicensed"
+                          checked={isLicensed === "no"}
+                          onChange={() => setIsLicensed("no")}
+                          style={{ accentColor: "#ef4444" }}
+                        />
+                        <span>No (statutory double close / exemption)</span>
+                      </label>
+                    </div>
+
+                    {isLicensed === "yes" && (
+                      <div style={{ marginTop: "6px" }}>
+                        <input
+                          type="text"
+                          placeholder={`${stateRule.name} License / Registration # (e.g. OREC / IDFPR / DPOR #)`}
+                          value={licenseNumber}
+                          onChange={(e) => setLicenseNumber(e.target.value)}
+                          style={{ ...inp, fontSize: "12px", padding: "8px 12px" }}
+                        />
+                      </div>
+                    )}
+
+                    {isLicensed === "no" && (
+                      <div style={{ fontSize: "11px", color: "#fca5a5", background: "rgba(0,0,0,0.3)", padding: "6px 10px", borderRadius: "6px", marginTop: "4px" }}>
+                        ⚠️ Notice: You must utilize permissible statutory structures such as transactional double closing (taking fee title before resale) or single-deal limits under {stateRule.citation}.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div style={{ background: `linear-gradient(135deg,${plan.glowColor},rgba(255,255,255,0.03))`, border: `1px solid ${plan.borderColor}`, borderRadius: "10px", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ fontSize: "13px", color: "#94a3b8" }}>
                   {plan.badge.split(" ")[0]} <strong style={{ color: "#f1f5f9" }}>{plan.name}</strong>
@@ -329,13 +480,37 @@ export default function Signup({ onSuccess, onSignIn, initialTier = "pro" }: Sig
                 <div style={{ fontWeight: 700, color: plan.color, fontSize: "15px" }}>${price}/mo</div>
               </div>
 
-              <label style={{ display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer", fontSize: "13px", color: "#64748b", lineHeight: 1.5 }}>
+              {/* State-Specific Statutory Agreement Checkbox */}
+              <label style={{ display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer", fontSize: "12.5px", color: "#cbd5e1", lineHeight: 1.5, background: "rgba(255,255,255,0.03)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <input
+                  type="checkbox"
+                  checked={stateAgreementAgreed}
+                  onChange={e => setStateAgreementAgreed(e.target.checked)}
+                  style={{ marginTop: "2px", accentColor: plan.color, width: "16px", height: "16px", flexShrink: 0 }}
+                  required
+                />
+                <span>
+                  I have read and affirmatively accept the{" "}
+                  <a
+                    href={`#/agreement?state=${operatingState}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: plan.color, textDecoration: "underline", fontWeight: 700 }}
+                  >
+                    {stateRule.name} Wholesaling Compliance Schedule &amp; Addendum
+                  </a>{" "}
+                  under <strong>{stateRule.citation}</strong>, and warrant that my operations adhere to all applicable real estate licensing statutes.
+                </span>
+              </label>
+
+              {/* General Terms Checkbox */}
+              <label style={{ display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer", fontSize: "12.5px", color: "#64748b", lineHeight: 1.5 }}>
                 <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: "2px", accentColor: plan.color, width: "16px", height: "16px", flexShrink: 0 }} />
                 <span>
                   I agree to the{" "}
-                  <a href="#/agreement" style={{ color: plan.color, textDecoration: "none" }}>Customer Agreement</a>,{" "}
-                  <a href="#/terms" style={{ color: plan.color, textDecoration: "none" }}>Terms of Service</a>, and{" "}
-                  <a href="#/privacy" style={{ color: plan.color, textDecoration: "none" }}>Privacy Policy</a>.
+                  <a href="#/agreement" target="_blank" style={{ color: plan.color, textDecoration: "none" }}>Master Customer Agreement</a>,{" "}
+                  <a href="#/terms" target="_blank" style={{ color: plan.color, textDecoration: "none" }}>Terms of Service</a>, and{" "}
+                  <a href="#/privacy" target="_blank" style={{ color: plan.color, textDecoration: "none" }}>Privacy Policy</a>.
                 </span>
               </label>
 

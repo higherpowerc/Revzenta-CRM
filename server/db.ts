@@ -2204,6 +2204,21 @@ try {
   if (!orgCols.some((c) => c.name === "rentcast_usage_offset")) {
     db.exec("ALTER TABLE orgs ADD COLUMN rentcast_usage_offset INTEGER NOT NULL DEFAULT 41");
   }
+  if (!orgCols.some((c) => c.name === "operating_state")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN operating_state TEXT NOT NULL DEFAULT 'TX'");
+  }
+  if (!orgCols.some((c) => c.name === "is_licensed_agent")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN is_licensed_agent INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!orgCols.some((c) => c.name === "license_number")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN license_number TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "state_agreement_accepted_at")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN state_agreement_accepted_at TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orgCols.some((c) => c.name === "state_agreement_statute")) {
+    db.exec("ALTER TABLE orgs ADD COLUMN state_agreement_statute TEXT NOT NULL DEFAULT ''");
+  }
 
   // Backfill missing webhook_secret with a random token for each org
   const orgsWithoutSecret = db.query("SELECT id FROM orgs WHERE webhook_secret = '' OR webhook_secret IS NULL").all() as { id: number }[];
@@ -2351,6 +2366,24 @@ CREATE TABLE IF NOT EXISTS pending_signups (
 );
 CREATE INDEX IF NOT EXISTS idx_pending_signups_session ON pending_signups(stripe_session_id);
 `);
+
+try {
+  const pendingCols = db.query("PRAGMA table_info(pending_signups)").all() as { name: string }[];
+  if (!pendingCols.some((c) => c.name === "operating_state")) {
+    db.exec("ALTER TABLE pending_signups ADD COLUMN operating_state TEXT NOT NULL DEFAULT 'TX'");
+  }
+  if (!pendingCols.some((c) => c.name === "is_licensed_agent")) {
+    db.exec("ALTER TABLE pending_signups ADD COLUMN is_licensed_agent INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!pendingCols.some((c) => c.name === "license_number")) {
+    db.exec("ALTER TABLE pending_signups ADD COLUMN license_number TEXT NOT NULL DEFAULT ''");
+  }
+  if (!pendingCols.some((c) => c.name === "state_agreement_statute")) {
+    db.exec("ALTER TABLE pending_signups ADD COLUMN state_agreement_statute TEXT NOT NULL DEFAULT ''");
+  }
+} catch {
+  // safe fallback
+}
 
 export interface RentcastUsageInfo {
   callsThisMonth: number;

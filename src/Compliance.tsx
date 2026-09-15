@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { Client, RentcastUsageInfo, SuppressionRecord } from "./types";
 import { api } from "./api";
+import { ALL_US_STATES, getStateComplianceRule, STATE_WHOLESALE_RULES } from "./stateWholesaleCompliance";
 
 interface Props {
   onNavigateToConnections?: () => void;
@@ -42,6 +43,10 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
 
   // RentCast API Usage Guard State
   const [rentcastUsage, setRentcastUsage] = useState<RentcastUsageInfo | null>(null);
+
+  // 50-State Wholesaling Licensing Explorer State
+  const [explorerState, setExplorerState] = useState<string>("OK");
+  const [stateCategoryFilter, setStateCategoryFilter] = useState<"all" | "license_required" | "mandatory_disclosure">("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -831,6 +836,228 @@ export default function Compliance({ onNavigateToConnections, onNavigateToLeads 
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* ── Card 2: 50-State Wholesaling Licensing & Statutory Explorer ── */}
+          <div className="card admin-form">
+            <div className="admin-card-head">
+              <div>
+                <h2 className="admin-card-title">🗺️ 50-State Real Estate Wholesaling Licensing &amp; Statutory Matrix</h2>
+                <p className="admin-card-sub">
+                  Inspect state-specific real estate commission statutes, licensing restrictions (such as Oklahoma HB 2673 and Illinois 225 ILCS 454), mandatory equitable disclosures, and active contract addenda.
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Pills */}
+            <div style={{ display: "flex", gap: "8px", marginTop: "14px", flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: "12px", color: "var(--muted, #64748b)", fontWeight: 600 }}>Filter by Regulation:</span>
+              <button
+                type="button"
+                onClick={() => setStateCategoryFilter("all")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  border: stateCategoryFilter === "all" ? "1px solid #3b82f6" : "1px solid #cbd5e1",
+                  backgroundColor: stateCategoryFilter === "all" ? "#eff6ff" : "transparent",
+                  color: stateCategoryFilter === "all" ? "#1d4ed8" : "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                All Jurisdictions (51)
+              </button>
+              <button
+                type="button"
+                onClick={() => setStateCategoryFilter("license_required")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  border: stateCategoryFilter === "license_required" ? "1px solid #ef4444" : "1px solid #cbd5e1",
+                  backgroundColor: stateCategoryFilter === "license_required" ? "#fee2e2" : "transparent",
+                  color: stateCategoryFilter === "license_required" ? "#991b1b" : "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                ⚖️ Strict License Required (4)
+              </button>
+              <button
+                type="button"
+                onClick={() => setStateCategoryFilter("mandatory_disclosure")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  border: stateCategoryFilter === "mandatory_disclosure" ? "1px solid #f59e0b" : "1px solid #cbd5e1",
+                  backgroundColor: stateCategoryFilter === "mandatory_disclosure" ? "#fef3c7" : "transparent",
+                  color: stateCategoryFilter === "mandatory_disclosure" ? "#92400e" : "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                ℹ️ Mandatory Written Disclosure (8)
+              </button>
+            </div>
+
+            {/* State Grid Pills */}
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "14px", maxHeight: "140px", overflowY: "auto", padding: "8px", background: "var(--bg-soft, #f8fafc)", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              {ALL_US_STATES.filter((s) => {
+                const rule = getStateComplianceRule(s.code);
+                if (stateCategoryFilter === "license_required") return rule.category === "license_required";
+                if (stateCategoryFilter === "mandatory_disclosure") return rule.category === "mandatory_disclosure";
+                return true;
+              }).map((s) => {
+                const rule = getStateComplianceRule(s.code);
+                const isSelected = explorerState === s.code;
+                const isLicense = rule.category === "license_required";
+                const isDisclosure = rule.category === "mandatory_disclosure";
+
+                return (
+                  <button
+                    key={s.code}
+                    type="button"
+                    onClick={() => setExplorerState(s.code)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      border: isSelected
+                        ? "2px solid #2563eb"
+                        : isLicense
+                        ? "1px solid #fca5a5"
+                        : isDisclosure
+                        ? "1px solid #fde68a"
+                        : "1px solid #e2e8f0",
+                      backgroundColor: isSelected
+                        ? "#dbeafe"
+                        : isLicense
+                        ? "#fef2f2"
+                        : isDisclosure
+                        ? "#fffbeb"
+                        : "#ffffff",
+                      color: isLicense ? "#b91c1c" : isDisclosure ? "#b45309" : "#334155",
+                    }}
+                  >
+                    {isLicense ? "⚖️ " : isDisclosure ? "ℹ️ " : ""}{s.code}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Selected State Card */}
+            {(() => {
+              const rule = getStateComplianceRule(explorerState);
+              return (
+                <div
+                  style={{
+                    marginTop: "16px",
+                    padding: "18px 20px",
+                    borderRadius: "10px",
+                    border:
+                      rule.category === "license_required"
+                        ? "1px solid #fca5a5"
+                        : rule.category === "mandatory_disclosure"
+                        ? "1px solid #fde68a"
+                        : "1px solid #cbd5e1",
+                    backgroundColor:
+                      rule.category === "license_required"
+                        ? "#fef2f2"
+                        : rule.category === "mandatory_disclosure"
+                        ? "#fffbeb"
+                        : "#f8fafc",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "#0f172a" }}>
+                          {rule.name} ({rule.code}) Real Estate Wholesaling Profile
+                        </h3>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: "12px",
+                            backgroundColor:
+                              rule.category === "license_required"
+                                ? "#fee2e2"
+                                : rule.category === "mandatory_disclosure"
+                                ? "#fef3c7"
+                                : "#d1fae5",
+                            color:
+                              rule.category === "license_required"
+                                ? "#991b1b"
+                                : rule.category === "mandatory_disclosure"
+                                ? "#92400e"
+                                : "#065f46",
+                          }}
+                        >
+                          {rule.category === "license_required"
+                            ? "Strict License Mandated"
+                            : rule.category === "mandatory_disclosure"
+                            ? "Mandatory Written Disclosures"
+                            : "Standard Equitable Conversion"}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#64748b", marginTop: "3px" }}>
+                        Statute: <strong>{rule.statuteTitle}</strong> · Citation: <code>{rule.citation}</code>
+                      </div>
+                    </div>
+
+                    <a
+                      href={`#/agreement?state=${rule.code}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: "12px", padding: "6px 12px", textDecoration: "none" }}
+                    >
+                      📄 Open State Addendum →
+                    </a>
+                  </div>
+
+                  {rule.licenseRequiredNotice && (
+                    <div
+                      style={{
+                        marginTop: "12px",
+                        padding: "10px 14px",
+                        borderRadius: "6px",
+                        backgroundColor: "rgba(239, 68, 68, 0.15)",
+                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                        color: "#991b1b",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {rule.licenseRequiredNotice}
+                    </div>
+                  )}
+
+                  <p style={{ fontSize: "13px", color: "#334155", lineHeight: 1.6, marginTop: "12px", marginBottom: "12px" }}>
+                    {rule.summary}
+                  </p>
+
+                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>
+                    Statutory Rules &amp; Safe Harbors:
+                  </div>
+                  <ul style={{ margin: "0 0 12px", paddingLeft: "20px", fontSize: "12.5px", color: "#475569", lineHeight: 1.6 }}>
+                    {rule.keyRequirements.map((req, idx) => (
+                      <li key={idx} style={{ marginBottom: "3px" }}>{req}</li>
+                    ))}
+                  </ul>
+
+                  <div style={{ fontSize: "11.5px", color: "#64748b", borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: "8px" }}>
+                    🔒 Revzenta CRM automatically provisions contracts with <strong>{rule.agreementAddendumTitle}</strong> whenever property leads in {rule.name} are processed.
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
