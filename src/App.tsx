@@ -474,7 +474,7 @@ export default function App() {
         case "opportunities": return "Opportunities";
         case "properties": return "Intelligent Search";
         case "leads": return "Hunters Hub";
-        case "offers": return "Offers Repository";
+        case "offers": return "PSA Sent";
         case "documents": return "Title Hub";
         case "contracts": return "Deals & Contracts";
         case "sold": return "Sold Hub";
@@ -1206,11 +1206,11 @@ export default function App() {
                       setView("offers");
                       setMobileMenuOpen(false);
                     }}
-                    title={hasTierAccess(effectiveTier, "offers") ? "Wholesale purchase proposals & dispatched offers repository" : "Offers Repository (Pro & Scale feature)"}
+                    title={hasTierAccess(effectiveTier, "offers") ? "Wholesale purchase proposals & dispatched PSA contracts" : "PSA Sent (Pro & Scale feature)"}
                   >
                     <span className="tab-icon">📑</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
-                      <span>Offers Repository</span>
+                      <span>PSA Sent</span>
                       {!hasTierAccess(effectiveTier, "offers") && (
                         <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
                       )}
@@ -1831,7 +1831,7 @@ export default function App() {
         ) : effectiveViewFinal === "offers" ? (
           !hasTierAccess(effectiveTier, "offers") ? (
             <UpgradeGate
-              featureName="Offers Repository & Contract Dispatch"
+              featureName="PSA Sent & Contract Dispatch"
               featureDescription="Standardized purchase proposals, assignment fee calculations, and automated contract dispatch are included with Pro Dealmaker and Scale & Brokerage packages."
               requiredTier="pro"
               currentTier={effectiveTier}

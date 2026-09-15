@@ -269,7 +269,7 @@ export default function Offers({ crmBusinessName, onNavigateToProperty }: Props)
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "24px" }}>📋</span>
             <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800, color: "var(--ink)" }}>
-              Wholesale Offers Repository
+              PSA Sent
             </h1>
           </div>
           <p style={{ margin: "6px 0 0 0", fontSize: "13px", color: "var(--muted-2)" }}>

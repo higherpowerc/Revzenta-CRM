@@ -252,7 +252,7 @@ export default function Settings({
         { tab: "dashboard", label: "Dashboard", icon: "📊" },
         { tab: "clients", label: "Hunters Hub", icon: "🏘️" },
         { tab: "documents", label: "Transaction Hub", icon: "🤝" },
-        { tab: "offers", label: "Offers Repository", icon: "📑" },
+        { tab: "offers", label: "PSA Sent", icon: "📑" },
         { tab: "buybox", label: "Buy Box", icon: "🎯" },
         { tab: "investors", label: "Investors", icon: "💼" },
         { tab: "connections", label: "Connections", icon: "🔌" },
