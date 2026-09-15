@@ -252,7 +252,7 @@ export default function ZillowImportModal({
         onClose();
       }
     } catch (e: any) {
-      setSaveError(e?.message || "Failed to save property to Creative Hub.");
+      setSaveError(e?.message || "Failed to save property to Hunters Hub.");
     } finally {
       setSaving(false);
     }
@@ -307,7 +307,7 @@ export default function ZillowImportModal({
               <span style={{ fontSize: "20px" }}>🔗</span> Property URL Link
             </h3>
             <p style={{ margin: "4px 0 0 0", fontSize: "12.5px", color: "var(--muted, #94a3b8)" }}>
-              Paste any Zillow, Redfin, or Realtor.com URL to automatically pull MLS specs, AVM valuation, and comps into Creative Hub.
+              Paste any Zillow, Redfin, or Realtor.com URL to automatically pull MLS specs, AVM valuation, and comps into Hunters Hub.
             </p>
           </div>
           <button
@@ -435,7 +435,7 @@ export default function ZillowImportModal({
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)", display: "flex", alignItems: "center", gap: "6px" }}>
                     <span>📋</span>
-                    <span>Creative Hub Data Preview</span>
+                    <span>Hunters Hub Data Preview</span>
                   </span>
                   {!enriched && !address && (
                     <span style={{ fontSize: "11px", color: "var(--ink-dim, #94a3b8)", backgroundColor: "var(--panel-2, #16161b)", padding: "2px 8px", borderRadius: "4px", border: "1px solid var(--border, #30363d)" }}>
@@ -801,7 +801,7 @@ export default function ZillowImportModal({
               }}
             >
               <span>{saving ? "⏳" : "💾"}</span>
-              <span>{saving ? "Saving..." : "Save to Creative Hub"}</span>
+              <span>{saving ? "Saving..." : "Save to Hunters Hub"}</span>
             </button>
           </div>
         </div>
@@ -863,7 +863,7 @@ export default function ZillowImportModal({
             </div>
 
             <div style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", marginBottom: "20px" }}>
-              💡 <strong>Tip:</strong> You can still save this property to Creative Hub by filling in the details manually below, or raise your monthly limit in <strong>Connections &gt; RentCast API Guard</strong>.
+              💡 <strong>Tip:</strong> You can still save this property to Hunters Hub by filling in the details manually below, or raise your monthly limit in <strong>Connections &gt; RentCast API Guard</strong>.
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>

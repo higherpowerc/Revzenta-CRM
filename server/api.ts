@@ -9752,48 +9752,9 @@ function toMarketingCampaign(r: any) {
     let status = typeof body.status === "string" && ["sent", "delivered", "read", "unread"].includes(body.status) ? body.status : "sent";
     const isPinned = body.isPinned ? 1 : 0;
 
-    // ── TCPA & DNC SAFEGUARD 1: Outbound Communication Suppression Guard ──
+    // ── Zero Outbound Calling / SMS Policy: Only internal team & Title/Escrow allowed ──
     if (direction === "outbound" || messageType === "sms") {
-      if (contactPhone) {
-        // 1. Check Privacy Suppression Registry
-        if (isPhoneSuppressed(auth.orgId, contactPhone)) {
-          return err(`TCPA COMPLIANCE GUARD: Outbound communication blocked. Recipient phone number (${contactPhone}) is registered on your Privacy Suppression / Do Not Call (DNC) Registry.`, 400);
-        }
-
-        // 2. Check if associated client record is flagged DNC
-        if (clientId) {
-          const clientRow = db.query("SELECT dnc, dnc_reason, timezone FROM clients WHERE id = ? AND org_id = ?").get(clientId, auth.orgId) as { dnc: number; dnc_reason?: string; timezone?: string } | null;
-          if (clientRow && clientRow.dnc === 1) {
-            return err(`TCPA COMPLIANCE GUARD: Outbound message blocked. Recipient is marked Do-Not-Call in your CRM (${clientRow.dnc_reason || "Suppressed"}).`, 400);
-          }
-        }
-
-        // 3. Check if any client record in this org with this phone is flagged DNC
-        const cleanDigits = contactPhone.replace(/[^0-9]/g, "");
-        if (cleanDigits.length >= 7) {
-          const dncMatch = db.query(`
-            SELECT id, company_name, dnc_reason FROM clients
-            WHERE org_id = ? AND REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', ''), ')', '') LIKE ? AND dnc = 1
-            LIMIT 1
-          `).get(auth.orgId, `%${cleanDigits}%`) as { id: number; company_name: string; dnc_reason?: string } | null;
-          if (dncMatch) {
-            return err(`TCPA COMPLIANCE GUARD: Outbound message blocked. Phone number ${contactPhone} is associated with a Do-Not-Call contact (${dncMatch.company_name} — ${dncMatch.dnc_reason || "DNC"}).`, 400);
-          }
-        }
-
-        // 4. TCPA Quiet Hours Safeguard (8:00 AM – 9:00 PM local recipient time)
-        if (messageType === "sms" && !body.bypassQuietHours) {
-          let recipientTz: string | null = null;
-          if (clientId) {
-            const clTz = db.query("SELECT timezone FROM clients WHERE id = ? AND org_id = ?").get(clientId, auth.orgId) as { timezone?: string } | null;
-            recipientTz = clTz?.timezone || null;
-          }
-          const quiet = checkTcpaQuietHours(recipientTz);
-          if (!quiet.allowed) {
-            return err(`TCPA QUIET HOURS RESTRICTION: Telemarketing and SMS communications are prohibited between 9:00 PM and 8:00 AM recipient local time under 47 CFR § 64.1200 (current recipient time: ${quiet.localTimeStr}). Provide 'bypassQuietHours: true' if express written consent was granted for after-hours communications.`, 400);
-          }
-        }
-      }
+      return err("Outbound calling and SMS text messaging are disabled in this CRM. Communications are restricted exclusively to internal team members and Title & Escrow partners.", 400);
     }
 
     // ── TCPA & DNC SAFEGUARD 2: Automated Inbound STOP / Opt-Out Processor ──

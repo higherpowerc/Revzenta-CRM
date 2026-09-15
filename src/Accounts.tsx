@@ -770,9 +770,9 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCategory = 
                   </td>
                   <td data-label="Phone">
                     {linked?.phone ? (
-                      <a href={`tel:${linked.phone}`} className={`acc-link${blurPii(pii)}`}>
+                      <span className={`acc-phone${blurPii(pii)}`}>
                         {linked.phone}
-                      </a>
+                      </span>
                     ) : (
                       <span className="acc-muted">—</span>
                     )}

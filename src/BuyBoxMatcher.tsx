@@ -354,13 +354,13 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
                             <div style={{ display: "flex", gap: "14px", fontSize: "0.85rem" }}>
                               {buyer.phone && (
-                                <a
-                                  href={`tel:${buyer.phone}`}
-                                  className={`link ${blurPii(pii)}`}
-                                  style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--blue)" }}
+                                <span
+                                  className={`field-value ${blurPii(pii)}`}
+                                  style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--fg)" }}
+                                  title="Buyer contact phone"
                                 >
                                   📞 {buyer.phone}
-                                </a>
+                                </span>
                               )}
                               {buyer.email && (
                                 <a

@@ -602,7 +602,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
           <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔍</div>
           <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", color: "var(--ink, #f8fafc)" }}>No matching opportunities</h3>
           <p style={{ margin: 0, fontSize: "13px", maxWidth: "500px", marginInline: "auto" }}>
-            Convert properties from the <strong>Property Search</strong> tab or create a new deal in <strong>Creative Hub</strong> to track them here with complete property data.
+            Convert properties from the <strong>Intelligent Search</strong> tab or create a new deal in <strong>Hunters Hub</strong> to track them here with complete property data.
           </p>
         </div>
       )}
@@ -820,7 +820,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                     <span>AI Deal</span>
                   </button>
 
-                  {/* Creative Hub Action */}
+                  {/* Hunters Hub Action */}
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
@@ -831,7 +831,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                     }}
                   >
                     <span>⚡</span>
-                    <span>Creative Hub</span>
+                    <span>Hunters Hub</span>
                   </button>
                 </div>
               </div>
@@ -1009,7 +1009,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                           style={{ padding: "4px 8px", fontSize: "11px" }}
                           onClick={() => onOpenCreativeHub(opportunity)}
                         >
-                          Creative Hub
+                          Hunters Hub
                         </button>
                       </div>
                     </td>
@@ -1035,7 +1035,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                           🏡 Full Property Intelligence Dossier: {details.address}
                         </h3>
                         <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-                          All assessor, valuation, and distress data imported from Property Search.
+                          All assessor, valuation, and distress data imported from Intelligent Search.
                         </p>
                       </div>
                       <button
@@ -1127,7 +1127,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                               style={{ width: "100%", fontSize: "12px" }}
                               onClick={() => onOpenCreativeHub(opp)}
                             >
-                              Open Deal in Creative Hub →
+                              Open Deal in Hunters Hub →
                             </button>
                           </div>
                         </div>

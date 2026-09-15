@@ -9,7 +9,7 @@ interface Props {
   onNavigateToProperty?: (address: string) => void;
 }
 
-type ChannelId = "all" | "general" | "acquisitions" | "underwriting" | "escrow" | "sms" | "email" | "alerts" | "pinned" | "unread";
+type ChannelId = "all" | "general" | "acquisitions" | "underwriting" | "escrow" | "alerts" | "pinned" | "unread";
 
 interface ChannelMeta {
   id: ChannelId;
@@ -20,28 +20,26 @@ interface ChannelMeta {
 }
 
 const CHANNELS: ChannelMeta[] = [
-  { id: "all", name: "All Communications", icon: "🌐", description: "Unified omnichannel live feed of every internal and external communication across your CRM.", category: "feed" },
-  { id: "unread", name: "Unread Inbox", icon: "📬", description: "Communications awaiting your review or team follow-up.", category: "feed" },
-  { id: "pinned", name: "Pinned & Starred", icon: "📌", description: "Important announcements, high-priority deal notices, and critical notes.", category: "feed" },
+  { id: "all", name: "All Communications", icon: "🌐", description: "Unified live stream of all internal team channels and Title & Escrow communications.", category: "feed" },
+  { id: "unread", name: "Unread Inbox", icon: "📬", description: "Team & Escrow updates awaiting your review or follow-up.", category: "feed" },
+  { id: "pinned", name: "Pinned & Starred", icon: "📌", description: "Important announcements, high-priority deal notices, and critical closing notes.", category: "feed" },
 
-  { id: "general", name: "general", icon: "#", description: "Company-wide internal announcements, daily standups, and general wholesale discussions.", category: "channels" },
-  { id: "acquisitions", name: "acquisitions", icon: "#", description: "Lead intake, seller outreach, SMS negotiations, and off-market property discussions.", category: "channels" },
+  { id: "general", name: "general", icon: "#", description: "Company-wide internal announcements, daily standups, and wholesale team discussions.", category: "channels" },
+  { id: "acquisitions", name: "acquisitions", icon: "#", description: "Internal lead intake, acquisition pipeline, and off-market property discussions.", category: "channels" },
   { id: "underwriting", name: "underwriting", icon: "#", description: "ARV comp analysis, rehab repair estimates, and Maximum Allowable Offer (MAO) calculations.", category: "channels" },
-  { id: "escrow", name: "escrow-closings", icon: "#", description: "Title companies, earnest money deposits, wire verifications, and closing legal notes.", category: "channels" },
+  { id: "escrow", name: "escrow-closings", icon: "🏛️", description: "Direct coordination with Title companies, earnest money verification, wire instructions, and closing legal notes.", category: "channels" },
 
-  { id: "sms", name: "SMS Conversations", icon: "📱", description: "Two-way text message threads with homeowners, sellers, and cash investors.", category: "external" },
-  { id: "email", name: "Email Dispatches", icon: "✉️", description: "Purchase agreements, formal LOIs, and signature invitations sent via email.", category: "external" },
-  { id: "alerts", name: "Deal & System Alerts", icon: "🔔", description: "Automated contingency clock deadlines, EMD milestone notices, and webhook arrivals.", category: "external" },
+  { id: "alerts", name: "Deal & Closing Alerts", icon: "🔔", description: "Automated contingency clock deadlines, EMD milestone notices, and closing milestones.", category: "external" },
 ];
 
 const TEMPLATES = [
-  { label: "💰 Cash Offer Follow-up", text: "Following up on our cash offer discussion. We are prepared to close in 14 days with zero contingencies and cover all normal closing costs." },
+  { label: "🏛️ Title & Escrow Update", text: "Title and escrow status update: Preliminary title report received. Please verify deed vesting and wire instructions with closing officer." },
   { label: "📊 Underwriting Completed", text: "Underwriting complete. Comps indicate an ARV of $340,000 with ~$35,000 estimated repairs. Recommended MAO is $205,000 to maintain a $20,000 wholesale fee." },
   { label: "🏛️ Escrow EMD Verified", text: "Earnest Money Deposit ($2,500) has been verified deposited with the title company. Escrow file is officially open and prelim title review has begun." },
   { label: "⚠️ Inspection Clock Alert", text: "Inspection Contingency Reminder: 48 hours remaining on physical inspection. Ensure walk-through report is finalized before deadline." },
 ];
 
-const EMOJIS = ["🎉", "💰", "🏠", "📄", "⚠️", "✅", "📞", "✉️", "🏛️", "🤝", "🚀", "⏳"];
+const EMOJIS = ["🎉", "💰", "🏠", "📄", "⚠️", "✅", "🏛️", "🤝", "🚀", "⏳"];
 
 export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToLead, onNavigateToTransaction, onNavigateToProperty }: Props) {
   const [messages, setMessages] = useState<InternalMessage[]>([]);
@@ -74,7 +72,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
   // Composer State
   const [composerBody, setComposerBody] = useState("");
   const [composerChannel, setComposerChannel] = useState<string>("general");
-  const [composerType, setComposerType] = useState<"chat" | "sms" | "email" | "escrow_note" | "deal_alert">("chat");
+  const [composerType, setComposerType] = useState<"chat" | "escrow_note" | "deal_alert">("chat");
   const [composerSubject, setComposerSubject] = useState("");
   const [composerRecipient, setComposerRecipient] = useState("");
   const [composerAddress, setComposerAddress] = useState("");
@@ -143,10 +141,6 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
           if (m.status !== "unread") return false;
         } else if (selectedChannel === "pinned") {
           if (!m.isPinned) return false;
-        } else if (selectedChannel === "sms") {
-          if (m.messageType !== "sms") return false;
-        } else if (selectedChannel === "email") {
-          if (m.messageType !== "email") return false;
         } else if (selectedChannel === "escrow") {
           if (m.channel !== "escrow" && m.messageType !== "escrow_note") return false;
         } else if (selectedChannel === "alerts") {
@@ -189,11 +183,10 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
   const stats = useMemo(() => {
     const total = messages.length;
     const teamChat = messages.filter((m) => m.messageType === "chat").length;
-    const smsCount = messages.filter((m) => m.messageType === "sms").length;
-    const emailCount = messages.filter((m) => m.messageType === "email").length;
     const escrowNotes = messages.filter((m) => m.messageType === "escrow_note" || m.channel === "escrow").length;
+    const alertCount = messages.filter((m) => m.messageType === "deal_alert" || m.channel === "alerts").length;
     const unreadCount = messages.filter((m) => m.status === "unread").length;
-    return { total, teamChat, smsCount, emailCount, escrowNotes, unreadCount };
+    return { total, teamChat, escrowNotes, alertCount, unreadCount };
   }, [messages]);
 
   // Handlers
@@ -296,12 +289,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
 
   const handleQuickReply = (msg: InternalMessage) => {
     setComposerChannel(msg.channel || "general");
-    if (msg.messageType === "sms") {
-      setComposerType("sms");
-      setComposerDirection("outbound");
-      setComposerRecipient(msg.senderName);
-      setComposerPhone(msg.contactPhone || "");
-    } else if (msg.messageType === "escrow_note") {
+    if (msg.messageType === "escrow_note") {
       setComposerType("escrow_note");
       setComposerChannel("escrow");
     } else {
@@ -435,7 +423,7 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
             </span>
           </div>
           <p style={{ margin: "4px 0 0 0", color: "var(--muted)", fontSize: isMobile ? "12px" : "13px", lineHeight: "1.4" }}>
-            Internal communications hub for <strong>{orgName}</strong> — private to your CRM members. All team messages, SMS threads, and notes are strictly isolated and never shared with other organizations.
+            Internal communications hub for <strong>{orgName}</strong> — private to your CRM team members and Title &amp; Escrow partners. Outbound calling and SMS texting are strictly disabled to eliminate regulatory risk and focus solely on team coordination and closing transactions.
           </p>
         </div>
 
@@ -584,38 +572,32 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
         <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
           <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Total Comms</div>
           <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, marginTop: "2px" }}>{stats.total}</div>
-          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>All channels combined</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Team &amp; Title ledger</div>
         </div>
 
         <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
           <div style={{ fontSize: "11px", color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>Team Chat</div>
           <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#3b82f6", marginTop: "2px" }}>{stats.teamChat}</div>
-          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Across 4 team channels</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Across team channels &amp; DMs</div>
         </div>
 
         <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
-          <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700, textTransform: "uppercase" }}>Client SMS</div>
-          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#10b981", marginTop: "2px" }}>{stats.smsCount}</div>
-          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>In &amp; outbound texts</div>
-        </div>
-
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
-          <div style={{ fontSize: "11px", color: "#8b5cf6", fontWeight: 700, textTransform: "uppercase" }}>Emails &amp; Offers</div>
-          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#8b5cf6", marginTop: "2px" }}>{stats.emailCount}</div>
-          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>PSA &amp; LOI dispatches</div>
-        </div>
-
-        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
-          <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700, textTransform: "uppercase" }}>Escrow &amp; Title</div>
+          <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700, textTransform: "uppercase" }}>Title &amp; Escrow</div>
           <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#10b981", marginTop: "2px" }}>{stats.escrowNotes}</div>
-          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Two-way coordination</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Two-way closing notes</div>
         </div>
 
         <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
-          <div style={{ fontSize: "11px", color: stats.unreadCount > 0 ? "#f59e0b" : "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>
+          <div style={{ fontSize: "11px", color: "#f59e0b", fontWeight: 700, textTransform: "uppercase" }}>Deal Alerts</div>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#f59e0b", marginTop: "2px" }}>{stats.alertCount}</div>
+          <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>Deadlines &amp; milestones</div>
+        </div>
+
+        <div style={{ backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "8px", padding: isMobile ? "10px 14px" : "14px 16px", flex: isMobile ? "0 0 150px" : undefined, minWidth: isMobile ? "150px" : undefined, boxSizing: "border-box" }}>
+          <div style={{ fontSize: "11px", color: stats.unreadCount > 0 ? "#ef4444" : "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>
             Attention
           </div>
-          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: stats.unreadCount > 0 ? "#f59e0b" : "var(--fg)", marginTop: "2px" }}>
+          <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: stats.unreadCount > 0 ? "#ef4444" : "var(--fg)", marginTop: "2px" }}>
             {stats.unreadCount}
           </div>
           <div style={{ fontSize: "10.5px", color: "var(--muted)", marginTop: "2px" }}>
@@ -1757,49 +1739,6 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
               </div>
             )}
 
-            {/* Outbound SMS Phone Field & TCPA Compliance Badge */}
-            {composerType === "sms" && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  padding: "6px 8px",
-                  backgroundColor: "rgba(59, 130, 246, 0.05)",
-                  border: "1px solid rgba(59, 130, 246, 0.2)",
-                  borderRadius: "6px",
-                  marginBottom: "8px",
-                  width: "100%",
-                  boxSizing: "border-box",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, minWidth: "220px" }}>
-                  <span style={{ fontSize: "12px", color: "var(--blue)" }}>📱 Phone:</span>
-                  <input
-                    type="tel"
-                    placeholder="Recipient Phone Number e.g. (555) 234-5678"
-                    value={composerPhone}
-                    onChange={(e) => setComposerPhone(e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      border: "1px solid var(--border)",
-                      backgroundColor: "var(--input-bg, var(--panel))",
-                      color: "var(--fg)",
-                      fontSize: "12px",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: "11px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "5px" }}>
-                  <span style={{ color: "#10b981", fontWeight: 700 }}>🛡️ TCPA Guard:</span>
-                  <span>Quiet Hours (8am-9pm) &amp; DNC scrubbing active</span>
-                </div>
-              </div>
-            )}
-
             {/* Input Box & Send Button */}
             <div
               style={{
@@ -1815,10 +1754,10 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
                 placeholder={
                   selectedDmUser
                     ? `Message ${selectedDmUser.name} privately...`
-                    : composerType === "sms"
-                    ? "Type SMS text message to send..."
                     : composerType === "escrow_note"
-                    ? "Type two-way note to title company..."
+                    ? "Type two-way note to Title Company & Escrow file..."
+                    : composerType === "deal_alert"
+                    ? "Post deal alert to team..."
                     : `Message #${composerChannel}...`
                 }
                 value={composerBody}

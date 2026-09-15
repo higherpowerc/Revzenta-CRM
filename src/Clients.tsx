@@ -1445,7 +1445,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
      terminal — with "clients" wording for their records. Same page, same
      data — only the visible wording and the scoped stage slice differ. */
   const heading = isWholesale
-    ? "Creative Hub"
+    ? "Hunters Hub"
     : scope === "middle"
     ? "Client Onboarding"
     : ownerOrg
@@ -1454,12 +1454,12 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
     Client <em className="serif">book</em>
   </>);
   const addCta = isWholesale ? "+ New creative deal" : ownerOrg ? "+ New lead" : "+ New client";
-  const emptyTitle = isWholesale ? "No deals in Creative Hub yet"
+  const emptyTitle = isWholesale ? "No deals in Hunters Hub yet"
     : scope === "middle" ? "No onboarding clients yet"
     : ownerOrg && scope === "first" ? "No sales leads yet"
     : ownerOrg ? "No sales leads yet" : "No clients yet";
   const emptySub = isWholesale
-    ? "Add your first property deal to start underwriting in the Creative Hub."
+    ? "Add your first property deal to start underwriting in the Hunters Hub."
     : scope === "middle"
     ? "Qualified wholesale CRM prospects currently in onboarding live here — send agreements, track signatures, and collect payments."
     : ownerOrg && scope === "first"
@@ -1540,7 +1540,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               }}
             >
               <span>🏘️</span>
-              <span>Creative Hub</span>
+              <span>Hunters Hub</span>
             </div>
             <h1 style={{ margin: "0 0 8px 0", fontSize: "24px", fontWeight: 800, color: "var(--ink, #f8fafc)", letterSpacing: "-0.01em" }}>
               Deal Underwriting Calculator
@@ -1855,7 +1855,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                 {sentOffersCount} {sentOffersCount === 1 ? "Property has" : "Properties have"} an Active Offer Sent
               </span>
               <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
-                Properties with sent offers advance out of Creative Hub and into the <strong>Transaction Hub</strong> for contract tracking &amp; escrow.
+                Properties with sent offers advance out of Hunters Hub and into the <strong>Transaction Hub</strong> for contract tracking &amp; escrow.
               </div>
             </div>
           </div>

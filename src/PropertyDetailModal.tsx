@@ -1502,7 +1502,7 @@ export default function PropertyDetailModal({
                 }}
               >
                 <span>⚡</span>
-                <span>Open in Creative Hub</span>
+                <span>Open in Hunters Hub</span>
               </button>
             )}
 

@@ -250,7 +250,7 @@ export default function Settings({
   const MEMBER_TAB_LABELS: { tab: TenantTab; label: string; icon: string }[] = isWholesaleEffective
     ? [
         { tab: "dashboard", label: "Dashboard", icon: "📊" },
-        { tab: "clients", label: "Creative Hub", icon: "🏘️" },
+        { tab: "clients", label: "Hunters Hub", icon: "🏘️" },
         { tab: "documents", label: "Transaction Hub", icon: "🤝" },
         { tab: "offers", label: "Offers Repository", icon: "📑" },
         { tab: "buybox", label: "Buy Box", icon: "🎯" },

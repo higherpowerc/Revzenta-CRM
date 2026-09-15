@@ -421,7 +421,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
         <div>
           <h1 style={{ margin: "0 0 6px 0", fontSize: "24px", fontWeight: 700, display: "flex", alignItems: "center", gap: "10px" }}>
             <span>🌐</span>
-            <span>Property Intelligence & Nationwide Search</span>
+            <span>Intelligent Search &amp; Nationwide Property Intelligence</span>
           </h1>
           <p style={{ margin: 0, color: "var(--text-muted, #94a3b8)", fontSize: "14px" }}>
             Real-time property discovery, AI query translation, off-market distress signals & Revzenta Opportunity Scores.
@@ -818,7 +818,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
               <strong style={{ fontSize: "12.5px", color: "var(--lime, #d6ff3f)" }}>CONVERT</strong>
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.5 }}>
-              Imports this property into your <strong>Creative Hub / Leads table</strong> with its complete dossier (equity, mortgage balance, beds, baths, sqft, APN, score) ready to underwrite and dispatch formal LOI purchase offers.
+              Imports this property into your <strong>Hunters Hub / Deals table</strong> with its complete dossier (equity, mortgage balance, beds, baths, sqft, APN, score) ready to underwrite and dispatch formal LOI purchase offers.
             </div>
           </div>
         </div>

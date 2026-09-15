@@ -199,9 +199,9 @@ export default function Buyers({ canEdit = true }: { canEdit?: boolean }) {
               <div className="buyer-card-head">
                 <span className={`buyer-name${blurPii(pii)}`}>{b.name}</span>
                 {b.phone && (
-                  <a className={`buyer-phone${blurPii(pii)}`} href={`tel:${b.phone}`}>
+                  <span className={`buyer-phone${blurPii(pii)}`}>
                     {b.phone}
-                  </a>
+                  </span>
                 )}
               </div>
               {b.criteria && (

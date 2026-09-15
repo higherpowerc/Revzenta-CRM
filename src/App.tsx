@@ -472,8 +472,8 @@ export default function App() {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard";
         case "opportunities": return "Opportunities";
-        case "properties": return "Property Search";
-        case "leads": return "Creative Hub";
+        case "properties": return "Intelligent Search";
+        case "leads": return "Hunters Hub";
         case "offers": return "Offers Repository";
         case "documents": return "Title Hub";
         case "contracts": return "Deals & Contracts";
@@ -491,7 +491,7 @@ export default function App() {
     }
     switch (effectiveViewFinal) {
       case "dashboard": return "Dashboard";
-      case "properties": return "Property Search";
+      case "properties": return "Intelligent Search";
       case "leads": return "Leads";
       case "clients": return "Clients";
       case "appointments": return "Appointments";
@@ -976,7 +976,7 @@ export default function App() {
                     setView("messages");
                     setMobileMenuOpen(false);
                   }}
-                  title="Unified internal team communications, SMS, emails, and deal alerts"
+                  title="Unified internal team communications and Title & Escrow notes"
                 >
                   <span className="tab-icon">💬</span>
                   <span>Message Hub</span>
@@ -1139,7 +1139,7 @@ export default function App() {
                     setView("messages");
                     setMobileMenuOpen(false);
                   }}
-                  title="Unified internal team communications, SMS, emails, and deal alerts"
+                  title="Unified internal team communications and Title & Escrow notes"
                 >
                   <span className="tab-icon">💬</span>
                   <span>Message Hub</span>
@@ -1158,7 +1158,7 @@ export default function App() {
                   title="Nationwide property intelligence, AI-translated searches & opportunity scores"
                 >
                   <span className="tab-icon">🌐</span>
-                  <span>Property Search</span>
+                  <span>Intelligent Search</span>
                 </button>
 
                 {canSeeTab("clients") && (
@@ -1191,7 +1191,7 @@ export default function App() {
                     title="Wholesale property pipeline and creative underwriting hub"
                   >
                     <span className="tab-icon">🏘️</span>
-                    <span>Creative Hub</span>
+                    <span>Hunters Hub</span>
                   </button>
                 )}
 
@@ -1412,7 +1412,7 @@ export default function App() {
                     setView("messages");
                     setMobileMenuOpen(false);
                   }}
-                  title="Unified internal team communications, SMS, emails, and deal alerts"
+                  title="Unified internal team communications and Title & Escrow notes"
                 >
                   <span className="tab-icon">💬</span>
                   <span>Message Hub</span>
@@ -1431,7 +1431,7 @@ export default function App() {
                   title="Nationwide property intelligence, AI-translated searches & opportunity scores"
                 >
                   <span className="tab-icon">🌐</span>
-                  <span>Property Search</span>
+                  <span>Intelligent Search</span>
                 </button>
                 {canSeeTab("clients") && (
                   <button
