@@ -820,7 +820,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                     <span>AI Deal</span>
                   </button>
 
-                  {/* Hunters Hub Action */}
+                  {/* Review Calculation Action */}
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
@@ -831,7 +831,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                     }}
                   >
                     <span>⚡</span>
-                    <span>Hunters Hub</span>
+                    <span>Review Calculation</span>
                   </button>
                 </div>
               </div>
@@ -1009,7 +1009,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                           style={{ padding: "4px 8px", fontSize: "11px" }}
                           onClick={() => onOpenCreativeHub(opportunity)}
                         >
-                          Hunters Hub
+                          Review Calculation
                         </button>
                       </div>
                     </td>
@@ -1127,7 +1127,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                               style={{ width: "100%", fontSize: "12px" }}
                               onClick={() => onOpenCreativeHub(opp)}
                             >
-                              Open Deal in Hunters Hub →
+                              Review Calculation →
                             </button>
                           </div>
                         </div>
