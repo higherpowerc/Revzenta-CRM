@@ -1654,7 +1654,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {embedded && onClose && (
+            {onClose && (
               <button
                 type="button"
                 onClick={onClose}
@@ -1670,14 +1670,15 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   borderRadius: "6px",
                   cursor: "pointer",
                 }}
-                title="View the wholesale properties pipeline table"
+                title="Return to Hunters Hub property URL and address autofill"
               >
-                <span>📋</span>
-                <span>Property Pipeline ({propertiesList.length})</span>
+                <span>🏘️</span>
+                <span>Hunters Hub Autofill</span>
               </button>
             )}
-            {!embedded && (
+            {onClose && (
               <button
+                type="button"
                 onClick={onClose}
                 style={{
                   fontSize: "16px",
@@ -1692,6 +1693,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
                   alignItems: "center",
                   justifyContent: "center",
                 }}
+                title="Close and return to Hunters Hub"
                 aria-label="Close modal"
               >
                 ✕

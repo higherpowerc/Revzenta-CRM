@@ -67,6 +67,7 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [view, setView] = useState<View>("dashboard");
   const [selectedOpportunity, setSelectedOpportunity] = useState<Client | null>(null);
+  const [huntersHubResetKey, setHuntersHubResetKey] = useState(0);
   /** Owner request 2026-08-14 — deep-linked stage filter for the Leads view.
    *  The Dashboard's stage-card "View →" stores the stage name here and
    *  switches to the leads view; the nav "Leads" tab clears it so a normal
@@ -475,8 +476,8 @@ export default function App() {
         case "properties": return "Intelligent Search";
         case "leads": return "Hunters Hub";
         case "offers": return "PSA Sent";
+        case "contracts": return "Assignments Sent";
         case "documents": return "Title Hub";
-        case "contracts": return "Deals & Contracts";
         case "sold": return "Sold Hub";
         case "messages": return "Message Hub";
         case "buybox": return "Investors Hub";
@@ -529,8 +530,8 @@ export default function App() {
         case "properties": return "🌐";
         case "leads": return "🏘️";
         case "offers": return "📑";
+        case "contracts": return "✍️";
         case "documents": return "🤝";
-        case "contracts": return "📄";
         case "sold": return "🏆";
         case "messages": return "💬";
         case "buybox": return "💼";
@@ -1182,6 +1183,8 @@ export default function App() {
                   <button
                     className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
                     onClick={() => {
+                      setSelectedOpportunity(null);
+                      setHuntersHubResetKey((k) => k + 1);
                       setLeadsStage(null);
                       setOnboardingStage(null);
                       setLeadsFilter("active");
@@ -1212,6 +1215,25 @@ export default function App() {
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
                       <span>PSA Sent</span>
                       {!hasTierAccess(effectiveTier, "offers") && (
+                        <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
+                      )}
+                    </span>
+                  </button>
+                )}
+
+                {canSeeTab("documents") && (
+                  <button
+                    className={effectiveViewFinal === "contracts" ? "tab active" : "tab"}
+                    onClick={() => {
+                      setView("contracts");
+                      setMobileMenuOpen(false);
+                    }}
+                    title={hasTierAccess(effectiveTier, "documents") ? "Wholesale assignment contracts dispatched to cash buyers" : "Assignments Sent (Pro & Scale feature)"}
+                  >
+                    <span className="tab-icon">✍️</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
+                      <span>Assignments Sent</span>
+                      {!hasTierAccess(effectiveTier, "documents") && (
                         <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
                       )}
                     </span>
@@ -1814,6 +1836,7 @@ export default function App() {
             crmBusinessName={orgName}
             autoOpenDealCalculator={isWholesale}
             initialDealProperty={selectedOpportunity}
+            resetKey={huntersHubResetKey}
             onGoToBuyBox={() => setView("buybox")}
             onGoToTransactions={() => setView("documents")}
             verticalKey={verticalKey}
@@ -1899,8 +1922,8 @@ export default function App() {
         ) : effectiveViewFinal === "contracts" ? (
           !hasTierAccess(effectiveTier, "documents") ? (
             <UpgradeGate
-              featureName="Deals & Contracts Hub"
-              featureDescription="Generate state-compliant Purchase & Sale and Assignment Contracts with auto-included wholesale clauses, send for e-signatures, and track executed agreements seamlessly on the Pro Dealmaker and Scale & Brokerage packages."
+              featureName="Assignments Sent Hub"
+              featureDescription="Generate state-compliant Assignment Contracts and wholesale agreements with auto-included wholesale clauses, send for e-signatures, and track executed agreements seamlessly on the Pro Dealmaker and Scale & Brokerage packages."
               requiredTier="pro"
               currentTier={effectiveTier}
             />

@@ -82,6 +82,7 @@ interface Props {
   /** Creative Hub opens directly into the one-property deal builder. */
   autoOpenDealCalculator?: boolean;
   initialDealProperty?: Client | null;
+  resetKey?: number;
 }
 
 /** Short value label for a custom field chip, rendered per field type
@@ -592,7 +593,7 @@ function OwnerActionsMenu({ client, busy, onEdit, onDemo, onFlag }: {
     </div>
   );
 }
-export default function Clients({ stages, scope = "all", ownerOrg = false, initialStage = null, initialFilter, canEdit = true, isWholesale: isWholesaleProp = false, crmBusinessName, onGoToBuyBox, onGoToTransactions, verticalKey = "", autoOpenDealCalculator = false, initialDealProperty = null }: Props) {
+export default function Clients({ stages, scope = "all", ownerOrg = false, initialStage = null, initialFilter, canEdit = true, isWholesale: isWholesaleProp = false, crmBusinessName, onGoToBuyBox, onGoToTransactions, verticalKey = "", autoOpenDealCalculator = false, initialDealProperty = null, resetKey }: Props) {
   const isWholesale = Boolean(isWholesaleProp || verticalKey === "wholesalebiz" || verticalKey === "wholesale");
   const [clients, setClients] = useState<Client[] | null>(null);
   const [expandedPropertyId, setExpandedPropertyId] = useState<number | null>(null);
@@ -833,6 +834,12 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
       setCalcProperty(initialDealProperty);
     }
   }, [isWholesale, initialDealProperty]);
+
+  useEffect(() => {
+    if (resetKey !== undefined && resetKey > 0) {
+      setCalcProperty(null);
+    }
+  }, [resetKey]);
 
   // Esc closes the "Manage stages" modal (keyboard nicety).
   useEffect(() => {
@@ -1478,7 +1485,131 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
   if (isWholesale) {
     if (calcProperty !== null) {
       return (
-        <div className="page page-stack" style={{ maxWidth: "1440px", margin: "0 auto" }}>
+        <div className="page page-stack" style={{ maxWidth: "1440px", margin: "0 auto", padding: "16px 20px" }}>
+          {/* Hunters Hub Top Autofill Bar - stays as part of the page */}
+          <div
+            style={{
+              backgroundColor: "var(--panel, #121216)",
+              border: "1px solid var(--border, #30363d)",
+              borderRadius: "10px",
+              padding: "16px 20px",
+              marginBottom: "16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setCalcProperty(null)}
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                  title="Return to Hunters Hub property intake"
+                >
+                  <span>←</span>
+                  <span>Back to Hunters Hub</span>
+                </button>
+                <span style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                  🏘️ Hunters Hub • Property Autofill &amp; Intake
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalcProperty(null)}
+                className="btn btn-ghost btn-sm"
+                style={{
+                  fontSize: "12px",
+                  color: "var(--muted, #94a3b8)",
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Close Calculator
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleHubUrlSubmit();
+              }}
+              style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}
+            >
+              <div style={{ position: "relative", flex: "1 1 360px" }}>
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: "15px",
+                    opacity: 0.75,
+                    pointerEvents: "none",
+                  }}
+                >
+                  🔗
+                </span>
+                <input
+                  type="text"
+                  value={hubUrlInput}
+                  onChange={(e) => setHubUrlInput(e.target.value)}
+                  placeholder="Paste new Zillow, Redfin, or Realtor.com URL to switch/autofill..."
+                  disabled={hubFetching}
+                  style={{
+                    width: "100%",
+                    height: "40px",
+                    padding: "0 12px 0 36px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border, #30363d)",
+                    backgroundColor: "var(--panel-2, #16161b)",
+                    color: "var(--ink, #f8fafc)",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={hubFetching || !hubUrlInput.trim()}
+                style={{
+                  height: "40px",
+                  padding: "0 18px",
+                  borderRadius: "6px",
+                  border: "none",
+                  backgroundColor: "var(--lime, #d6ff3f)",
+                  color: "var(--lime-ink, #0c0d08)",
+                  fontSize: "13px",
+                  fontWeight: 800,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: hubFetching || !hubUrlInput.trim() ? "not-allowed" : "pointer",
+                  opacity: hubFetching || !hubUrlInput.trim() ? 0.6 : 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {hubFetching ? "Extracting..." : "⚡ Autofill Calculator"}
+              </button>
+            </form>
+
+            {hubError && (
+              <div style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", fontSize: "12px" }}>
+                {hubError}
+              </div>
+            )}
+          </div>
+
           <DealCalculatorModal
             property={calcProperty === "new" ? null : calcProperty}
             allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}

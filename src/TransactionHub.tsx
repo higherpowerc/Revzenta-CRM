@@ -1491,7 +1491,7 @@ export default function TransactionHub({ crmBusinessName, initialTab = "process"
               color: activeTab === "contracts" ? "#ffffff" : "var(--fg)",
             }}
           >
-            📄 Deals &amp; Contracts Table
+            ✍️ Assignments Sent &amp; Contracts
           </button>
           <button
             onClick={() => handleSelectTab("title")}
