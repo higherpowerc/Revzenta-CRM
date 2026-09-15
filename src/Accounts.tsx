@@ -288,8 +288,7 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCategory = 
     const linked = clientByOrg[o.id];
     return (
       (o.name && o.name.toLowerCase().includes(q)) ||
-      (o.email && o.email.toLowerCase().includes(q)) ||
-      (o.contactEmail && o.contactEmail.toLowerCase().includes(q)) ||
+      (o.loginEmail && o.loginEmail.toLowerCase().includes(q)) ||
       (linked?.companyName && linked.companyName.toLowerCase().includes(q)) ||
       (linked?.phone && linked.phone.toLowerCase().includes(q)) ||
       (linked?.email && linked.email.toLowerCase().includes(q)) ||
@@ -779,13 +778,25 @@ export default function Accounts({ ownerOrgId, onViewAccount, initialCategory = 
                     )}
                   </td>
                   <td data-label="Email">
-                    <a
-                      href={`mailto:${o.contactEmail || o.email}`}
-                      className={`acc-link${blurPii(pii)}`}
-                      title={o.contactEmail || o.email}
-                    >
-                      {o.contactEmail || o.email}
-                    </a>
+                    {o.loginEmail ? (
+                      <a
+                        href={`mailto:${o.loginEmail}`}
+                        className={`acc-link${blurPii(pii)}`}
+                        title={o.loginEmail}
+                      >
+                        {o.loginEmail}
+                      </a>
+                    ) : linked?.email ? (
+                      <a
+                        href={`mailto:${linked.email}`}
+                        className={`acc-link${blurPii(pii)}`}
+                        title={linked.email}
+                      >
+                        {linked.email}
+                      </a>
+                    ) : (
+                      <span className="acc-muted">—</span>
+                    )}
                   </td>
                   <td className="num" data-label="Members">
                     {o.userCount}

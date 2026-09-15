@@ -1055,8 +1055,7 @@ export default function PropertyDetailModal({
 
                 {/* Radius selector pills */}
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: colors.inkMuted, marginRight: '4px' }}>Radius:</span>
-                  {[0.5, 1.0, 2.0].map((r) => (
+                  {(['0.5', '1.0', '2.0'] as const).map((r) => (
                     <button
                       key={r}
                       type="button"
@@ -1770,10 +1769,15 @@ export default function PropertyDetailModal({
                     border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
                   }}
                 >
-                  <img
-                    src={activePhotoUrl}
-                    alt={property.address || 'Property View'}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  <PropertyImage
+                    address={property.address}
+                    city={property.city}
+                    state={property.state}
+                    zip={property.zip}
+                    latitude={property.latitude}
+                    longitude={property.longitude}
+                    mode="street"
+                    streetHeight={220}
                   />
                   <div
                     style={{
@@ -1786,6 +1790,7 @@ export default function PropertyDetailModal({
                       fontWeight: 700,
                       padding: '3px 8px',
                       borderRadius: '4px',
+                      pointerEvents: 'none',
                     }}
                   >
                     Exterior Street &amp; Satellite Capture
