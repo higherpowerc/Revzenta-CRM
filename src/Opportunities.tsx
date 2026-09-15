@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import PropertyImage from "./PropertyImage";
 import PropertyDetailModal from "./PropertyDetailModal";
+import DealCalculatorModal from "./DealCalculatorModal";
 import type { Client, PropertyDealExplanation } from "./types";
 
 function getLoiStatus(opp: Client): "Sent" | "Unsent" {
@@ -270,6 +271,9 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
     details: ParsedPropertyDetails;
   } | null>(null);
 
+  // Review Calculation: Full Property Information Above, Deal Calculator Below
+  const [reviewingOpportunity, setReviewingOpportunity] = useState<Client | null>(null);
+
   // AI Deal Explanation Modal
   const [selectedPropertyForExplanation, setSelectedPropertyForExplanation] = useState<{
     client: Client;
@@ -430,7 +434,568 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
 
   return (
     <section style={{ padding: "24px", maxWidth: "1380px", margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
-      {/* Header Bar */}
+      {reviewingOpportunity ? (
+        (() => {
+          const revDetails = parsePropertyDetails(reviewingOpportunity);
+          const fullAddress = [revDetails.address, revDetails.city, revDetails.state, revDetails.zip]
+            .filter(Boolean)
+            .join(", ");
+          const loiStatus = getLoiStatus(reviewingOpportunity);
+
+          return (
+            <div>
+              {/* Top Navigation & Breadcrumb */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "16px",
+                  flexWrap: "wrap",
+                  marginBottom: "20px",
+                  paddingBottom: "16px",
+                  borderBottom: "1px solid var(--border-color, #334155)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setReviewingOpportunity(null)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      padding: "8px 16px",
+                    }}
+                  >
+                    <span>←</span>
+                    <span>Back to Converted Deals</span>
+                  </button>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "13px", color: "var(--muted, #94a3b8)" }}>Converted /</span>
+                    <strong style={{ fontSize: "14px", color: "var(--ink, #f8fafc)" }}>
+                      Review Calculation & Property Intelligence
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      padding: "4px 10px",
+                      borderRadius: "12px",
+                      backgroundColor:
+                        loiStatus === "Sent" ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.15)",
+                      color: loiStatus === "Sent" ? "#4ade80" : "#94a3b8",
+                      border: `1px solid ${
+                        loiStatus === "Sent" ? "rgba(34, 197, 94, 0.3)" : "rgba(148, 163, 184, 0.3)"
+                      }`,
+                    }}
+                  >
+                    LOI Status: {loiStatus}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      padding: "4px 10px",
+                      borderRadius: "12px",
+                      backgroundColor: "rgba(56, 189, 248, 0.15)",
+                      color: "#38bdf8",
+                      border: "1px solid rgba(56, 189, 248, 0.3)",
+                    }}
+                  >
+                    Stage: {reviewingOpportunity.stage || "Prospect"}
+                  </span>
+                </div>
+              </div>
+
+              {/* ── 1. FULL PROPERTY INFORMATION VIEW (ABOVE) ── */}
+              <div
+                style={{
+                  background: "var(--card-bg, #1e293b)",
+                  border: "1px solid var(--border-color, #334155)",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  marginBottom: "28px",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+                }}
+              >
+                {/* Header Row: Street View Photo + Core Information */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                    gap: "24px",
+                    alignItems: "start",
+                    marginBottom: "24px",
+                  }}
+                >
+                  {/* Left: Street View Image */}
+                  <div style={{ borderRadius: "10px", overflow: "hidden", border: "1px solid var(--border-color, #334155)" }}>
+                    <PropertyImage
+                      address={revDetails.address}
+                      city={revDetails.city}
+                      state={revDetails.state}
+                      zip={revDetails.zip}
+                      latitude={revDetails.latitude}
+                      longitude={revDetails.longitude}
+                      mode="street"
+                      streetHeight={260}
+                    />
+                  </div>
+
+                  {/* Right: Property Address, Badges & Motivation Highlights */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          textTransform: "uppercase",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          background: "rgba(56, 189, 248, 0.15)",
+                          color: "#38bdf8",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {revDetails.propertyClass}
+                      </span>
+                      {revDetails.apn && (
+                        <span style={{ fontSize: "11.5px", color: "var(--muted, #94a3b8)", fontFamily: "monospace" }}>
+                          APN: {revDetails.apn}
+                        </span>
+                      )}
+                      {revDetails.dataSource && (
+                        <span style={{ fontSize: "11px", color: "var(--muted, #94a3b8)" }}>
+                          Source: {revDetails.dataSource}
+                        </span>
+                      )}
+                    </div>
+
+                    <h1 style={{ margin: "0 0 6px", fontSize: "24px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
+                      {revDetails.address}
+                    </h1>
+                    <p style={{ margin: "0 0 14px", fontSize: "15px", color: "var(--muted, #94a3b8)" }}>
+                      {[revDetails.city, revDetails.state, revDetails.zip, revDetails.county ? `${revDetails.county} County` : ""]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+
+                    {/* Opportunity Score and Distress Badges */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
+                      {revDetails.opportunityScore != null && (
+                        <span
+                          style={{
+                            fontSize: "12.5px",
+                            fontWeight: 800,
+                            padding: "4px 10px",
+                            borderRadius: "8px",
+                            background:
+                              revDetails.opportunityScore >= 80
+                                ? "rgba(34, 197, 94, 0.2)"
+                                : revDetails.opportunityScore >= 60
+                                ? "rgba(234, 179, 8, 0.2)"
+                                : "rgba(239, 68, 68, 0.2)",
+                            color:
+                              revDetails.opportunityScore >= 80
+                                ? "#4ade80"
+                                : revDetails.opportunityScore >= 60
+                                ? "#facc15"
+                                : "#f87171",
+                            border: "1px solid currentColor",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "5px",
+                          }}
+                        >
+                          <span>🎯</span>
+                          <span>Opportunity Score: {revDetails.opportunityScore}/100</span>
+                        </span>
+                      )}
+
+                      {revDetails.distressIndicators.map((distress) => (
+                        <span
+                          key={distress}
+                          style={{
+                            fontSize: "11.5px",
+                            fontWeight: 700,
+                            padding: "4px 9px",
+                            borderRadius: "6px",
+                            background: "rgba(239, 68, 68, 0.15)",
+                            color: "#fca5a5",
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <span>⚠️</span>
+                          <span>{distress}</span>
+                        </span>
+                      ))}
+
+                      {revDetails.ownerOccupied && (
+                        <span
+                          style={{
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                            padding: "4px 9px",
+                            borderRadius: "6px",
+                            background: "rgba(148, 163, 184, 0.12)",
+                            color: "var(--muted, #94a3b8)",
+                            border: "1px solid rgba(148, 163, 184, 0.25)",
+                          }}
+                        >
+                          Occupancy: {revDetails.ownerOccupied}
+                        </span>
+                      )}
+                    </div>
+
+                    {revDetails.opportunityReasons && (
+                      <div
+                        style={{
+                          fontSize: "12.5px",
+                          color: "var(--ink, #f8fafc)",
+                          background: "rgba(0,0,0,0.25)",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          border: "1px solid var(--border-color, #334155)",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        <strong style={{ color: "var(--lime, #d6ff3f)" }}>💡 Underwriting Highlights:</strong>{" "}
+                        {revDetails.opportunityReasons}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Core Financial Stat Metric Cards */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                    gap: "12px",
+                    marginBottom: "24px",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.2)",
+                      border: "1px solid var(--border-color, #334155)",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>
+                      Estimated Market Value
+                    </div>
+                    <div style={{ fontSize: "19px", fontWeight: 800, color: "var(--lime, #d6ff3f)", marginTop: "4px" }}>
+                      {revDetails.estimatedValue}
+                    </div>
+                    {revDetails.valuationRange && (
+                      <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                        Range: {revDetails.valuationRange}
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.2)",
+                      border: "1px solid var(--border-color, #334155)",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>
+                      Estimated Equity
+                    </div>
+                    <div style={{ fontSize: "19px", fontWeight: 800, color: "#4ade80", marginTop: "4px" }}>
+                      {revDetails.estimatedEquity}
+                    </div>
+                    {revDetails.equityPercent && (
+                      <div style={{ fontSize: "11px", color: "#4ade80", marginTop: "2px", fontWeight: 600 }}>
+                        {revDetails.equityPercent} Equity Cushion
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.2)",
+                      border: "1px solid var(--border-color, #334155)",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>
+                      Open Mortgage
+                    </div>
+                    <div style={{ fontSize: "19px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px" }}>
+                      {revDetails.openMortgage}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                      Estimated Debt Balance
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.2)",
+                      border: "1px solid var(--border-color, #334155)",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>
+                      Estimated Market Rent
+                    </div>
+                    <div style={{ fontSize: "19px", fontWeight: 800, color: "#38bdf8", marginTop: "4px" }}>
+                      {revDetails.estimatedRent ? `$${revDetails.estimatedRent}/mo` : "—"}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                      Gross Cash Flow Base
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.2)",
+                      border: "1px solid var(--border-color, #334155)",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>
+                      Tax Assessed Value
+                    </div>
+                    <div style={{ fontSize: "19px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px" }}>
+                      {revDetails.taxAssessed}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                      County Assessor Record
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.2)",
+                      border: "1px solid var(--border-color, #334155)",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.03em" }}>
+                      Last Transaction
+                    </div>
+                    <div style={{ fontSize: "17px", fontWeight: 800, color: "var(--ink, #f8fafc)", marginTop: "4px" }}>
+                      {revDetails.lastSalePrice}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", marginTop: "2px" }}>
+                      {revDetails.lastSaleDate || "Sale date unrecorded"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detailed 4-Column Intelligence Grid */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: "16px",
+                    background: "rgba(0,0,0,0.18)",
+                    padding: "18px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border-color, #334155)",
+                  }}
+                >
+                  {/* Column 1: Physical Specifications */}
+                  <div>
+                    <h3 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      📐 Physical Specs
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12.5px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Bedrooms:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.bedrooms || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Bathrooms:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.bathrooms || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Square Feet:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.sqft ? `${revDetails.sqft} sqft` : "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Year Built:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.yearBuilt || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Lot Size:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.lotSize || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Stories:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.stories || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Garage Spaces:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.garageSpaces || "—"}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 2: Valuation & Assessor */}
+                  <div>
+                    <h3 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: 800, color: "var(--lime, #d6ff3f)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      📊 Assessor & Valuation
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12.5px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>AVM Value:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.estimatedValue}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Valuation Range:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.valuationRange || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Tax Assessed:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.taxAssessed}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Last Sale Price:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.lastSalePrice}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Last Sale Date:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.lastSaleDate || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>APN / Parcel:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)", fontFamily: "monospace" }}>{revDetails.apn || "—"}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 3: Ownership & Contact */}
+                  <div>
+                    <h3 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: 800, color: "#facc15", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      👤 Ownership & Contact
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12.5px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Owner Name:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>
+                          {reviewingOpportunity.contactName || reviewingOpportunity.companyName || "Property Owner"}
+                        </strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Phone:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{reviewingOpportunity.phone || "No phone recorded"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Email:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{reviewingOpportunity.email || "No email recorded"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>Owner Occupied:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.ownerOccupied || "—"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--muted, #94a3b8)" }}>County:</span>
+                        <strong style={{ color: "var(--ink, #f8fafc)" }}>{revDetails.county || "—"}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 4: Deal Intelligence & Actions */}
+                  <div>
+                    <h3 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: 800, color: "#c084fc", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      ⚡ Intelligence & Actions
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12.5px" }}>
+                      <div>
+                        <span style={{ color: "var(--muted, #94a3b8)", fontSize: "11px", display: "block" }}>DISPATCHED PSA / LOI:</span>
+                        <strong style={{ color: loiStatus === "Sent" ? "#4ade80" : "var(--muted, #94a3b8)" }}>
+                          {loiStatus === "Sent" ? "✓ Dispatched Proposal" : "Pending Proposal"}
+                        </strong>
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ flex: "1 1 auto", fontSize: "11.5px" }}
+                          onClick={(e) => handleOpenAiDeal(reviewingOpportunity, revDetails, e)}
+                        >
+                          🧠 AI Deal Analysis
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${loiStatus === "Sent" ? "btn-secondary" : "btn-primary"}`}
+                          style={{ flex: "1 1 auto", fontSize: "11.5px" }}
+                          onClick={(e) => handleToggleLoi(reviewingOpportunity, e)}
+                        >
+                          {loiStatus === "Sent" ? "Mark LOI Unsent" : "Mark LOI Sent"}
+                        </button>
+                      </div>
+                      <div style={{ marginTop: "4px" }}>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: "12px", color: "var(--lime, #d6ff3f)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        >
+                          <span>🗺️</span>
+                          <span>Open in Google Maps ↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 2. DEAL CALCULATOR (BELOW) ── */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                  <h2 style={{ margin: 0, fontSize: "19px", fontWeight: 800, color: "var(--ink, #f8fafc)", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span>⚡</span>
+                    <span>Deal Calculator & Acquisitions Underwriting</span>
+                  </h2>
+                  <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                    — Cash Wholesale MAO • Seller Financing • Subject-To • Public Records • Multi-Option LOI
+                  </span>
+                </div>
+
+                <DealCalculatorModal
+                  property={reviewingOpportunity}
+                  allProperties={opportunities}
+                  onClose={() => setReviewingOpportunity(null)}
+                  onUpdated={(updated) => {
+                    setOpportunities((prev) =>
+                      prev.map((item) => (item.id === updated.id ? updated : item))
+                    );
+                    setReviewingOpportunity(updated);
+                  }}
+                  embedded={true}
+                />
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+        <>
+          {/* Header Bar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap", marginBottom: "20px" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -827,7 +1392,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                     style={{ flex: "1 1 100px", fontSize: "12px", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: "4px" }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenCreativeHub(opportunity);
+                      setReviewingOpportunity(opportunity);
                     }}
                   >
                     <span>⚡</span>
@@ -1007,7 +1572,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                           type="button"
                           className="btn btn-primary btn-sm"
                           style={{ padding: "4px 8px", fontSize: "11px" }}
-                          onClick={() => onOpenCreativeHub(opportunity)}
+                          onClick={() => setReviewingOpportunity(opportunity)}
                         >
                           Review Calculation
                         </button>
@@ -1125,7 +1690,7 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
                               type="button"
                               className="btn btn-primary btn-sm"
                               style={{ width: "100%", fontSize: "12px" }}
-                              onClick={() => onOpenCreativeHub(opp)}
+                              onClick={() => setReviewingOpportunity(opp)}
                             >
                               Review Calculation →
                             </button>
@@ -1139,6 +1704,8 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {/* ── AI Deal Analysis Modal ────────────────────────────────────────────── */}
@@ -1370,7 +1937,9 @@ export default function Opportunities({ onOpenCreativeHub }: { onOpenCreativeHub
             handleOpenAiDeal(inspectedOpportunity.client, inspectedOpportunity.details, dummyEvent);
           }}
           onOpenCreativeHub={() => {
-            onOpenCreativeHub(inspectedOpportunity.client);
+            const client = inspectedOpportunity.client;
+            setInspectedOpportunity(null);
+            setReviewingOpportunity(client);
           }}
           onToggleLoi={() => {
             const dummyEvent = { stopPropagation: () => {} } as any;

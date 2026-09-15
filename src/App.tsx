@@ -68,6 +68,18 @@ export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [selectedOpportunity, setSelectedOpportunity] = useState<Client | null>(null);
   const [huntersHubResetKey, setHuntersHubResetKey] = useState(0);
+  const [psaSentCount, setPsaSentCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    api.offers().then((res) => {
+      if (active && res && Array.isArray(res.offers)) {
+        setPsaSentCount(res.offers.length);
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [user, view]);
   /** Owner request 2026-08-14 — deep-linked stage filter for the Leads view.
    *  The Dashboard's stage-card "View →" stores the stage name here and
    *  switches to the leads view; the nav "Leads" tab clears it so a normal
@@ -1213,7 +1225,24 @@ export default function App() {
                   >
                     <span className="tab-icon">📑</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "space-between" }}>
-                      <span>PSA Sent</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <span>PSA Sent</span>
+                        {psaSentCount !== null && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "1px 7px",
+                              borderRadius: "10px",
+                              backgroundColor: effectiveViewFinal === "offers" ? "rgba(255,255,255,0.25)" : "rgba(214, 255, 63, 0.18)",
+                              color: effectiveViewFinal === "offers" ? "#ffffff" : "var(--lime, #d6ff3f)",
+                              lineHeight: "16px",
+                            }}
+                          >
+                            {psaSentCount}
+                          </span>
+                        )}
+                      </span>
                       {!hasTierAccess(effectiveTier, "offers") && (
                         <span style={{ fontSize: "11px", opacity: 0.75 }} title="Available on Pro & Scale">🔒</span>
                       )}
