@@ -19,6 +19,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
+  const [addressFilter, setAddressFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [countyFilter, setCountyFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
@@ -85,6 +86,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
       sortBy,
       sortOrder,
     };
+    if (addressFilter.trim()) filters.address = addressFilter.trim();
     if (stateFilter.trim()) filters.state = stateFilter.trim().toUpperCase();
     if (countyFilter.trim()) filters.county = countyFilter.trim();
     if (cityFilter.trim()) filters.city = cityFilter.trim();
@@ -102,7 +104,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
     if (isProbate) filters.isProbate = true;
     return filters;
   }, [
-    stateFilter, countyFilter, cityFilter, zipFilter, minValue, maxValue,
+    addressFilter, stateFilter, countyFilter, cityFilter, zipFilter, minValue, maxValue,
     minEquityPct, minBeds, minBaths, propertyType, isAbsentee, isVacant,
     isTaxDelinquent, isPreForeclosure, isProbate, sortBy, sortOrder
   ]);
@@ -156,6 +158,14 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
     loadProviders();
     loadDistressAlerts();
   }, [loadProviders, loadDistressAlerts]);
+
+  // Auto-search with debounce when address filter changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      runSearch();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [addressFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Natural Language AI Search
   const handleAiSearch = async (e?: FormEvent, overridePrompt?: string) => {
@@ -495,6 +505,46 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
           {successMsg}
         </div>
       )}
+
+      {/* Address Quick Search — auto-searches as you type */}
+      <div style={{
+        background: "var(--card-bg, #ffffff)",
+        border: "2px solid var(--primary, #00a89f)",
+        borderRadius: "12px",
+        padding: "14px 18px",
+        marginBottom: "14px",
+        boxShadow: "0 2px 10px rgba(0,168,159,0.1)",
+      }}>
+        <div style={{ position: "relative" }}>
+          <span style={{ position: "absolute", left: "13px", top: "50%", transform: "translateY(-50%)", fontSize: "18px", pointerEvents: "none" }}>🏠</span>
+          <input
+            type="text"
+            className="input"
+            style={{ width: "100%", paddingLeft: "44px", paddingRight: loading ? "110px" : "16px", height: "48px", fontSize: "15px", fontWeight: 500, boxSizing: "border-box" }}
+            placeholder="Search by address, street name, or APN... (auto-searches as you type)"
+            value={addressFilter}
+            onChange={(e) => setAddressFilter(e.target.value)}
+          />
+          {addressFilter && (
+            <button
+              type="button"
+              onClick={() => setAddressFilter("")}
+              style={{ position: "absolute", right: loading ? "90px" : "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--muted, #64748b)", lineHeight: 1 }}
+              title="Clear address"
+            >×</button>
+          )}
+          {loading && addressFilter && (
+            <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--primary, #00a89f)", fontWeight: 600 }}>
+              Searching…
+            </span>
+          )}
+        </div>
+        {addressFilter && (
+          <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "var(--muted, #64748b)" }}>
+            🔍 Showing results for <strong style={{ color: "var(--ink, #0f172a)" }}>"{addressFilter}"</strong> — results update automatically as you type
+          </p>
+        )}
+      </div>
 
       {/* AI Natural Language Search Card */}
       <div style={{
