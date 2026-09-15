@@ -1,4 +1,4 @@
-﻿import { useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import ThemeToggle from "./ThemeToggle";
 
 interface ContactPageProps {
@@ -160,7 +160,7 @@ export default function ContactPage({ onBack, onSignIn, onLaunchApp }: ContactPa
               </div>
 
               <div style={{ padding: "16px 20px", borderRadius: "10px", backgroundColor: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--rw-border)", fontSize: "12.5px", color: "var(--rw-text-dim)", lineHeight: 1.6 }}>
-                <strong>Support Hours:</strong> Monday – Friday, 8:00 AM – 7:00 PM EST.<br />
+                <strong>Support Hours:</strong> Monday – Friday, 8:00 AM – 7:00 PM PST (Pacific Time).<br />
                 <strong>Critical SLA Incidents:</strong> Triaged 24 hours / 7 days a week.
               </div>
             </div>
