@@ -471,7 +471,7 @@ export default function App() {
     if (isWholesale) {
       switch (effectiveViewFinal) {
         case "dashboard": return "Dashboard";
-        case "opportunities": return "Opportunities";
+        case "opportunities": return "Converted";
         case "properties": return "Intelligent Search";
         case "leads": return "Hunters Hub";
         case "offers": return "PSA Sent";
@@ -1171,10 +1171,10 @@ export default function App() {
                       setView("opportunities");
                       setMobileMenuOpen(false);
                     }}
-                    title="View active wholesale opportunities"
+                    title="View converted wholesale deals"
                   >
                     <span className="tab-icon">🎯</span>
-                    <span>Opportunities</span>
+                    <span>Converted</span>
                   </button>
                 )}
 
