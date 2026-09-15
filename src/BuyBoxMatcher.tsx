@@ -100,7 +100,8 @@ export default function BuyBoxMatcher({ canEdit = true }: Props) {
   function copyDealPitch(property: Client, buyer: Client) {
     const price = getPropertyPrice(property);
     const fullAddress = [property.address, property.city, property.state, property.zip].filter(Boolean).join(", ");
-    const pitch = `Hi ${buyer.contactName || buyer.companyName},\n\nI have an off-market deal that matches your buy box:\n\n📍 Address: ${fullAddress || property.companyName}\n💰 Contract/Asking: $${price.toLocaleString()}\n🏗️ Type: ${property.clientType || "Residential"}\n📋 Notes: ${property.notes || "High cash flow / flip potential"}\n\nLet me know if you'd like the full lockbox & inspection access info!`;
+    const legalDisclosure = `⚠️ STATUTORY DISCLOSURE: Marketer is conveying equitable interest via an assignable purchase and sale contract, not fee simple title to real property. Principal buyer/assignor acts solely as an independent investor and not as a licensed real estate broker or fiduciary for seller.`;
+    const pitch = `Hi ${buyer.contactName || buyer.companyName},\n\nI have an off-market deal that matches your buy box:\n\n📍 Address: ${fullAddress || property.companyName}\n💰 Contract/Asking: $${price.toLocaleString()}\n🏗️ Type: ${property.clientType || "Residential"}\n📋 Notes: ${property.notes || "High cash flow / flip potential"}\n\n${legalDisclosure}\n\nLet me know if you'd like the full lockbox & inspection access info!`;
     navigator.clipboard.writeText(pitch);
     setCopiedPitchId(buyer.id);
     setTimeout(() => setCopiedPitchId(null), 2500);

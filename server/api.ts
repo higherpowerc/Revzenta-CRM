@@ -9680,12 +9680,38 @@ function toMarketingCampaign(r: any) {
     });
   }
 
+  function checkTcpaQuietHours(timezone?: string | null): { allowed: boolean; localTimeStr: string } {
+    try {
+      const tz = timezone && isKnownTimezone(timezone) ? timezone : "America/New_York";
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        hour: "numeric",
+        minute: "numeric",
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(now);
+      const hourPart = parts.find((p) => p.type === "hour");
+      const hour = hourPart ? parseInt(hourPart.value, 10) : now.getHours();
+      const timeDisplay = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true,
+        timeZoneName: "short",
+      }).format(now);
+      return { allowed: hour >= 8 && hour < 21, localTimeStr: timeDisplay };
+    } catch {
+      return { allowed: true, localTimeStr: "unknown" };
+    }
+  }
+
   if (pathname === "/api/messages" && method === "POST") {
     const auth = requireAuth(req);
     if (auth instanceof Response) return auth;
 
     const body = (await req.json().catch(() => ({}))) as any;
-    const content = typeof body.body === "string" ? body.body.trim() : "";
+    let content = typeof body.body === "string" ? body.body.trim() : "";
     if (!content) return err("Message body is required.", 400);
 
     const channel = typeof body.channel === "string" && body.channel.trim() ? body.channel.trim() : "general";
@@ -9723,8 +9749,87 @@ function toMarketingCampaign(r: any) {
     const contactPhone = typeof body.contactPhone === "string" && body.contactPhone.trim() ? body.contactPhone.trim() : null;
     const contactEmail = typeof body.contactEmail === "string" && body.contactEmail.trim() ? body.contactEmail.trim() : null;
     const direction = typeof body.direction === "string" && ["internal", "outbound", "inbound"].includes(body.direction) ? body.direction : "internal";
-    const status = typeof body.status === "string" && ["sent", "delivered", "read", "unread"].includes(body.status) ? body.status : "sent";
+    let status = typeof body.status === "string" && ["sent", "delivered", "read", "unread"].includes(body.status) ? body.status : "sent";
     const isPinned = body.isPinned ? 1 : 0;
+
+    // ── TCPA & DNC SAFEGUARD 1: Outbound Communication Suppression Guard ──
+    if (direction === "outbound" || messageType === "sms") {
+      if (contactPhone) {
+        // 1. Check Privacy Suppression Registry
+        if (isPhoneSuppressed(auth.orgId, contactPhone)) {
+          return err(`TCPA COMPLIANCE GUARD: Outbound communication blocked. Recipient phone number (${contactPhone}) is registered on your Privacy Suppression / Do Not Call (DNC) Registry.`, 400);
+        }
+
+        // 2. Check if associated client record is flagged DNC
+        if (clientId) {
+          const clientRow = db.query("SELECT dnc, dnc_reason, timezone FROM clients WHERE id = ? AND org_id = ?").get(clientId, auth.orgId) as { dnc: number; dnc_reason?: string; timezone?: string } | null;
+          if (clientRow && clientRow.dnc === 1) {
+            return err(`TCPA COMPLIANCE GUARD: Outbound message blocked. Recipient is marked Do-Not-Call in your CRM (${clientRow.dnc_reason || "Suppressed"}).`, 400);
+          }
+        }
+
+        // 3. Check if any client record in this org with this phone is flagged DNC
+        const cleanDigits = contactPhone.replace(/[^0-9]/g, "");
+        if (cleanDigits.length >= 7) {
+          const dncMatch = db.query(`
+            SELECT id, company_name, dnc_reason FROM clients
+            WHERE org_id = ? AND REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', ''), ')', '') LIKE ? AND dnc = 1
+            LIMIT 1
+          `).get(auth.orgId, `%${cleanDigits}%`) as { id: number; company_name: string; dnc_reason?: string } | null;
+          if (dncMatch) {
+            return err(`TCPA COMPLIANCE GUARD: Outbound message blocked. Phone number ${contactPhone} is associated with a Do-Not-Call contact (${dncMatch.company_name} — ${dncMatch.dnc_reason || "DNC"}).`, 400);
+          }
+        }
+
+        // 4. TCPA Quiet Hours Safeguard (8:00 AM – 9:00 PM local recipient time)
+        if (messageType === "sms" && !body.bypassQuietHours) {
+          let recipientTz: string | null = null;
+          if (clientId) {
+            const clTz = db.query("SELECT timezone FROM clients WHERE id = ? AND org_id = ?").get(clientId, auth.orgId) as { timezone?: string } | null;
+            recipientTz = clTz?.timezone || null;
+          }
+          const quiet = checkTcpaQuietHours(recipientTz);
+          if (!quiet.allowed) {
+            return err(`TCPA QUIET HOURS RESTRICTION: Telemarketing and SMS communications are prohibited between 9:00 PM and 8:00 AM recipient local time under 47 CFR § 64.1200 (current recipient time: ${quiet.localTimeStr}). Provide 'bypassQuietHours: true' if express written consent was granted for after-hours communications.`, 400);
+          }
+        }
+      }
+    }
+
+    // ── TCPA & DNC SAFEGUARD 2: Automated Inbound STOP / Opt-Out Processor ──
+    const isOptOutKeyword = /^(STOP|UNSUBSCRIBE|QUIT|CANCEL|OPT[\s-]?OUT|END|STOPALL)$/i.test(content.trim()) ||
+      /\b(STOP|UNSUBSCRIBE|REMOVE ME|TAKE ME OFF YOUR LIST|REMOVE MY NUMBER)\b/i.test(content);
+
+    if (isOptOutKeyword && contactPhone) {
+      // 1. Immediately register phone number in the workspace's Privacy Suppression Registry
+      addSuppression(
+        auth.orgId,
+        contactPhone,
+        propertyAddress || "",
+        clientName || "Homeowner / Seller",
+        "sms_opt_out",
+        `TCPA Automated Opt-Out: Received keyword '${content.trim().slice(0, 40)}'`
+      );
+
+      // 2. Automatically toggle DNC flag on all matching CRM contacts
+      try {
+        const cleanDigits = contactPhone.replace(/[^0-9]/g, "");
+        db.query(`
+          UPDATE clients
+          SET dnc = 1, dnc_reason = 'Opted out via SMS (STOP keyword)', dnc_date = date('now'), updated_at = datetime('now')
+          WHERE org_id = ? AND (
+            id = ? OR
+            REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '(', ''), ')', '') LIKE ?
+          )
+        `).run(auth.orgId, clientId || 0, `%${cleanDigits}%`);
+      } catch (e) {
+        console.warn("[api] Failed to auto-flag DNC for opted-out client:", e);
+      }
+
+      // 3. Mark message with clear compliance tag for CRM operators
+      content += "\n\n[🛡️ TCPA COMPLIANCE: Recipient opted out via STOP keyword. Number automatically added to Privacy Suppression Registry & marked DNC across your workspace.]";
+      status = "read";
+    }
 
     const res = db.query(`
       INSERT INTO internal_messages (

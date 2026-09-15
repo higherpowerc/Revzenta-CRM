@@ -1757,6 +1757,49 @@ export default function MessageHub({ crmBusinessName = "Revzenta", onNavigateToL
               </div>
             )}
 
+            {/* Outbound SMS Phone Field & TCPA Compliance Badge */}
+            {composerType === "sms" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  padding: "6px 8px",
+                  backgroundColor: "rgba(59, 130, 246, 0.05)",
+                  border: "1px solid rgba(59, 130, 246, 0.2)",
+                  borderRadius: "6px",
+                  marginBottom: "8px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, minWidth: "220px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--blue)" }}>📱 Phone:</span>
+                  <input
+                    type="tel"
+                    placeholder="Recipient Phone Number e.g. (555) 234-5678"
+                    value={composerPhone}
+                    onChange={(e) => setComposerPhone(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid var(--border)",
+                      backgroundColor: "var(--input-bg, var(--panel))",
+                      color: "var(--fg)",
+                      fontSize: "12px",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "5px" }}>
+                  <span style={{ color: "#10b981", fontWeight: 700 }}>🛡️ TCPA Guard:</span>
+                  <span>Quiet Hours (8am-9pm) &amp; DNC scrubbing active</span>
+                </div>
+              </div>
+            )}
+
             {/* Input Box & Send Button */}
             <div
               style={{

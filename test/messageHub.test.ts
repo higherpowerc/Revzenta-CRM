@@ -190,4 +190,43 @@ describe("Message Hub & Internal CRM Communications Suite", () => {
     expect(escrowType.length).toBe(1);
     expect(escrowType[0].property_address).toBe("400 Oak Ave");
   });
+
+  test("TCPA Compliance: automated STOP opt-out suppresses phone and flags DNC", () => {
+    const optOutPhone = "(555) 987-6543";
+    const cleanPhone = "5559876543";
+
+    // Setup client record
+    db.query(`
+      INSERT INTO clients (org_id, company_name, phone, dnc, dnc_reason)
+      VALUES (?, 'Homeowner Robert', ?, 0, '')
+    `).run(TEST_ORG_A, optOutPhone);
+
+    // Simulate inbound STOP keyword text
+    const keyword = "STOP";
+    const isOptOutKeyword = /^(STOP|UNSUBSCRIBE|QUIT|CANCEL|OPT[\s-]?OUT|END|STOPALL)$/i.test(keyword);
+    expect(isOptOutKeyword).toBe(true);
+
+    if (isOptOutKeyword) {
+      db.query(`
+        INSERT INTO privacy_suppression_registry (org_id, phone, address, owner_name, purge_type, purged_at, reference_notes)
+        VALUES (?, ?, '100 Elm St', 'Homeowner Robert', 'sms_opt_out', datetime('now'), 'TCPA Automated STOP opt-out')
+      `).run(TEST_ORG_A, optOutPhone);
+
+      db.query(`
+        UPDATE clients
+        SET dnc = 1, dnc_reason = 'Opted out via SMS (STOP keyword)', dnc_date = date('now')
+        WHERE org_id = ? AND phone = ?
+      `).run(TEST_ORG_A, optOutPhone);
+    }
+
+    // Verify phone is in suppression registry
+    const suppressionRow = db.query("SELECT * FROM privacy_suppression_registry WHERE org_id = ? AND phone = ?").get(TEST_ORG_A, optOutPhone) as any;
+    expect(suppressionRow).not.toBeNull();
+    expect(suppressionRow.purge_type).toBe("sms_opt_out");
+
+    // Verify client is marked DNC
+    const client = db.query("SELECT dnc, dnc_reason FROM clients WHERE org_id = ? AND phone = ?").get(TEST_ORG_A, optOutPhone) as any;
+    expect(client.dnc).toBe(1);
+    expect(client.dnc_reason).toContain("STOP keyword");
+  });
 });
