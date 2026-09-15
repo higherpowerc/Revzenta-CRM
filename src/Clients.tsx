@@ -20,6 +20,7 @@ import { evaluateMatch, type BuyBoxMatch } from "./buyBoxUtils";
 import CsvImportModal from "./CsvImportModal";
 import ZillowImportModal from "./ZillowImportModal";
 import { extractAddressFromUrl } from "./urlAddressParser";
+import PropertyReviewDossier from "./PropertyReviewDossier";
 
 /** Owner request 2026-08-14 — "lost" and "dnc" are STATUS views: they render
  *  the Lost section / DNC list instead of the pipeline table. The pipeline
@@ -1493,7 +1494,7 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
               border: "1px solid var(--border, #30363d)",
               borderRadius: "10px",
               padding: "16px 20px",
-              marginBottom: "16px",
+              marginBottom: "20px",
               display: "flex",
               flexDirection: "column",
               gap: "12px",
@@ -1519,7 +1520,9 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
                   <span>Back to Hunters Hub</span>
                 </button>
                 <span style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink, #f8fafc)" }}>
-                  🏘️ Hunters Hub • Property Autofill &amp; Intake
+                  {calcProperty && calcProperty !== "new"
+                    ? `🏘️ Hunters Hub • Reviewing Calculation: ${calcProperty.address || calcProperty.companyName}`
+                    : "🏘️ Hunters Hub • Property Autofill & Intake"}
                 </span>
               </div>
               <button
@@ -1610,22 +1613,55 @@ export default function Clients({ stages, scope = "all", ownerOrg = false, initi
             )}
           </div>
 
-          <DealCalculatorModal
-            property={calcProperty === "new" ? null : calcProperty}
-            allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
-            onClose={() => setCalcProperty(null)}
-            crmBusinessName={crmBusinessName}
-            embedded={true}
-            onUpdated={(updated) => {
-              setClients((prev) => {
-                if (!prev) return [updated];
-                const exists = prev.some((c) => c.id === updated.id);
-                if (exists) return prev.map((c) => (c.id === updated.id ? updated : c));
-                return [updated, ...prev];
-              });
-              setCalcProperty(updated);
-            }}
-          />
+          {/* 1. Full Property Information View Above (when a property is selected) */}
+          {calcProperty && calcProperty !== "new" && (
+            <PropertyReviewDossier
+              property={calcProperty}
+              hideTopNav={true}
+              onPropertyUpdated={(updated) => {
+                setClients((prev) => {
+                  if (!prev) return [updated];
+                  const exists = prev.some((c) => c.id === updated.id);
+                  if (exists) return prev.map((c) => (c.id === updated.id ? updated : c));
+                  return [updated, ...prev];
+                });
+                setCalcProperty(updated);
+              }}
+            />
+          )}
+
+          {/* 2. Deal Calculator Below */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <h2 style={{ margin: 0, fontSize: "19px", fontWeight: 800, color: "var(--ink, #f8fafc)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>⚡</span>
+                <span>Deal Calculator & Acquisitions Underwriting</span>
+              </h2>
+              <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+                — Cash Wholesale MAO • Seller Financing • Subject-To • Public Records • Multi-Option LOI
+              </span>
+            </div>
+
+            <DealCalculatorModal
+              property={calcProperty === "new" ? null : calcProperty}
+              allProperties={clients ? clients.filter((c) => !c.archived && c.clientType !== "buyer" && c.stage !== "Buyer") : []}
+              onClose={() => setCalcProperty(null)}
+              crmBusinessName={crmBusinessName}
+              embedded={true}
+              onPropertySelected={(selected) => {
+                setCalcProperty(selected);
+              }}
+              onUpdated={(updated) => {
+                setClients((prev) => {
+                  if (!prev) return [updated];
+                  const exists = prev.some((c) => c.id === updated.id);
+                  if (exists) return prev.map((c) => (c.id === updated.id ? updated : c));
+                  return [updated, ...prev];
+                });
+                setCalcProperty(updated);
+              }}
+            />
+          </div>
         </div>
       );
     }

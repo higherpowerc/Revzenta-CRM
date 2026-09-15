@@ -20,6 +20,7 @@ interface Props {
   onUpdated?: (updated: Client) => void;
   crmBusinessName?: string;
   embedded?: boolean;
+  onPropertySelected?: (property: Client | null) => void;
 }
 
 /** Currency input with clean $ prefix, high-contrast text, and automatic numeric comma formatting */
@@ -248,7 +249,7 @@ function parseAddressString(raw: string) {
   return { address: trimmed, city: "", state: "", zip: "" };
 }
 
-export default function DealCalculatorModal({ property, allProperties, onClose, onUpdated, crmBusinessName, embedded = false }: Props) {
+export default function DealCalculatorModal({ property, allProperties, onClose, onUpdated, crmBusinessName, embedded = false, onPropertySelected }: Props) {
   // Active Calculation Tab: Deal Types first (Cash Wholesale MAO), then Proposal Settings
   const [tab, setTab] = useState<"cash" | "creative" | "subto" | "records" | "proposal">("cash");
 
@@ -480,6 +481,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
   const handleSelectProperty = (idStr: string) => {
     if (!idStr || idStr === "__custom__") {
       setActiveProperty(null);
+      onPropertySelected?.(null);
       setPropertyAddress("");
       setSellerName("");
       setRecipientEmail("");
@@ -496,6 +498,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
     const found = propertiesList.find((p) => String(p.id) === idStr);
     if (found) {
       setActiveProperty(found);
+      onPropertySelected?.(found);
       loadPropertyData(found);
       setSaveSuccessMsg(`Loaded "${found.address || found.companyName}" from Properties Table!`);
       setTimeout(() => setSaveSuccessMsg(null), 4000);
@@ -4383,6 +4386,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           onSaved={(created) => {
             setPropertiesList((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
             setActiveProperty(created);
+            onPropertySelected?.(created);
             loadPropertyData(created);
             setShowUrlImport(false);
             if (onUpdated) onUpdated(created);
@@ -4390,6 +4394,7 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
           onSaveAndUnderwrite={(created) => {
             setPropertiesList((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
             setActiveProperty(created);
+            onPropertySelected?.(created);
             loadPropertyData(created);
             setShowUrlImport(false);
             if (onUpdated) onUpdated(created);
