@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { Client, PropertyDealExplanation } from "./types";
 import { api } from "./api";
 import PropertyImage from "./PropertyImage";
@@ -130,8 +130,8 @@ export function parsePropertyDetails(c: Client): ParsedPropertyDetails {
   if (getField(c, "Has Liens") === "true" && !distressIndicators.includes("Open Liens")) distressIndicators.push("Open Liens");
   if (getField(c, "Has Code Violations") === "true" && !distressIndicators.includes("Code Violations")) distressIndicators.push("Code Violations");
 
-  const ownerOccupied = getField(c, "Owner Occupied") || (distressIndicators.some((d) => d.toLowerCase().includes("absentee")) ? "No (Absentee)" : "");
-  const dataSource = getField(c, "Data Source") || c.leadSource || "Unified";
+  const ownerOccupied = getField(c, "Owner Occupied") || (distressIndicators.some((d) => d.toLowerCase().includes("absentee")) ? "Absentee Owner" : "Owner Occupied");
+  const dataSource = getField(c, "Data Provider") || "RentCast MLS + Public Assessor";
 
   return {
     address,
@@ -152,7 +152,7 @@ export function parsePropertyDetails(c: Client): ParsedPropertyDetails {
     apn,
     estimatedValue,
     estimatedEquity,
-    equityPercent,
+    equityPercent: equityPercent || "—",
     openMortgage,
     estimatedRent,
     valuationRange,
@@ -194,6 +194,49 @@ export default function PropertyReviewDossier({
   const [showAiModal, setShowAiModal] = useState(false);
   const [explanation, setExplanation] = useState<PropertyDealExplanation | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
+
+  // Live Buyer Matching (Dispositions) state
+  const [matchedBuyers, setMatchedBuyers] = useState<Array<{ buyer: Client; score: number; maxBudget: number }>>([]);
+  const [loadingBuyers, setLoadingBuyers] = useState(false);
+  const [copiedBuyerId, setCopiedBuyerId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingBuyers(true);
+    api.clients().then((res) => {
+      if (!active) return;
+      const allBuyers = (res.clients || []).filter(
+        (c) => !c.archived && !c.lost && (c.clientType === "buyer" || c.stage === "Buyer")
+      );
+      const propertyPrice = property.dealValue || Number(revDetails.estimatedValue.replace(/[^0-9.]/g, "")) || 0;
+      const ranked = allBuyers.map((b) => {
+        let score = 0;
+        const bText = ((b.notes || "") + " " + (b.companyName || "") + " " + (b.address || "")).toLowerCase();
+        if (revDetails.state && bText.includes(revDetails.state.toLowerCase())) score += 35;
+        if (revDetails.city && bText.includes(revDetails.city.toLowerCase())) score += 40;
+        if (revDetails.county && bText.includes(revDetails.county.toLowerCase())) score += 30;
+        const budgetStr = b.customFields?.find((f) => f.name.toLowerCase().includes("budget") || f.name.toLowerCase().includes("price"))?.value;
+        const budgetNum = budgetStr ? Number(budgetStr.replace(/[^0-9.]/g, "")) : 500000;
+        if (budgetNum >= propertyPrice && propertyPrice > 0) score += 25;
+        return { buyer: b, score, maxBudget: budgetNum };
+      }).sort((a, b) => b.score - a.score);
+      setMatchedBuyers(ranked.slice(0, 4));
+    }).catch((err) => {
+      console.warn("Could not load buyers for matching:", err);
+    }).finally(() => {
+      if (active) setLoadingBuyers(false);
+    });
+    return () => { active = false; };
+  }, [property.id, revDetails.city, revDetails.state]);
+
+  const handleCopyPitch = (buyer: Client) => {
+    const price = property.dealValue || Number(revDetails.estimatedValue.replace(/[^0-9.]/g, "")) || 0;
+    const legalNotice = `⚠️ STATUTORY DISCLOSURE: Marketer is conveying equitable interest via an assignable purchase and sale contract, not fee simple title to real property. Principal buyer/assignor acts solely as an independent investor and not as a licensed real estate agent or fiduciary.`;
+    const pitch = `Hi ${buyer.contactName || buyer.companyName},\n\nI have an off-market wholesale deal matching your buy box:\n\n📍 Address: ${fullAddress}\n💰 Contract/Asking Price: $${price.toLocaleString()}\n🏗️ Specs: ${revDetails.bedrooms || '3'} Beds / ${revDetails.bathrooms || '2'} Baths / ${revDetails.sqft || '—'} sqft\n📊 AVM & Equity: ${revDetails.estimatedValue} (${revDetails.equityPercent} Equity)\n\n${legalNotice}\n\nLet me know if you would like full lockbox access and inspection details!`;
+    navigator.clipboard.writeText(pitch);
+    setCopiedBuyerId(buyer.id);
+    setTimeout(() => setCopiedBuyerId(null), 2500);
+  };
 
   const handleOpenAiDeal = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -358,6 +401,50 @@ export default function PropertyReviewDossier({
           </div>
         </div>
       )}
+
+      {/* ── DEAL FLOW PROGRESSION RIBBON ── */}
+      <div className="deal-progression-ribbon">
+        <div className="deal-progression-step completed">
+          <span className="step-dot" />
+          <span>1. Ingested</span>
+        </div>
+        <span className="deal-progression-arrow">→</span>
+
+        <div className="deal-progression-step completed">
+          <span className="step-dot" />
+          <span>2. Live Comps &amp; Specs</span>
+        </div>
+        <span className="deal-progression-arrow">→</span>
+
+        <div className={`deal-progression-step ${property.stage && property.stage.toLowerCase().includes('hot') ? 'active' : 'completed'}`}>
+          <span className="step-dot" />
+          <span>3. Hot List</span>
+        </div>
+        <span className="deal-progression-arrow">→</span>
+
+        <div className={`deal-progression-step ${loiStatus === 'Sent' ? 'completed' : 'active'}`}>
+          <span className="step-dot" />
+          <span>4. {loiStatus === 'Sent' ? 'LOI Dispatched' : 'Underwrite & LOI'}</span>
+        </div>
+        <span className="deal-progression-arrow">→</span>
+
+        <div className={`deal-progression-step ${property.offersCount && property.offersCount > 0 ? 'active' : ''}`}>
+          <span className="step-dot" />
+          <span>5. PSA Contract</span>
+        </div>
+        <span className="deal-progression-arrow">→</span>
+
+        <div className="deal-progression-step">
+          <span className="step-dot" />
+          <span>6. Buyer Assignment</span>
+        </div>
+        <span className="deal-progression-arrow">→</span>
+
+        <div className="deal-progression-step">
+          <span className="step-dot" />
+          <span>7. Title &amp; Closing</span>
+        </div>
+      </div>
 
       {/* ── FULL PROPERTY INFORMATION VIEW (ABOVE) ── */}
       <div
@@ -812,6 +899,84 @@ export default function PropertyReviewDossier({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── INSTANT CASH BUYER MATCHING (DISPOSITIONS) ── */}
+      <div
+        style={{
+          background: "var(--card-bg, #121216)",
+          border: "1px solid var(--border, #30363d)",
+          borderRadius: "12px",
+          padding: "24px",
+          marginBottom: "24px",
+          boxShadow: "var(--shadow, 0 10px 30px rgba(0,0,0,0.15))",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "18px" }}>🎯</span>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink, #0f172a)" }}>
+                Instant Cash Buyer Matching (Dispositions)
+              </h3>
+              <span className="buyer-badge-tag">
+                {matchedBuyers.length} Verified Buyers in Network
+              </span>
+            </div>
+            <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "var(--muted, #64748b)" }}>
+              Auto-matched from your active Investors Hub database for {revDetails.city ? `${revDetails.city}, ` : ""}{revDetails.state || "this market"}.
+            </p>
+          </div>
+        </div>
+
+        {loadingBuyers ? (
+          <div className="skeleton-block" style={{ height: "100px", borderRadius: "8px" }} />
+        ) : matchedBuyers.length === 0 ? (
+          <div style={{ padding: "20px", textAlign: "center", background: "var(--panel-2, #16161b)", borderRadius: "8px", border: "1px dashed var(--border, #30363d)" }}>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted, #64748b)" }}>
+              No active cash buyers in your database matching {revDetails.city || revDetails.state || "this area"}. Add cash buyers in <strong>Investors Hub</strong> to unlock instant 1-click deal pitching!
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px" }}>
+            {matchedBuyers.map(({ buyer, maxBudget }) => {
+              const buyerName = buyer.contactName || buyer.companyName || "Cash Investor";
+              const buyerPhone = buyer.phone || "On File";
+              const isCopied = copiedBuyerId === buyer.id;
+              return (
+                <div key={buyer.id} className="buyer-pitch-box">
+                  <div className="buyer-pitch-header">
+                    <div>
+                      <strong style={{ fontSize: "14px", color: "var(--ink, #0f172a)", display: "block" }}>
+                        {buyerName}
+                      </strong>
+                      <span style={{ fontSize: "12px", color: "var(--muted, #64748b)" }}>
+                        {buyer.companyName && buyer.contactName ? buyer.companyName : (buyer.industry || "Fix & Flip / Turnkey Rental")}
+                      </span>
+                    </div>
+                    <span className="buyer-badge-tag" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" }}>
+                      Budget: ${maxBudget.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border, #30363d)" }}>
+                    <div style={{ fontSize: "12px", color: "var(--muted, #64748b)" }}>
+                      📞 <span>{buyerPhone}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${isCopied ? "btn-secondary" : "btn-primary"}`}
+                      style={{ fontSize: "11.5px", padding: "4px 10px" }}
+                      onClick={() => handleCopyPitch(buyer)}
+                    >
+                      {isCopied ? "✓ Pitch Copied!" : "📋 Copy Deal Pitch"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── AI Deal Analysis Modal ────────────────────────────────────────────── */}

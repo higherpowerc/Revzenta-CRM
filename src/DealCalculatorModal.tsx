@@ -2809,7 +2809,35 @@ export default function DealCalculatorModal({ property, allProperties, onClose, 
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
                     <CurrencyField label="After-Repair Value (ARV)" value={cashArv} onChange={setCashArv} hint="Appraised retail" />
-                    <CurrencyField label="Estimated Repairs" value={cashRepairs} onChange={setCashRepairs} hint="Scope of rehab" />
+                    <div>
+                      <CurrencyField label="Estimated Repairs" value={cashRepairs} onChange={setCashRepairs} hint="Scope of rehab" />
+                      <div style={{ display: "flex", gap: "4px", marginTop: "6px", flexWrap: "wrap" }}>
+                        {[
+                          { label: "Cosmetic $15k", val: 15000 },
+                          { label: "Moderate $35k", val: 35000 },
+                          { label: "Heavy $65k", val: 65000 },
+                          { label: "Gut $95k", val: 95000 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.val}
+                            type="button"
+                            onClick={() => setCashRepairs(preset.val)}
+                            style={{
+                              padding: "2px 6px",
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              borderRadius: "4px",
+                              border: cashRepairs === preset.val ? "1px solid var(--primary, #00a89f)" : "1px solid var(--border, #30363d)",
+                              background: cashRepairs === preset.val ? "rgba(0, 168, 159, 0.2)" : "var(--panel, #121216)",
+                              color: cashRepairs === preset.val ? "var(--primary, #00a89f)" : "var(--muted, #94a3b8)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div>
                       <NumberField label="Target Investor Rule" value={cashInvestorRule} onChange={setCashInvestorRule} suffix="%" hint="Investor margin rule" />
                       <div style={{ display: "flex", gap: "4px", marginTop: "6px" }}>
