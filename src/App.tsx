@@ -428,7 +428,7 @@ export default function App() {
       case "marketing":
         return isOwnerCockpit;
       case "messages":
-        return true;
+        return !isOwnerCockpit;
     }
   };
   const effectiveView: View = viewAllowed(view) ? view : "dashboard";
@@ -447,7 +447,8 @@ export default function App() {
           v !== "sold" &&
           v !== "contracts" &&
           v !== "properties" &&
-          v !== "leads"
+          v !== "leads" &&
+          v !== "messages"
         );
       }
       return (
@@ -996,17 +997,6 @@ export default function App() {
                 >
                   <span className="tab-icon">⏸️</span>
                   <span>Inactive Accounts</span>
-                </button>
-                <button
-                  className={effectiveViewFinal === "messages" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setView("messages");
-                    setMobileMenuOpen(false);
-                  }}
-                  title="Unified internal team communications and Title & Escrow notes"
-                >
-                  <span className="tab-icon">💬</span>
-                  <span>Message Hub</span>
                 </button>
 
                 {/* 3. Marketing & Operations */}
