@@ -460,9 +460,13 @@ export default function App() {
         v !== "contracts"
       );
     }
-    return !(v === "appointments" || v === "finance");
+    return !(v === "appointments" || v === "finance" || v === "leads");
   };
-  const effectiveViewFinal: View = viewWholesaleAllowed(effectiveView) ? effectiveView : "dashboard";
+  const effectiveViewFinal: View = viewWholesaleAllowed(effectiveView)
+    ? effectiveView
+    : isWholesale && effectiveView === "leads"
+    ? "opportunities"
+    : "dashboard";
 
   const activeTabLabel = useMemo(() => {
     if (previewVertical === "wholesalebiz") {
@@ -1192,25 +1196,6 @@ export default function App() {
                   >
                     <span className="tab-icon">🔥</span>
                     <span>Hot List</span>
-                  </button>
-                )}
-
-                {canSeeTab("clients") && (
-                  <button
-                    className={effectiveViewFinal === "leads" ? "tab active" : "tab"}
-                    onClick={() => {
-                      setSelectedOpportunity(null);
-                      setHuntersHubResetKey((k) => k + 1);
-                      setLeadsStage(null);
-                      setOnboardingStage(null);
-                      setLeadsFilter("active");
-                      setView("leads");
-                      setMobileMenuOpen(false);
-                    }}
-                    title="Wholesale property pipeline and creative underwriting hub"
-                  >
-                    <span className="tab-icon">🏘️</span>
-                    <span>Hunters Hub</span>
                   </button>
                 )}
 
