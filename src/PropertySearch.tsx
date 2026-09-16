@@ -19,7 +19,6 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
-  const [addressFilter, setAddressFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [countyFilter, setCountyFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
@@ -86,7 +85,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
       sortBy,
       sortOrder,
     };
-    if (addressFilter.trim()) filters.address = addressFilter.trim();
+    if (naturalQuery.trim()) filters.query = naturalQuery.trim();
     if (stateFilter.trim()) filters.state = stateFilter.trim().toUpperCase();
     if (countyFilter.trim()) filters.county = countyFilter.trim();
     if (cityFilter.trim()) filters.city = cityFilter.trim();
@@ -104,7 +103,7 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
     if (isProbate) filters.isProbate = true;
     return filters;
   }, [
-    addressFilter, stateFilter, countyFilter, cityFilter, zipFilter, minValue, maxValue,
+    naturalQuery, stateFilter, countyFilter, cityFilter, zipFilter, minValue, maxValue,
     minEquityPct, minBeds, minBaths, propertyType, isAbsentee, isVacant,
     isTaxDelinquent, isPreForeclosure, isProbate, sortBy, sortOrder
   ]);
@@ -159,13 +158,14 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
     loadDistressAlerts();
   }, [loadProviders, loadDistressAlerts]);
 
-  // Auto-search with debounce when address filter changes
+  // Auto-search with 400ms debounce as user types into the searchbar
   useEffect(() => {
+    if (isTranslating) return;
     const timer = setTimeout(() => {
       runSearch();
     }, 400);
     return () => clearTimeout(timer);
-  }, [addressFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [naturalQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Natural Language AI Search
   const handleAiSearch = async (e?: FormEvent, overridePrompt?: string) => {
@@ -506,88 +506,79 @@ export default function PropertySearch({ user, onNavigateToLead }: Props) {
         </div>
       )}
 
-      {/* Address Quick Search — auto-searches as you type */}
+      {/* Unified Intelligent Search Bar — single searchbar for address auto-search and AI prompts */}
       <div style={{
         background: "var(--card-bg, #ffffff)",
-        border: "2px solid var(--primary, #00a89f)",
+        border: "1px solid var(--border, #e2e8f0)",
         borderRadius: "12px",
-        padding: "14px 18px",
-        marginBottom: "14px",
-        boxShadow: "0 2px 10px rgba(0,168,159,0.1)",
-      }}>
-        <div style={{ position: "relative" }}>
-          <span style={{ position: "absolute", left: "13px", top: "50%", transform: "translateY(-50%)", fontSize: "18px", pointerEvents: "none" }}>🏠</span>
-          <input
-            type="text"
-            className="input"
-            style={{ width: "100%", paddingLeft: "44px", paddingRight: loading ? "110px" : "16px", height: "48px", fontSize: "15px", fontWeight: 500, boxSizing: "border-box" }}
-            placeholder="Search by address, street name, or APN... (auto-searches as you type)"
-            value={addressFilter}
-            onChange={(e) => setAddressFilter(e.target.value)}
-          />
-          {addressFilter && (
-            <button
-              type="button"
-              onClick={() => setAddressFilter("")}
-              style={{ position: "absolute", right: loading ? "90px" : "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--muted, #64748b)", lineHeight: 1 }}
-              title="Clear address"
-            >×</button>
-          )}
-          {loading && addressFilter && (
-            <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--primary, #00a89f)", fontWeight: 600 }}>
-              Searching…
-            </span>
-          )}
-        </div>
-        {addressFilter && (
-          <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "var(--muted, #64748b)" }}>
-            🔍 Showing results for <strong style={{ color: "var(--ink, #0f172a)" }}>"{addressFilter}"</strong> — results update automatically as you type
-          </p>
-        )}
-      </div>
-
-      {/* AI Natural Language Search Card */}
-      <div style={{
-        background: "var(--card-bg, #1e293b)",
-        border: "1px solid var(--border-color, #334155)",
-        borderRadius: "12px",
-        padding: "20px",
+        padding: "16px 20px",
         marginBottom: "20px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+        boxShadow: "0 2px 10px rgba(0,0,0,0.06)"
       }}>
         <form onSubmit={(e) => handleAiSearch(e)}>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ flex: "1 1 500px", position: "relative" }}>
               <input
                 type="text"
                 className="input"
-                style={{ width: "100%", paddingLeft: "38px", height: "46px", fontSize: "15px" }}
-                placeholder="Ask Gemini AI: e.g. Find absentee owners in Maricopa County with properties worth $300k-$600k and >40% equity..."
+                style={{ width: "100%", paddingLeft: "42px", paddingRight: naturalQuery ? "105px" : "16px", height: "48px", fontSize: "15px", boxSizing: "border-box" }}
+                placeholder="Search by address, street, city, APN, or ask AI (e.g. 742 Evergreen, or absentee owners in Maricopa County)..."
                 value={naturalQuery}
-                onChange={(e) => setNaturalQuery(e.target.value)}
+                onChange={(e) => {
+                  setNaturalQuery(e.target.value);
+                  if (aiInterpretation) setAiInterpretation(null);
+                }}
               />
-              <span style={{ position: "absolute", left: "12px", top: "14px", fontSize: "18px" }}>✨</span>
+              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "18px", pointerEvents: "none" }}>
+                🔍
+              </span>
+              {naturalQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNaturalQuery("");
+                    setAiInterpretation(null);
+                  }}
+                  style={{ position: "absolute", right: loading ? "82px" : "14px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--muted, #64748b)", lineHeight: 1 }}
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+              {loading && naturalQuery && (
+                <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--primary, #00a89f)", fontWeight: 600 }}>
+                  Searching…
+                </span>
+              )}
             </div>
 
             <button
               type="submit"
               className="btn btn-primary"
               disabled={isTranslating || loading}
-              style={{ height: "46px", padding: "0 20px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}
+              style={{ height: "48px", padding: "0 20px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}
+              title="Use Gemini AI to translate natural language prompts into deep distress & equity filters"
             >
-              {isTranslating ? "Translating with AI..." : "Search with AI"}
+              <span>✨</span>
+              <span>{isTranslating ? "Translating AI..." : "Search with AI"}</span>
             </button>
 
             <button
               type="button"
               className="btn btn-secondary"
               onClick={() => setShowFilters(!showFilters)}
-              style={{ height: "46px", padding: "0 16px" }}
+              style={{ height: "48px", padding: "0 16px" }}
             >
               {showFilters ? "Hide Filters ▲" : "Filters & Criteria ▼"}
             </button>
           </div>
         </form>
+
+        {naturalQuery && !isTranslating && (
+          <p style={{ margin: "10px 0 0", fontSize: "12px", color: "var(--muted, #64748b)" }}>
+            ⚡ Live search: Showing properties matching <strong style={{ color: "var(--ink, #0f172a)" }}>"{naturalQuery}"</strong> — updates automatically as you type.
+          </p>
+        )}
 
         {/* Quick Sample Queries */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>

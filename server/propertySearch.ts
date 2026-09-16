@@ -197,8 +197,10 @@ export async function searchProperties(
 
   if (filters.query?.trim()) {
     const q = `%${filters.query.trim().toLowerCase()}%`;
-    whereClauses.push("(LOWER(address_line1) LIKE ? OR LOWER(city) LIKE ? OR LOWER(county) LIKE ? OR LOWER(owner_name) LIKE ? OR apn LIKE ?)");
-    params.push(q, q, q, q, q);
+    whereClauses.push(
+      "(LOWER(address_line1) LIKE ? OR LOWER(city) LIKE ? OR UPPER(state) LIKE ? OR zip LIKE ? OR LOWER(county) LIKE ? OR LOWER(owner_name) LIKE ? OR apn LIKE ? OR LOWER(COALESCE(address_line1, '') || ' ' || COALESCE(city, '') || ' ' || COALESCE(state, '') || ' ' || COALESCE(zip, '')) LIKE ?)"
+    );
+    params.push(q, q, q, q, q, q, q, q);
   }
 
   if (filters.address?.trim()) {

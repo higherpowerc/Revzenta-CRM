@@ -287,19 +287,25 @@ export function parseQueryDeterministically(prompt: string): TranslatedSearchQue
   if (filters.county) loc += `${filters.county} County`;
   if (filters.state) loc += loc ? `, ${filters.state}` : filters.state;
 
-  let interpretation = `Searching for ${parts.length ? parts.join(", ") + " " : ""}properties`;
-  if (loc) interpretation += ` in ${loc}`;
-  if (filters.minValue && filters.maxValue) {
-    interpretation += ` valued between $${filters.minValue.toLocaleString()} and $${filters.maxValue.toLocaleString()}`;
-  } else if (filters.minValue) {
-    interpretation += ` valued over $${filters.minValue.toLocaleString()}`;
-  } else if (filters.maxValue) {
-    interpretation += ` valued under $${filters.maxValue.toLocaleString()}`;
+  let interpretation = "";
+  if (parts.length === 0 && !loc && !filters.minValue && !filters.maxValue && !filters.minEquityPct && !filters.minBeds && !filters.minBaths && !filters.propertyTypes) {
+    filters.query = p;
+    interpretation = `Searching for properties matching "${p}" ranked by Revzenta Opportunity Score.`;
+  } else {
+    interpretation = `Searching for ${parts.length ? parts.join(", ") + " " : ""}properties`;
+    if (loc) interpretation += ` in ${loc}`;
+    if (filters.minValue && filters.maxValue) {
+      interpretation += ` valued between $${filters.minValue.toLocaleString()} and $${filters.maxValue.toLocaleString()}`;
+    } else if (filters.minValue) {
+      interpretation += ` valued over $${filters.minValue.toLocaleString()}`;
+    } else if (filters.maxValue) {
+      interpretation += ` valued under $${filters.maxValue.toLocaleString()}`;
+    }
+    if (filters.minEquityPct) {
+      interpretation += ` with at least ${filters.minEquityPct}% equity`;
+    }
+    interpretation += " ranked by Revzenta Opportunity Score.";
   }
-  if (filters.minEquityPct) {
-    interpretation += ` with at least ${filters.minEquityPct}% equity`;
-  }
-  interpretation += " ranked by Revzenta Opportunity Score.";
 
   return {
     rawPrompt: prompt,
